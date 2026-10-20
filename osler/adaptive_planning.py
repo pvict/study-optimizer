@@ -124,6 +124,9 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     for topic in topics:
         profile=replace(base_profile,target_accuracy=base_profile.target_for_area(topic['path'][0]))
         key=tuple(normalize_path(topic['path']))
+        snapshot=topic.get('planner_snapshot')
+        if snapshot and snapshot['observed_date']>as_of: snapshot=None
+        safety_rate=snapshot['confident_accuracy_pct']/100 if snapshot and snapshot['confident_accuracy_pct'] is not None else None
         entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') else by_path[key]
         recent=[e for e in entries if e['kind']=='bloco' and (day-_date(e['day'])).days<=profile.recent_days]
         fresh=[e for e in recent if e['mode']=='novas']
@@ -144,9 +147,10 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         contact_dates=[e['day'] for e in entries if e['kind']!='acumulado']+[e['last_contact'] for e in entries if e.get('last_contact')]
         known=contact_paths.get(tuple(normalize_path(topic['path'])))
         if known: contact_dates.append(known)
+        if snapshot and snapshot['last_contact']: contact_dates.append(snapshot['last_contact'])
         last=max(contact_dates) if contact_dates else None
         age=(day-_date(last)).days if last else None
-        seen=bool(topic['answered_pdf'] or topic.get('studied_cards') or entries or last)
+        seen=bool(topic['answered_pdf'] or topic.get('studied_cards') or entries or last or snapshot and snapshot['unique_questions'])
         observed=performance['reported_percent']
         # Sinais adversos alteram urgência, mantendo cada modalidade fora do posterior das outras.
         signals=[]
@@ -155,6 +159,10 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
             if series['reported_n']>=5 and series['reported_percent'] is not None and series['reported_percent']<profile.target_accuracy/100:
                 signals.append({'mode':mode,'n':series['reported_n'],'percent':series['reported_percent']})
         alert=min(signals,key=lambda s:s['percent']) if signals else None
+        # Segurança recuperada é sinal descritivo separado, nunca amostra binomial de tentativas novas.
+        snapshot_current=bool(snapshot and (day-_date(snapshot['observed_date'])).days<=profile.recent_days and
+                              not any(e['day']>snapshot['observed_date'] for e in fresh+mixed))
+        safety_alert=bool(snapshot_current and safety_rate is not None and snapshot['unique_questions']>=5 and safety_rate<profile.target_accuracy/100)
         scheduling_observed=min(x for x in (observed,alert['percent'] if alert else None) if x is not None) if observed is not None or alert else None
         interval=3 if observed is not None and observed<.7 else 14 if observed is not None and observed<profile.target_accuracy/100 else 30 if performance['exact_n']>=30 else 7
         importance=incidence['weights'][topic['topic_id']]
@@ -182,13 +190,15 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         adverse_urgent=(observed is not None and performance['reported_n']>=10 and observed<.6 or
                         alert and alert['n']>=10 and alert['percent']<.6 or
                         manual.get('erros_criticos') is True or manual.get('erros_recorrentes') is True or
-                        confidence_rate is not None and confidence_rate<.6)
-        evidence_priority='urgente' if adverse_urgent else 'alta' if (alert or observed is not None and performance['reported_n']>=10 and observed<profile.target_accuracy/100) else 'normal'
+                        confidence_rate is not None and confidence_rate<.6 or
+                        safety_alert and snapshot['unique_questions']>=10 and safety_rate<.6)
+        evidence_priority='urgente' if adverse_urgent else 'alta' if (alert or safety_alert or observed is not None and performance['reported_n']>=10 and observed<profile.target_accuracy/100) else 'normal'
         temporal_priority='urgente' if age is not None and age>=2*interval else 'alta' if reduced_due or overdue or pending_due else 'normal'
         priority=min((evidence_priority,temporal_priority),key={'urgente':0,'alta':1,'normal':2}.get)
         status='sem_registro' if not seen else 'diagnostico' if not primary or last is None else 'revisao'
         uncertainty=performance['sd'] if primary else .25
         gap=max(0,profile.target_accuracy/100-min(mean,scheduling_observed if scheduling_observed is not None else mean))
+        if safety_alert: gap=max(gap,profile.target_accuracy/100-safety_rate)
         urgency=1+min(age/max(1,interval),2) if age is not None else 1
         importance=incidence['weights'][topic['topic_id']]
         score=max(importance,.000001)*(gap+profile.uncertainty_weight*uncertainty+.01)*urgency
@@ -197,23 +207,32 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if alert: reason=f"Reforçar erros recentes em questões {alert['mode']} ({100*alert['percent']:.0f}% em {alert['n']} questões)"
         if confidence_rate is not None and confidence_rate<.6: reason='Recuperar acerto com convicção abaixo de 60%'
         if pending_due: reason=f'Revisar {pending_due} respostas ainda sem convicção, com retorno marcado'
+        if safety_alert and not pending_due: reason=f"Reforçar segurança acumulada da Osler ({100*safety_rate:.1f}% em {snapshot['unique_questions']} questões distintas; retrato de {snapshot['observed_date']})"
         due=(_date(spacing['last_evidence_day'])+timedelta(days=interval)).isoformat() if spacing['last_evidence_day'] else (_date(last)+timedelta(days=interval)).isoformat() if last else None
         if pending: due=min([q['due_date'] for q in pending]+([due] if due else []))
         raw_signal=observed if observed is not None else topic['pdf_accuracy']['value']/100 if topic['answered_pdf'] and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None else None
         if alert: raw_signal=min(raw_signal,alert['percent']) if raw_signal is not None else alert['percent']
-        low_accuracy=confidence_rate is not None and confidence_rate<.6 or raw_signal is not None and raw_signal<.6
+        low_accuracy=confidence_rate is not None and confidence_rate<.6 or raw_signal is not None and raw_signal<.6 or safety_alert and safety_rate<.6
         phase=learning_state({'seen':seen,'n':confidence['exact_n'],'rate':confidence_rate,'lower':confidence['interval'][0] if confidence['interval'] else None,
                               'source':confidence_source,'overdue':overdue,'pending_due':pending_due,'raw_rate':raw_signal},profile)
+        if safety_alert and safety_rate<.6: phase='alerta'
         new_since_pdf=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['mode']=='novas' and (not topic['report_date'] or e['day']>topic['report_date']))
         available=max(0,topic['total']-topic['answered_pdf']-new_since_pdf)
+        balance_uncertain=not bool(topic['report_date'])
+        if snapshot and snapshot['observed_date']>=(topic['report_date'] or ''):
+            after_snapshot=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['mode']=='novas' and e['day']>snapshot['observed_date'])
+            available=max(0,snapshot['available_questions']-snapshot['unique_questions']-after_snapshot)
+            balance_uncertain=bool(snapshot['unique_questions']<topic['answered_pdf'] or
+                                   any(e['kind']=='bloco' and e['mode']=='novas' and e['day']==snapshot['observed_date'] for e in entries))
         states.append({**topic,'performance':performance,'repeated':repeated,'baseline':baseline,'performance_source':source,'alert_signal':alert,
                        'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
                        'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,
-                       'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':not bool(topic['report_date']),
+                       'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
+                       'planner_safety':snapshot,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})
         states[-1].update(question_dose(states[-1],profile))
-        states[-1]['is_new_for_day']=not(topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline or any(d<as_of for d in contact_dates))
+        states[-1]['is_new_for_day']=not(topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline or snapshot and snapshot['unique_questions'] or any(d<as_of for d in contact_dates))
         number,stage=next_stage(states[-1],as_of)
         states[-1].update({'review_number':number,'stage':stage})
     order={'urgente':0,'alta':1,'normal':2}

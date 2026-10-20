@@ -41,6 +41,7 @@ def topic_statistics(states,sessions,period,reference,mode='Todas'):
                            'last_contact':max(e['day'] for e in grouped[key]),'answered_pdf':None,'pdf_accuracy':{'raw':'—'},'catalog_available':False})
     rows=[]
     for t in states:
+        snapshot=t.get('planner_safety') or {}
         entries=grouped[tuple(normalize_path(t['path']))]
         exact=[e for e in entries if e.get('correct') is not None]
         approx=[e for e in entries if e.get('percent') is not None]
@@ -59,6 +60,9 @@ def topic_statistics(states,sessions,period,reference,mode='Todas'):
                      'Lotes consolidados (%)':100*sum(p['consolidated'] for p in cohorts)/cohort_n if cohort_n else None,
                      'Questões com convicção informada':cn,'Estado':{'dominado':'Dominado','aprendendo':'Aprendendo','alerta':'Em alerta'}.get(t.get('learning_state'),'Sem avaliação'),
                      'Próxima revisão':t.get('next_review'),'Meta do tema (%)':t.get('target_accuracy'),
+                     'Segurança acumulada Osler (%)':snapshot.get('confident_accuracy_pct'),
+                     'Questões distintas Osler':snapshot.get('unique_questions'),'Retrato Osler':snapshot.get('observed_date'),
+                     'Pendências no retrato Osler':snapshot.get('pending_reviews'),
                      'Acerto (%)':100*correct/n if n else None,'Questões aproximadas':approximate_n,
                      'Acerto aproximado (%)':sum(e['questions']*e['percent'] for e in approx)/approximate_n if approximate_n else None,
                      **{label:sum(e['questions'] for e in entries if e['mode']==value) for label,value in MODES.items() if value},

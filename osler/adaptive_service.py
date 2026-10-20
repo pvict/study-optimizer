@@ -26,6 +26,7 @@ from .study_agenda import StudyAgenda
 from .study_replanning import effective_routine
 from .prevention_service import PreventiveServiceMixin
 from .study_prevention import preventive_state
+from .planner_snapshot import load_planner_contexts
 
 
 class AdaptiveService(PreventiveServiceMixin):
@@ -43,6 +44,7 @@ class AdaptiveService(PreventiveServiceMixin):
         fcounts=Counter(tuple(normalize_path(t.path)) for t in f.records) if f else {}
         flash={tuple(normalize_path(t.path)):t for t in f.records if (t.is_leaf or include_parents) and fcounts[tuple(normalize_path(t.path))]==1} if f else {}
         topics=[]
+        planner,planner_warnings=load_planner_contexts(self.repository,self.guide.datasets(),q.file_sha256,as_of)
         manual={}
         with self.repository._connection() as db:
             rows=db.execute('SELECT o.payload,c.path FROM observations o JOIN assessment_contexts c ON c.row_id=o.row_id WHERE o.active=1 AND o.observation_date<=? AND c.qbank_report=? AND c.flashcards_report=? ORDER BY o.observation_date,o.id',
@@ -65,8 +67,11 @@ class AdaptiveService(PreventiveServiceMixin):
             topics.append({'topic_id':row.topic_id,'path':row.path,'total':row.total,'answered_pdf':row.studied,
                            'pdf_accuracy':{'value':row.acerto_pdf.value,'operator':row.acerto_pdf.operator,'raw':row.acerto_pdf.raw},
                            'report_date':q.report_date,'studied_cards':card.studied if card else None,
-                           'cards_reduced_day':reduced.get(row.topic_id),'manual_context':manual.get(key),'is_leaf':row.is_leaf})
-        return topics,{'qbank':q.file_sha256,'flashcards':f.file_sha256 if f else None}
+                           'cards_reduced_day':reduced.get(row.topic_id),'manual_context':manual.get(key),'is_leaf':row.is_leaf,
+                           'planner_snapshot':planner.get(key)})
+        sources={'qbank':q.file_sha256,'flashcards':f.file_sha256 if f else None}
+        if planner_warnings: sources['planner_warnings']=planner_warnings
+        return topics,sources
 
     def _validate_entry(self,entry,by_path=None):
         entry.validate()
@@ -190,10 +195,10 @@ class AdaptiveService(PreventiveServiceMixin):
         extra_paths=[tuple(normalize_path(e['path'])) for e in extras]
         disjoint=[t for t in planning_states if not any(tuple(normalize_path(t['path']))!=p and (tuple(normalize_path(t['path']))[:len(p)]==p or p[:len(t['path'])]==tuple(normalize_path(t['path']))) for p in extra_paths)]
         plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=agenda['rows'])
-        warnings=list(incidence['warnings'])
+        warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')
-        if any(t['bank_balance_uncertain'] for t in states): warnings.append('PDF sem data: descontei conservadoramente todos os blocos novos registrados do saldo documental; pode haver sobreposição com o PDF.')
+        if any(t['bank_balance_uncertain'] for t in states): warnings.append('O saldo de questões inéditas é uma estimativa: os arquivos e os blocos podem incluir as mesmas questões ou mostrar totais diferentes.')
         if as_of>profile.exam_date: warnings.append('A data da meta já passou. Ajuste a data para continuar a preparação.')
         plan.update({'algorithm_version':'1.5','sources':sources,'profile_id':record['id'],'day_revision':day['revision'],'routine_override':agenda['overrides'].get(as_of,{}),
                      'effective_profile':effective.to_dict(),

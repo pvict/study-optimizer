@@ -40,6 +40,8 @@ def _topic_list(rows,signature,go_record):
                     '</strong></span><span>Convicção: '+escape(confidence)+'</span></div>')
             st.caption('Próxima revisão: '+due)
             if row.get('Meta do tema (%)') is not None: st.caption(f"Meta do tema: {row['Meta do tema (%)']:g}% · acerto com convicção em questões novas e amostra suficiente.")
+            if row.get('Segurança acumulada Osler (%)') is not None:
+                st.caption(f"Segurança acumulada Osler: {row['Segurança acumulada Osler (%)']:g}% em {row['Questões distintas Osler']} questões distintas · retrato de {row['Retrato Osler']}. Inclui recuperações nas revisões.")
             left,right=st.columns(2)
             left.button('Registrar resultado',key='list_record_'+row['topic_id'],on_click=go_record,args=(row['topic_id'],10),disabled=not row['catalog_available'],width='stretch')
             right.button('Adiantar hoje',key='list_extra_'+row['topic_id'],on_click=_open_extra,args=(row['topic_id'],),disabled=not row['catalog_available'],width='stretch')
@@ -96,7 +98,12 @@ def render_topic_table(service,go_record):
     st.caption(f"{label(start) if start else 'Todo o histórico'} até {label(end)} · {len(rows)} temas nos filtros. Semana começa na segunda; mês segue o calendário.")
     detail=st.checkbox('Exibir mais estatísticas',key='statistics_detail')
     fields=['Tema','Área','Estado','Questões','Acerto (%)','Com convicção (%)','Próxima revisão']
+    has_planner=any(r.get('Retrato Osler') for r in rows)
+    if has_planner:
+        fields.insert(-1,'Segurança acumulada Osler (%)')
+        st.caption('Segurança acumulada Osler inclui acertos recuperados em revisões. É um retrato datado, separado dos resultados do período e do acerto em questões novas.')
     if detail: fields+=['Meta do tema (%)','Lotes consolidados (%)','Questões com convicção informada','Prioridade','Último contato','Incidência relativa (%)','Respondidas no PDF','Acerto no PDF','Situação','Novas','Repetidas','Mistas','Questões com acertos exatos','Questões aproximadas','Acerto aproximado (%)','Caminho']
+    if detail and has_planner: fields+=['Questões distintas Osler','Retrato Osler','Pendências no retrato Osler']
     frame=pd.DataFrame(rows,columns=['topic_id',*fields])
     displayed=frame[fields]
     signature=hashlib.sha256(json.dumps([period,reference,mode,[r['topic_id'] for r in rows]]).encode()).hexdigest()[:16]
