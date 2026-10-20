@@ -31,7 +31,7 @@ def next_stage(state,as_of=None):
 
 def topic_trajectory(state,profile,start):
     """Demanda indicativa mantendo o intervalo observado. Datas não reservam vagas."""
-    first=max(start,state.get('next_review') or start)
+    first=max(start,state.get('next_review') or start,profile.start_date or start)
     number,label=next_stage(state,first)
     horizon_end=min(_date(profile.exam_date),_date(start)+timedelta(days=547))
     interval=max(1,state['review_interval_days'])

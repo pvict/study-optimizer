@@ -1,5 +1,6 @@
 """Atualização contínua local, fontes documentais separadas e planos reproduzíveis."""
 from collections import Counter
+from copy import deepcopy
 from dataclasses import replace
 import csv
 import hashlib
@@ -176,6 +177,11 @@ class AdaptiveService(PreventiveServiceMixin):
                   if e['entry']['kind']=='bloco' and e['entry'].get('minutes') and e['entry']['questions']>0][-20:]
         effective=replace(profile,minutes_per_question=max(.25,median(measured))) if measured else profile
         agenda=self.agenda.active(sessions,as_of) if _agenda_override is None else _agenda_override
+        if profile.start_date:
+            agenda=deepcopy(agenda)
+            for reservation in agenda['rows']:
+                reservation['date']=max(reservation['date'],profile.start_date)
+                reservation['original_due']=max(reservation['original_due'],profile.start_date)
         effective,routine_questions=effective_routine(effective,day_settings.to_dict(),agenda['overrides'].get(as_of,{}))
         contacts=[(d['path'],d['day']) for d in self.guide.days() if d['status']!='descanso' and d['path']]
         states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts)
@@ -200,6 +206,7 @@ class AdaptiveService(PreventiveServiceMixin):
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')
         if any(t['bank_balance_uncertain'] for t in states): warnings.append('O saldo de questões inéditas é uma estimativa: os arquivos e os blocos podem incluir as mesmas questões ou mostrar totais diferentes.')
         if as_of>profile.exam_date: warnings.append('A data da meta já passou. Ajuste a data para continuar a preparação.')
+        if profile.start_date and profile.start_date>profile.exam_date: warnings.append('O início do cronograma está depois da prova de referência. Confira as datas em Ajustes.')
         plan.update({'algorithm_version':'1.5','sources':sources,'profile_id':record['id'],'day_revision':day['revision'],'routine_override':agenda['overrides'].get(as_of,{}),
                      'effective_profile':effective.to_dict(),
                      'session_versions':[(s['session_id'],s['version']) for s in sessions],
@@ -259,15 +266,18 @@ class AdaptiveService(PreventiveServiceMixin):
         from .study_replanning import collect_backlog
         as_of=as_of or today_local().isoformat()
         view=self.overview(as_of)
-        backlog=collect_backlog(view['planning_states'],view['sessions'],self.agenda.daily_plans(),as_of)
+        start_date=view['profile'].get('start_date')
+        backlog=collect_backlog(view['planning_states'],view['sessions'],self.agenda.daily_plans(),as_of,start_date=start_date)
         by_id={t['topic_id']:t for t in view['planning_states']}
         known={r['topic_id'] for r in backlog}
         for row in view['agenda']['rows']:
+            if start_date and as_of<=start_date: continue
             for t in backlog:
                 if t['topic_id']==row['topic_id']: t['questions']=min(t['questions'],row['remaining'])
             if row['original_due']>=as_of or row['topic_id'] in known or row['topic_id'] not in by_id: continue
             t=by_id[row['topic_id']]
-            backlog.append({**t,'original_due':row['original_due'],'days_late':(_date(as_of)-_date(row['original_due'])).days,
+            original_due=max(row['original_due'],start_date) if start_date else row['original_due']
+            backlog.append({**t,'original_due':original_due,'days_late':(_date(as_of)-_date(original_due)).days,
                             'risk':1.,'questions':row['remaining'],'missed_questions':row['remaining'],'source_days':[]})
         return {**view['agenda'],'backlog':backlog,'view':view,'token':self.agenda.token()}
 
@@ -283,6 +293,7 @@ class AdaptiveService(PreventiveServiceMixin):
         if len(set(selected))!=len(selected) or set(selected)-{r['topic_id'] for r in rows}: raise ValueError('Selecione somente temas atrasados reconhecidos.')
         rows=[r for r in rows if r['topic_id'] in selected]
         p=AdaptiveProfile(**context['view']['profile'])
+        if p.start_date and start<p.start_date: raise ValueError('Escolha uma data a partir do início do cronograma: '+p.start_date+'.')
         dist=context['view']['plan']['distribution']
         usage={current:{'new':dist['done_new'],'reviews':dist['done_reviews'],'total':context['view']['plan']['done_questions']}}
         preview=preview_replan(rows,p,start,days,mode,self.store.days(),[r for r in context['rows'] if r['topic_id'] not in selected],extra_questions,dates,usage,context['overrides'])

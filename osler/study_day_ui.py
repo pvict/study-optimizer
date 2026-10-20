@@ -58,6 +58,10 @@ def render_study_day(service,go_record,go_review):
     view=service.overview(day)
     service.remember_day(view)
     plan=view['plan']
+    if plan.get('not_started'):
+        st.info('Seu cronograma começa em '+ '/'.join(reversed(plan['start_date'].split('-')))+'. Até lá, não há meta diária nem faltas no aplicativo.')
+        st.caption('Seu histórico da Osler já está disponível em Temas. O Calendário mostra os blocos a partir do início; os contatos anteriores continuam orientando as prioridades.')
+        return
     with st.container(key='study_summary'):
         a,b,c=st.columns(3)
         a.metric('Meta de hoje',plan['target_questions'])

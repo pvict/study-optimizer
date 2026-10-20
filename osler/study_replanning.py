@@ -9,10 +9,11 @@ MODES={'balanced':'Distribuir na carga atual','reviews':'Priorizar revisões por
        'extra':'Acrescentar questões temporariamente','custom':'Escolher datas por tema'}
 
 
-def collect_backlog(states,sessions,saved,as_of):
+def collect_backlog(states,sessions,saved,as_of,start_date=None):
+    if start_date and as_of<=start_date: return []
     latest={}
     for r in saved:
-        if r['plan']['date']<as_of: latest[r['plan']['date']]=r['plan']
+        if r['plan']['date']<as_of and (not start_date or r['plan']['date']>=start_date): latest[r['plan']['date']]=r['plan']
     done=defaultdict(int)
     for s in sessions:
         e=s['entry']
@@ -34,6 +35,8 @@ def collect_backlog(states,sessions,saved,as_of):
         due=due if due and due<as_of else None
         if failures: due=min([d for d,n in failures]+([due] if due else []))
         if not due: continue
+        if start_date: due=max(due,start_date)
+        if due>=as_of: continue
         late=(_date(as_of)-_date(due)).days
         interval=max(1,state['review_interval_days'])
         risk=(1+late/interval)*(1+state.get('incidence_strength',0))*(2 if state.get('low_accuracy') else 1)

@@ -1,6 +1,6 @@
 """Calendário em cards semanais/mensais e detalhe do dia, com previsão identificada."""
 import calendar
-from datetime import timedelta
+from datetime import timedelta,date
 import streamlit as st
 from .planner_service import today_local
 from .study_replanning import past_calendar
@@ -19,6 +19,9 @@ def _reference_changed():
 def _day_summary(day,plan,context,today):
     if plan is None:
         st.caption('Fora do período disponível')
+        return
+    if plan.get('not_started'):
+        st.caption('Antes do início · sem meta')
         return
     if plan.get('historical'):
         st.caption(f"{plan['done_questions']} feitas" if plan['done_questions'] else 'Sem estudo registrado')
@@ -43,6 +46,8 @@ def _date_button(day,plan,selected):
 
 def render_calendar(service,go_record):
     today=today_local()
+    start_date=service.store.profile()['profile'].get('start_date')
+    if start_date: st.caption('Início do cronograma: '+ '/'.join(reversed(start_date.split('-'))))
     st.caption('Previsão dinâmica · depende dos blocos realizados. Agendar não registra estudo nem acertos.')
     service.remember_day(service.overview(today.isoformat()))
     context=service.replanning()
@@ -50,7 +55,9 @@ def render_calendar(service,go_record):
     render_prevention(service)
     top=st.columns([1,1])
     mode=top[0].radio('Visão',['Agenda','Semana','Mês'],horizontal=True,key='calendar_mode')
-    reference=top[1].date_input('Ir para uma data',value=today,min_value=today-timedelta(days=90),max_value=today+timedelta(days=547),key='calendar_reference',on_change=_reference_changed)
+    initial=min(max(today,date.fromisoformat(start_date)),today+timedelta(days=547)) if start_date else today
+    if start_date and date.fromisoformat(start_date)>today+timedelta(days=547): st.caption('O início está além do horizonte atual de18meses. O calendário ainda não programa blocos nesse período.')
+    reference=top[1].date_input('Ir para uma data',value=initial,min_value=today-timedelta(days=90),max_value=today+timedelta(days=547),key='calendar_reference',on_change=_reference_changed)
     end=min(today+timedelta(days=547),reference.replace(day=calendar.monthrange(reference.year,reference.month)[1])+timedelta(days=7))
     plans=service.calendar(max(1,(end-today).days+1))
     by_date={p['date']:p for p in plans}
@@ -78,6 +85,9 @@ def render_calendar(service,go_record):
                         _day_summary(day,plan,context,today)
     plan=by_date[selected]
     st.subheader('Blocos de '+ '/'.join(reversed(selected.split('-'))))
+    if plan.get('not_started'):
+        st.info('O cronograma ainda não começou neste dia. Escolha uma data a partir de '+ '/'.join(reversed(start_date.split('-')))+'.')
+        return
     if plan.get('historical'):
         if not plan['has_plan']: st.info('Dia sem plano salvo. Não presumimos quais temas você deveria ter feito.')
         st.caption(f"{plan['done_questions']} questões realmente registradas nesse dia.")

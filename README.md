@@ -2,7 +2,7 @@
 
 Aplicativo local para organizar a preparação para residência médica: plano diário por quantidade de questões, acompanhamento de desempenho e revisões espaçadas por tema específico.
 
-**Versão 0.16.1.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.16.2.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 ## O que o aplicativo oferece
 
@@ -54,6 +54,8 @@ Incidências podem ser importadas a qualquer momento em **Ajustes → Instituiç
 ## Dados e privacidade
 
 Retratos do Planner com definições confirmadas podem fornecer segurança acumulada, questões distintas e último contato sem criar sessões. Segurança recuperada nas revisões aparece separada do acerto em questões novas e não basta para declarar domínio. [Regras e limites](docs/research/seguranca-acumulada-osler-v0.16.1.md).
+
+Em **Temas**, quando houver retrato importado, **Histórico da Osler** mostra de início questões realizadas e convicção acumulada. **Blocos registrados no app** mostra os resultados de dia, semana, mês ou todo o período. Acumulados não são somados a tentativas. Em **Ajustes → Meta e rotina**, a data de início do cronograma define o primeiro dia com metas; dias anteriores não geram cobrança ou propostas em falta. Contatos reais anteriores continuam orientando as prioridades. Perfis antigos, sem data de início, mantêm o funcionamento anterior. Para voltar ao código anterior a0.16.2, restaure também o backup anterior à configuração de início em outra pasta, preservando a atual.
 
 O banco SQLite, os originais e os exports ficam na pasta local `data/`. Configurações e histórico pessoais não são fornecidos por este repositório. Use a função **Backup e restauração** do aplicativo para guardar seus dados separadamente.
 

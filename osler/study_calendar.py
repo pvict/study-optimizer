@@ -19,12 +19,16 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         day=(_date(start)+timedelta(days=offset)).isoformat()
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
         daily_profile,daily_target=effective_routine(profile,config,agenda['overrides'].get(day,{}))
+        if profile.start_date and day<profile.start_date:
+            plan=allocate_day([],daily_profile,None,config['kind'],sessions if offset==0 else [],day,question_target=daily_target)
+            output.append({**plan,'projection':True,'pending_planned':0,'pending_backlog':0,'topic_backlog':0,'backlog_items':[]})
+            continue
         active=[]
         for state in working:
             returns=[q['due_date'] for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
             decorated=preventive_state(state,day,agenda.get('policies',[]),returns)
             due=decorated['allocation_due']
-            eligible=(not state.get('reschedule_date') or state['reschedule_date']<=day) and (not offset or due is None or due<=day)
+            eligible=(not state.get('reschedule_date') or state['reschedule_date']<=day) and (not offset or day==profile.start_date or due is None or due<=day)
             if not eligible: continue
             original=min(returns+([state['next_review']] if state.get('next_review') else []),default=None)
             contact_age=max(0,(_date(day)-_date(state['last_contact'])).days) if state.get('last_contact') else 0
@@ -72,7 +76,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             t['is_new_for_day']=False
             t['priority']=t.get('evidence_priority',t['priority'])
             # Só contato previsto. Nenhum sucesso, confiança ou posterior é inventado.
-        backlog=projected_backlog(working,pending,day)
+        backlog=projected_backlog(working,pending,day,start_date=profile.start_date)
         output.append({**plan,'projection':offset>0,'pending_planned':scheduled_pending,
                        'pending_backlog':sum(q['remaining'] for q in pending.values() if q['due_date']<=day),
                        'topic_backlog':len(backlog),'backlog_items':backlog})

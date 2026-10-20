@@ -39,6 +39,7 @@ class StudyAgenda:
         return [{'id':r['id'],'plan':r['plan']} for r in self.records() if r.get('kind')=='daily_schedule']
 
     def remember(self,view):
+        if view['plan'].get('not_started'): return None
         actual={}
         for s in view['sessions']:
             e=s['entry']

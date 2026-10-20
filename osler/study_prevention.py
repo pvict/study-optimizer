@@ -21,7 +21,7 @@ def preventive_state(state,day,policies,pending_due_dates=None):
             'anticipated_days':anticipated,'preventive_original_due':due}
 
 
-def projected_backlog(states,pending,day):
+def projected_backlog(states,pending,day,start_date=None):
     result=[]
     for t in states:
         due=t.get('next_review')
@@ -29,6 +29,8 @@ def projected_backlog(states,pending,day):
         dates=[q['due_date'] for q in lots]+([due] if due else [])
         if not dates or min(dates)>day: continue
         due=min(dates)
+        if start_date: due=max(due,start_date)
+        if due>day: continue
         n=sum(q['remaining'] for q in lots if q['due_date']<=day)
         result.append({'topic_id':t['topic_id'],'path':list(t['path']),'due_date':due,
                        'questions':min(t['total'],max(n,t.get('recommended_questions',10))),

@@ -210,6 +210,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if safety_alert and not pending_due: reason=f"Reforçar segurança acumulada da Osler ({100*safety_rate:.1f}% em {snapshot['unique_questions']} questões distintas; retrato de {snapshot['observed_date']})"
         due=(_date(spacing['last_evidence_day'])+timedelta(days=interval)).isoformat() if spacing['last_evidence_day'] else (_date(last)+timedelta(days=interval)).isoformat() if last else None
         if pending: due=min([q['due_date'] for q in pending]+([due] if due else []))
+        retention_due=due
+        if due and profile.start_date: due=max(due,profile.start_date)
         raw_signal=observed if observed is not None else topic['pdf_accuracy']['value']/100 if topic['answered_pdf'] and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None else None
         if alert: raw_signal=min(raw_signal,alert['percent']) if raw_signal is not None else alert['percent']
         low_accuracy=confidence_rate is not None and confidence_rate<.6 or raw_signal is not None and raw_signal<.6 or safety_alert and safety_rate<.6
@@ -227,6 +229,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         states.append({**topic,'performance':performance,'repeated':repeated,'baseline':baseline,'performance_source':source,'alert_signal':alert,
                        'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
                        'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,
+                       'retention_due':retention_due,
                        'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
                        'planner_safety':snapshot,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
@@ -241,6 +244,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
 
 def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None):
     profile.validate()
+    not_started=bool(profile.start_date and as_of<profile.start_date)
+    if not_started: kind='descanso'; extra_topics=None; reservations=None
     if question_target is None: _number(minutes,'Tempo disponível',integer=True,positive=True,maximum=720)
     else: _number(question_target,'Meta de questões',integer=True,positive=True,maximum=1000)
     if kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
@@ -339,6 +344,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     return {'items':items,'questions':total,'done_questions':done,'spent_minutes':spent,'reserves_minutes':reserves,
             'planned_minutes':spent+reserves+total*profile.minutes_per_question,'budget':budget,'minutes_per_question':profile.minutes_per_question,
             'kind':kind,'date':as_of,'target_accuracy':profile.target_accuracy,'available_minutes':minutes,
+            'not_started':not_started,'start_date':profile.start_date,
             'target_questions':0 if kind=='descanso' else target,'base_questions':question_target if question_target is not None else target,
             'extra_questions':sum(t['requested'] for t in extra_topics or []),
             'overrun_questions':max(0,target-(question_target or target)-sum(t['requested'] for t in extra_topics or [])),

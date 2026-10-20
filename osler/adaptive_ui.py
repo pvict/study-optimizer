@@ -180,6 +180,8 @@ def _settings(service):
     p=AdaptiveProfile(**record['configured_profile'])
     st.write('Ajustes globais. Não é necessário configurar cada tema.')
     with st.form('adaptive_profile'):
+        start=st.date_input('Início do cronograma',value=date.fromisoformat(p.start_date) if p.start_date else None,key='settings_start_date')
+        st.caption('Antes dessa data, o app não cobra metas nem faltas. O histórico anterior continua valendo para as revisões.')
         target=st.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
         st.caption('Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
         if ExamGoals(service.repository).active():
@@ -217,7 +219,7 @@ def _settings(service):
             parts=[s.strip() for s in line.split(';')]
             if len(parts)!=2 or parts[0] in institutions: raise ValueError('Use instituição;peso, sem nomes repetidos.')
             institutions[parts[0]]=float(parts[1].replace(',','.'))
-        service.store.save_profile(replace(p,target_accuracy=target,exam_date=exam.isoformat(),max_questions=int(count),
+        service.store.save_profile(replace(p,target_accuracy=target,exam_date=exam.isoformat(),start_date=start.isoformat() if start else None,max_questions=int(count),
                                            institution_weights=institutions,new_share=share,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap),
                                            area_targets={r['Área']:float(r['Meta (%)']) for _,r in area_frame.iterrows() if r['Usar meta própria']}),record['id'])
         st.session_state.pop('adaptive_profile_snapshot',None)
