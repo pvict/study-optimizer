@@ -63,7 +63,7 @@ def topic_statistics(states,sessions,period,reference,mode='Todas'):
                      'Segurança acumulada Osler (%)':snapshot.get('confident_accuracy_pct'),
                      'Questões realizadas':snapshot.get('unique_questions',t.get('answered_pdf')),
                      'Convicção (%)':snapshot.get('confident_accuracy_pct'),
-                     'Fonte do histórico':'Osler · '+snapshot['observed_date'] if snapshot else 'PDF · '+t.get('report_date','') if t.get('answered_pdf') is not None else 'Sem histórico importado',
+                     'Fonte do histórico':'Osler · '+snapshot['observed_date'] if snapshot else 'PDF · '+(t.get('report_date') or 'sem data') if t.get('answered_pdf') is not None else 'Sem histórico importado',
                      'Questões distintas Osler':snapshot.get('unique_questions'),'Retrato Osler':snapshot.get('observed_date'),
                      'Pendências no retrato Osler':snapshot.get('pending_reviews'),
                      'Acerto (%)':100*correct/n if n else None,'Questões aproximadas':approximate_n,

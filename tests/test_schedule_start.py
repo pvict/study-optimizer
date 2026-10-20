@@ -96,3 +96,12 @@ def test_far_future_start_does_not_crash_calendar(tmp_path,monkeypatch,project_r
     app.radio(key='adaptive_view').set_value('Calendário').run()
     assert not app.exception
     assert app.date_input(key='calendar_reference').value<=today_local()+timedelta(days=547)
+
+
+def test_history_labels_pdf_without_date_without_inventing_conviction():
+    from osler.study_statistics import topic_statistics
+    t={**topic(answered=34),'report_date':None}
+    state=topic_states([t],[],[],{},'2026-10-20',AdaptiveProfile())[0]
+    row=topic_statistics([state],[],'Todo o período','2026-10-20')[0]
+    assert row['Questões realizadas']==34 and row['Convicção (%)'] is None
+    assert row['Fonte do histórico']=='PDF · sem data'
