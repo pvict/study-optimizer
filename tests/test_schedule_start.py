@@ -41,6 +41,9 @@ def test_calendar_and_backlog_do_not_charge_days_before_start():
     saved=[{'plan':{'date':'2026-10-20','items':[{'path':t['path'],'questions':20}]}}]
     assert collect_backlog(states,[],saved,'2026-10-21',start_date=p.start_date)==[]
     backlog=collect_backlog(states,[],saved,'2026-10-23',start_date=p.start_date)
+    assert backlog==[]  # histórico importado não cria obrigação não agendada
+    states[0]['review_committed']=True
+    backlog=collect_backlog(states,[],saved,'2026-10-23',start_date=p.start_date)
     assert backlog[0]['original_due']=='2026-10-22' and backlog[0]['days_late']==1
     assert backlog[0]['missed_questions']==0
 

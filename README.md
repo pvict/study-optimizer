@@ -2,7 +2,7 @@
 
 Aplicativo local para organizar a preparação para residência médica: plano diário por quantidade de questões, acompanhamento de desempenho e revisões espaçadas por tema específico.
 
-**Versão 0.16.2.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.17.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 ## O que o aplicativo oferece
 
@@ -52,6 +52,8 @@ Em **Ajustes → Minhas provas**, cadastre instituição, data e corte com a fon
 Incidências podem ser importadas a qualquer momento em **Ajustes → Instituições e incidências**, em HTML, CSV ou TSV. O conjunto de instituições deve corresponder ao arquivo; incidência desconhecida não é tratada como baixa.
 
 ## Dados e privacidade
+
+O histórico importado alimenta uma **fila inicial de prioridades**, distribuída dentro da sua carga. Ele não cria centenas de compromissos vencidos no primeiro dia. As revisões decorrentes de blocos realizados, retornos conhecidos e propostas realmente perdidas continuam identificadas. O calendário mostra riscos de falta de vaga para repetições previstas, sempre condicionais aos resultados e intervalos atuais. [Modelo, evidências e limites](docs/research/priorizacao-inicial-v0.17.md).
 
 Retratos do Planner com definições confirmadas podem fornecer segurança acumulada, questões distintas e último contato sem criar sessões. Segurança recuperada nas revisões aparece separada do acerto em questões novas e não basta para declarar domínio. [Regras e limites](docs/research/seguranca-acumulada-osler-v0.16.1.md).
 

@@ -14,4 +14,5 @@ def block_heading(item):
 def block_context(item):
     phase=item.get('learning_state')
     status=('<span class="study-status study-status-'+phase+'">'+STATE_LABELS[phase]+'</span>') if phase in STATE_LABELS else ''
+    if item.get('status')=='sem_registro': status='<span class="study-status study-status-aprendendo">Novo tema</span>'
     st.html('<div class="study-block-meta">'+status+'<span>'+escape(item['stage'])+'</span></div>')

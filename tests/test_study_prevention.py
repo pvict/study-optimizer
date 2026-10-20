@@ -13,7 +13,7 @@ from test_assessments import setup_assessment
 def test_orange_indicator_has_exact_specific_topic_details_and_no_fake_results():
     p=AdaptiveProfile(max_questions=20,max_topics=1,new_share=0)
     states=topic_states([topic('A'),topic('B')],[],[],{},'2026-10-15',p)
-    for t in states: t.update(next_review='2026-10-16',status='revisao',is_new_for_day=False)
+    for t in states: t.update(next_review='2026-10-16',status='revisao',is_new_for_day=False,review_committed=True)
     before=deepcopy(states)
     days=forecast_calendar(states,p,'2026-10-15',4,[],{})
     assert any(d['topic_backlog'] for d in days)
@@ -45,7 +45,7 @@ def test_temporary_prevention_reduces_projected_risk_without_mutating_study():
     from osler.study_prevention import summarize_risk
     p=AdaptiveProfile(max_questions=20,max_topics=1,new_share=0)
     states=topic_states([topic('A'),topic('B')],[],[],{},'2026-10-15',p)
-    for t in states: t.update(next_review='2026-10-17',review_interval_days=7,status='revisao',is_new_for_day=False)
+    for t in states: t.update(next_review='2026-10-17',review_interval_days=7,status='revisao',is_new_for_day=False,review_committed=True)
     before=forecast_calendar(states,p,'2026-10-15',4,[],{})
     agenda={'rows':[],'overrides':{'2026-10-17':{'mode':'extra','extra_questions':20}},
             'policies':[{'start':'2026-10-15','end':'2026-10-18','topics':['A','B']}]}
@@ -119,7 +119,7 @@ def test_comparison_exposes_worsening_of_a_topic_already_at_risk():
     p=AdaptiveProfile(max_questions=20,max_topics=1,new_share=0)
     states=topic_states([topic('A'),topic('B'),topic('C')],[],[],{},'2026-10-15',p)
     for t in states:
-        t.update(next_review='2026-10-17' if t['topic_id']=='A' else '2026-10-16',review_interval_days=7,status='revisao',is_new_for_day=False)
+        t.update(next_review='2026-10-17' if t['topic_id']=='A' else '2026-10-16',review_interval_days=7,status='revisao',is_new_for_day=False,review_committed=True)
     before=summarize_risk(forecast_calendar(states,p,'2026-10-15',14,[],{}),'2026-10-15','2026-10-28')
     agenda={'rows':[],'overrides':{},'policies':[{'start':'2026-10-15','end':'2026-10-28','topics':['A']}]}
     after=summarize_risk(forecast_calendar(states,p,'2026-10-15',14,[],{},agenda=agenda),'2026-10-15','2026-10-28')

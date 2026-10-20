@@ -13,6 +13,7 @@ from .topic_spacing import spacing_state, learning_state
 from .review_queue import review_queue
 from .topic_trajectory import question_dose, next_stage
 from .study_allocation import category_allocation
+from .review_policy import initial_interval,domain_evidence,review_order
 
 
 def posterior(correct, n):
@@ -128,6 +129,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if snapshot and snapshot['observed_date']>as_of: snapshot=None
         safety_rate=snapshot['confident_accuracy_pct']/100 if snapshot and snapshot['confident_accuracy_pct'] is not None else None
         entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') else by_path[key]
+        pending=[q for q in queued if tuple(normalize_path(q['path']))==key or topic.get('rollup') and tuple(normalize_path(q['path']))[:len(key)]==key]
+        committed=bool(pending or topic.get('cards_reduced_day') or any(e['kind']=='bloco' and (not profile.start_date or e['day']>=profile.start_date) for e in entries))
         recent=[e for e in entries if e['kind']=='bloco' and (day-_date(e['day'])).days<=profile.recent_days]
         fresh=[e for e in recent if e['mode']=='novas']
         mixed=[e for e in recent if e['mode']=='mistas']
@@ -135,6 +138,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         baselines=[e for e in entries if e['kind']=='acumulado']
         baseline=max(baselines,key=lambda e:e['day']) if baselines else None
         manual=topic.get('manual_context') or {}
+        manual_adverse=manual.get('erros_criticos') is True or manual.get('erros_recorrentes') is True
         manual_percent=manual.get('acerto_recente') if manual.get('acerto_recente') is not None else manual.get('acerto_primeira_tentativa')
         manual_baseline={'questions':manual.get('questoes_distintas') or 0,'correct':None,'percent':manual_percent} if manual_percent is not None and manual.get('questoes_distintas') else None
         primary=fresh or mixed or ([baseline] if baseline and baseline['mode']!='repetidas' else [])
@@ -170,6 +174,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         spacing=spacing_state(entries,profile,as_of,incidence_strength)
         if entries: interval=spacing['interval'] if spacing['last_evidence_day'] else min(interval,spacing['interval'])
         else: interval=max(1,math.ceil(interval/(1+.5*incidence_strength)))
+        if not committed: interval=initial_interval(snapshot if snapshot_current else None,profile,incidence_strength)
         if alert: interval=min(interval,3 if alert['percent']<.7 else 14)
         days_left=max(1,(_date(profile.exam_date)-day).days)
         interval=min(interval,max(1,days_left//4))
@@ -179,7 +184,6 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if topic.get('cards_reduced_day'): interval=min(interval,14)
         evidence_age=(day-_date(spacing['last_evidence_day'])).days if spacing['last_evidence_day'] else age
         overdue=evidence_age is not None and evidence_age>=interval
-        pending=[q for q in queued if tuple(normalize_path(q['path']))==key or topic.get('rollup') and tuple(normalize_path(q['path']))[:len(key)]==key]
         pending_due=sum(q['questions'] for q in pending if q['due_date']<=as_of)
         confidence=performance['confidence']
         confidence_source=source
@@ -191,25 +195,31 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                         alert and alert['n']>=10 and alert['percent']<.6 or
                         manual.get('erros_criticos') is True or manual.get('erros_recorrentes') is True or
                         confidence_rate is not None and confidence_rate<.6 or
-                        safety_alert and snapshot['unique_questions']>=10 and safety_rate<.6)
+                        safety_alert and snapshot['unique_questions']>=10 and safety_rate<.6 and (incidence_strength>=.1 or not incidence['contexts']))
         evidence_priority='urgente' if adverse_urgent else 'alta' if (alert or safety_alert or observed is not None and performance['reported_n']>=10 and observed<profile.target_accuracy/100) else 'normal'
-        temporal_priority='urgente' if age is not None and age>=2*interval else 'alta' if reduced_due or overdue or pending_due else 'normal'
+        temporal_priority='urgente' if committed and age is not None and age>=2*interval else 'alta' if reduced_due or overdue or pending_due else 'normal'
         priority=min((evidence_priority,temporal_priority),key={'urgente':0,'alta':1,'normal':2}.get)
         status='sem_registro' if not seen else 'diagnostico' if not primary or last is None else 'revisao'
         uncertainty=performance['sd'] if primary else .25
         gap=max(0,profile.target_accuracy/100-min(mean,scheduling_observed if scheduling_observed is not None else mean))
+        if snapshot_current and safety_rate is not None and not primary: gap=max(0,profile.target_accuracy/100-safety_rate)
         if safety_alert: gap=max(gap,profile.target_accuracy/100-safety_rate)
         urgency=1+min(age/max(1,interval),2) if age is not None else 1
         importance=incidence['weights'][topic['topic_id']]
-        score=max(importance,.000001)*(gap+profile.uncertainty_weight*uncertainty+.01)*urgency
+        imported_pending=bool(snapshot_current and snapshot.get('pending_reviews'))
+        score=max(importance,.000001)*(gap+profile.uncertainty_weight*uncertainty+.1*imported_pending+.01)*urgency
         reason='Começar um tema sem estudo registrado' if not seen else 'Medir rendimento e confirmar o último contato' if status=='diagnostico' else 'Reforçar desempenho abaixo da meta' if observed is not None and observed<profile.target_accuracy/100 else 'Revisitar pelo tempo sem contato' if overdue else 'Manter prática espaçada e conferir retenção'
         if reduced_due: reason='Revisitar por questões após redução seletiva de cartões'
         if alert: reason=f"Reforçar erros recentes em questões {alert['mode']} ({100*alert['percent']:.0f}% em {alert['n']} questões)"
         if confidence_rate is not None and confidence_rate<.6: reason='Recuperar acerto com convicção abaixo de 60%'
         if pending_due: reason=f'Revisar {pending_due} respostas ainda sem convicção, com retorno marcado'
         if safety_alert and not pending_due: reason=f"Reforçar segurança acumulada da Osler ({100*safety_rate:.1f}% em {snapshot['unique_questions']} questões distintas; retrato de {snapshot['observed_date']})"
+        if manual_adverse: reason='Reforçar erros críticos ou recorrentes informados por você'
         due=(_date(spacing['last_evidence_day'])+timedelta(days=interval)).isoformat() if spacing['last_evidence_day'] else (_date(last)+timedelta(days=interval)).isoformat() if last else None
         if pending: due=min([q['due_date'] for q in pending]+([due] if due else []))
+        if reduced_due:
+            reduction_return=(_date(topic['cards_reduced_day'])+timedelta(days=14)).isoformat()
+            due=min(due,reduction_return) if due else reduction_return
         retention_due=due
         if due and profile.start_date: due=max(due,profile.start_date)
         raw_signal=observed if observed is not None else topic['pdf_accuracy']['value']/100 if topic['answered_pdf'] and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None else None
@@ -218,6 +228,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         phase=learning_state({'seen':seen,'n':confidence['exact_n'],'rate':confidence_rate,'lower':confidence['interval'][0] if confidence['interval'] else None,
                               'source':confidence_source,'overdue':overdue,'pending_due':pending_due,'raw_rate':raw_signal},profile)
         if safety_alert and safety_rate<.6: phase='alerta'
+        if not committed and seen and not low_accuracy and not reduced_due: phase='aprendendo'
+        if manual_adverse: phase='alerta'
         new_since_pdf=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['mode']=='novas' and (not topic['report_date'] or e['day']>topic['report_date']))
         available=max(0,topic['total']-topic['answered_pdf']-new_since_pdf)
         balance_uncertain=not bool(topic['report_date'])
@@ -230,16 +242,25 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                        'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
                        'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,
                        'retention_due':retention_due,
+                       'review_committed':committed,'review_origin':'retorno de respostas' if pending else 'acompanhamento de cartões' if topic.get('cards_reduced_day') else 'blocos registrados' if committed else 'fila inicial',
+                       'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse),profile.target_accuracy),
                        'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
-                       'planner_safety':snapshot,
+                       'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})
         states[-1].update(question_dose(states[-1],profile))
         states[-1]['is_new_for_day']=not(topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline or snapshot and snapshot['unique_questions'] or any(d<as_of for d in contact_dates))
         number,stage=next_stage(states[-1],as_of)
         states[-1].update({'review_number':number,'stage':stage})
-    order={'urgente':0,'alta':1,'normal':2}
-    return sorted(states,key=lambda t:(order[t['priority']],t['next_review'] if t['next_review'] and t['next_review']<=as_of else '9999-12-31',-t['score'],t['path']))
+    # Destaque operacional da fila inicial limitado à capacidade aproximada de uma semana.
+    # Necessidade de reforço continua no domínio/low_accuracy; não converte todo o acervo em urgência.
+    initial=sorted([t for t in states if not t['review_committed'] and t['status']!='sem_registro'],key=lambda t:(not t['manual_adverse'],-t['score'],t['path']))
+    weekly_slots=max(0,round(base_profile.max_topics*(1-base_profile.new_share)*7))
+    for rank,t in enumerate(initial,1):
+        t.update(initial_rank=rank,initial_focus=rank<=weekly_slots,
+                 priority='urgente' if t['manual_adverse'] else 'alta' if rank<=weekly_slots else 'normal',
+                 evidence_priority='urgente' if t['manual_adverse'] else 'alta' if rank<=weekly_slots else 'normal')
+    return sorted(states,key=lambda t:review_order(t,as_of))
 
 
 def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None):
@@ -340,7 +361,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             items.append(extra)
     total=sum(i['questions'] for i in items)
     order={'urgente':0,'alta':1,'normal':2}
-    items.sort(key=lambda t:(not t.get('rescheduled',False),order[t['priority']],-t['score']))
+    items.sort(key=lambda t:(not t.get('rescheduled',False),*review_order(t,as_of)))
     return {'items':items,'questions':total,'done_questions':done,'spent_minutes':spent,'reserves_minutes':reserves,
             'planned_minutes':spent+reserves+total*profile.minutes_per_question,'budget':budget,'minutes_per_question':profile.minutes_per_question,
             'kind':kind,'date':as_of,'target_accuracy':profile.target_accuracy,'available_minutes':minutes,

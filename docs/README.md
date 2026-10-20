@@ -1,6 +1,7 @@
 # Documentação
 
 - [Sistema visual](../DESIGN.md): tokens e organização da interface.
+- [Fila inicial e priorização](research/priorizacao-inicial-v0.17.md): histórico sem dívida inicial, carga, evidência e limites.
 - [Metas dos temas e referências de prova](research/meta-em-duas-camadas-v0.16.md): fontes, escolhas e limites da versão 0.16.
 - [Segurança acumulada do Planner](research/seguranca-acumulada-osler-v0.16.1.md): integração sem duplicar questões ou confundir recuperação com primeira tentativa.
 - [Revisões sucessivas](research/revisoes-sucessivas-v0.11.md): espaçamento, quantidades e limites.

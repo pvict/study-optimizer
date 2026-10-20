@@ -76,3 +76,16 @@ def test_archived_topic_with_contact_and_no_scheduled_review_is_not_mislabeled()
     app=AppTest.from_string('from osler.study_tables_ui import _topic_list\n_topic_list('+repr(rows)+',"history",lambda *args:None)').run()
     assert not app.exception
     assert any(c.value=='Próxima revisão: Não programada' for c in app.caption)
+
+
+def test_initial_topic_card_shows_queue_action_instead_of_false_review_date():
+    from osler.study_statistics import topic_statistics
+    from osler.adaptive_planning import topic_states
+    from osler.study_models import AdaptiveProfile
+    from test_initial_review_policy import imported
+    state=topic_states([imported()],[],[],{},'2026-10-15',AdaptiveProfile())[0]
+    rows=topic_statistics([state],[],'Todo o período','2026-10-15')
+    app=AppTest.from_string('from osler.study_tables_ui import _topic_list\n_topic_list('+repr(rows)+',"initial",lambda *args:None,True)').run()
+    assert not app.exception
+    assert any(c.value=='Próxima ação: Priorizar agora' for c in app.caption)
+    assert not any(c.value.startswith('Próxima revisão:') for c in app.caption)

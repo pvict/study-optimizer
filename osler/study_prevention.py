@@ -26,6 +26,7 @@ def projected_backlog(states,pending,day,start_date=None):
     for t in states:
         due=t.get('next_review')
         lots=[pending[q['session_id']] for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
+        if not t.get('review_committed',True) and not lots: continue
         dates=[q['due_date'] for q in lots]+([due] if due else [])
         if not dates or min(dates)>day: continue
         due=min(dates)

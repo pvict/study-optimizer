@@ -11,11 +11,16 @@ def question_dose(state,profile):
     p=state['confidence'] if state['confidence']['exact_n'] else state['performance']
     target=profile.target_accuracy/100
     rate=p['observed'] if p['observed'] is not None else p['mean']
+    snapshot=state.get('planner_safety') if state.get('planner_snapshot_current',True) else None
+    initial=not state.get('review_committed',True)
+    if initial and snapshot and snapshot.get('confident_accuracy_pct') is not None:
+        rate=snapshot['confident_accuracy_pct']/100
     gap=max(0,target-rate)/target
     uncertainty=min(1,p['sd']/.25)
     h=state.get('incidence_strength',0)
     desired=max(profile.min_block,ceil(profile.min_block+10*gap+5*uncertainty+5*h))
-    if not state['spacing']['block_days']: desired=max(desired,20,profile.min_block)
+    reliable_initial=bool(initial and snapshot and snapshot['unique_questions']>=30 and rate>=target)
+    if not state['spacing']['block_days'] and not reliable_initial: desired=max(desired,20,profile.min_block)
     available=min(state['total'],desired)
     return {'recommended_questions':desired if state['total']<profile.min_block else available,
             'available_per_block':available,'complement_per_block':max(0,desired-state['total']) if state['total']<profile.min_block else 0,

@@ -31,7 +31,7 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None):
         # Um encontro útil posterior recupera planos anteriores; não acumular dívida de repetições.
         recovered=max(state.get('spacing',{}).get('block_days',[]),default=None)
         failures=[(day,n) for day,n in failures if not recovered or day>=recovered]
-        due=state.get('next_review')
+        due=state.get('next_review') if state.get('review_committed',True) or state.get('pending_reviews') else None
         due=due if due and due<as_of else None
         if failures: due=min([d for d,n in failures]+([due] if due else []))
         if not due: continue

@@ -31,8 +31,8 @@ def _day_summary(day,plan,context,today):
     booked=sum(i.get('rescheduled',False) for i in plan['items'])
     if booked: st.html(f'<div class="calendar-badge calendar-booked">{booked} recuperações</div>')
     if day>today and plan.get('topic_backlog'):
-        st.html(f'<div class="calendar-badge calendar-risk">{plan["topic_backlog"]} pendências previstas</div>')
-        st.button('Ver pendências',key='calendar_risks_'+day.isoformat(),on_click=open_prevention,args=(day.isoformat(),),width='stretch')
+        st.html(f'<div class="calendar-badge calendar-risk">{plan["topic_backlog"]} revisões com risco de ficar sem vaga</div>')
+        st.button('Ver revisões',key='calendar_risks_'+day.isoformat(),on_click=open_prevention,args=(day.isoformat(),),width='stretch')
     if plan.get('pending_planned'): st.caption(f"{plan['pending_planned']} retornos de 7 dias")
     if plan.get('pending_backlog'): st.caption(f"{plan['pending_backlog']} pendências sem vaga")
     if plan['items']: st.caption(plan['items'][0]['path'][-1]+(f" +{len(plan['items'])-1} temas" if len(plan['items'])>1 else ''))
@@ -51,6 +51,8 @@ def render_calendar(service,go_record):
     st.caption('Previsão dinâmica · depende dos blocos realizados. Agendar não registra estudo nem acertos.')
     service.remember_day(service.overview(today.isoformat()))
     context=service.replanning()
+    if any(t.get('review_committed') is False for t in context['view']['planning_states']):
+        st.caption('O histórico importado forma uma fila de prioridades. Os primeiros contatos são distribuídos dentro da sua carga; não são dívidas de estudo. Alertas abaixo se referem a revisões já previstas neste cenário.')
     render_replanning(service,context)
     render_prevention(service)
     top=st.columns([1,1])
@@ -95,7 +97,7 @@ def render_calendar(service,go_record):
         return
     if selected>today.isoformat() and plan.get('backlog_items'):
         import pandas as pd
-        st.markdown('**Temas que formam o alerta laranja deste dia**')
+        st.markdown('**Revisões já previstas que podem ficar sem vaga neste cenário**')
         st.dataframe(pd.DataFrame([{'Tema específico':r['path'][-1],'Revisão prevista para':r['due_date'],
                                     'Caminho':' › '.join(r['path'])} for r in plan['backlog_items']]),hide_index=True,width='stretch')
         st.button('Redistribuir antes de atrasar',key='prevent_selected_day',on_click=open_prevention,args=(selected,))

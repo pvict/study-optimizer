@@ -4,6 +4,7 @@ import json
 from .study_storage import StudyStore,_encoded
 from .storage import utc_now
 from .models import normalize_path
+from . import review_policy
 
 
 def planning_token(db):
@@ -11,6 +12,7 @@ def planning_token(db):
             'observations','observation_events','reduction_actions','audit_events','planner_events','exam_targets']
     values=[(name,db.execute('SELECT COALESCE(MAX(rowid),0) FROM '+name).fetchone()[0]) for name in tables]
     values.append(('days',[tuple(r) for r in db.execute('SELECT day,revision FROM study_days ORDER BY day')]))
+    values.append(('review_policy',review_policy.POLICY_VERSION))
     return hashlib.sha256(_encoded(values).encode()).hexdigest()
 
 

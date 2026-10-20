@@ -28,6 +28,7 @@ from .study_replanning import effective_routine
 from .prevention_service import PreventiveServiceMixin
 from .study_prevention import preventive_state
 from .planner_snapshot import load_planner_contexts
+from .review_policy import POLICY_VERSION
 
 
 class AdaptiveService(PreventiveServiceMixin):
@@ -207,7 +208,7 @@ class AdaptiveService(PreventiveServiceMixin):
         if any(t['bank_balance_uncertain'] for t in states): warnings.append('O saldo de questões inéditas é uma estimativa: os arquivos e os blocos podem incluir as mesmas questões ou mostrar totais diferentes.')
         if as_of>profile.exam_date: warnings.append('A data da meta já passou. Ajuste a data para continuar a preparação.')
         if profile.start_date and profile.start_date>profile.exam_date: warnings.append('O início do cronograma está depois da prova de referência. Confira as datas em Ajustes.')
-        plan.update({'algorithm_version':'1.5','sources':sources,'profile_id':record['id'],'day_revision':day['revision'],'routine_override':agenda['overrides'].get(as_of,{}),
+        plan.update({'algorithm_version':POLICY_VERSION,'sources':sources,'profile_id':record['id'],'day_revision':day['revision'],'routine_override':agenda['overrides'].get(as_of,{}),
                      'effective_profile':effective.to_dict(),
                      'session_versions':[(s['session_id'],s['version']) for s in sessions],
                      'incidence_contexts':incidence['contexts']})

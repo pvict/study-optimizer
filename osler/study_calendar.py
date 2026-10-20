@@ -6,6 +6,7 @@ from .planning import _date
 from .adaptive_planning import allocate_day
 from .study_replanning import effective_routine
 from .study_prevention import preventive_state,projected_backlog
+from .review_policy import review_order
 
 
 def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None):
@@ -35,11 +36,11 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             reduced=state.get('cards_reduced_day')
             reduced_due=bool(reduced and (_date(day)-_date(reduced)).days>=14 and
                              (not state.get('last_contact') or state['last_contact']<reduced or contact_age>=14))
-            temporal='urgente' if contact_age>=2*state.get('review_interval_days',profile.max_contact_gap) else 'alta' if reduced_due or original and original<=day else 'normal'
+            temporal='urgente' if state.get('review_committed',True) and contact_age>=2*state.get('review_interval_days',profile.max_contact_gap) else 'alta' if reduced_due or original and original<=day else 'normal'
             ranks={'urgente':0,'alta':1,'normal':2}
             decorated['priority']=min((state.get('evidence_priority',state['priority']),temporal),key=ranks.get)
             active.append(decorated)
-        active.sort(key=lambda t:({'urgente':0,'alta':1,'normal':2}[t['priority']],t['next_review'] if t.get('next_review') and t['next_review']<=day else '9999-12-31',-t['score'],t['path']))
+        active.sort(key=lambda t:review_order(t,day))
         by_id={t['topic_id']:t for t in working}
         extras=[{**by_id[e['topic_id']],'extra_id':e['extra_id'],'requested':e['questions'],'after_event_id':e['after_event_id']} for e in config.get('extra_topics',[]) if e['topic_id'] in by_id]
         due_reservations=[r for r in agenda['rows'] if r['date']<=day and r['remaining']>0]
@@ -75,9 +76,11 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             t['status']='revisao'
             t['is_new_for_day']=False
             t['priority']=t.get('evidence_priority',t['priority'])
+            t['review_committed']=True
             # Só contato previsto. Nenhum sucesso, confiança ou posterior é inventado.
         backlog=projected_backlog(working,pending,day,start_date=profile.start_date)
         output.append({**plan,'projection':offset>0,'pending_planned':scheduled_pending,
                        'pending_backlog':sum(q['remaining'] for q in pending.values() if q['due_date']<=day),
-                       'topic_backlog':len(backlog),'backlog_items':backlog})
+                       'topic_backlog':len(backlog),'backlog_items':backlog,
+                       'initial_topics_waiting':sum(not t.get('review_committed',True) and t['status']!='sem_registro' for t in working)})
     return output

@@ -43,7 +43,9 @@ def _topic_list(rows,signature,go_record,cumulative=False):
                 st.html('<div class="study-list-summary"><span>'+escape(row['Estado'])+'</span><span><strong>'+str(row['Questões'])+
                         '</strong> questões no período</span><span>Acerto: <strong>'+escape(accuracy)+
                         '</strong></span><span>Convicção: '+escape(confidence)+'</span></div>')
-            st.caption('Próxima revisão: '+due)
+            action=row.get('Próxima ação')
+            st.caption('Próxima ação: '+action if action in {'Priorizar agora','Distribuição gradual'} else 'Próxima revisão: '+due)
+            if cumulative and row.get('Domínio / evidência'): st.caption(row['Domínio / evidência'])
             if row.get('Meta do tema (%)') is not None: st.caption(f"Meta do tema: {row['Meta do tema (%)']:g}% · acerto com convicção em questões novas e amostra suficiente.")
             if row.get('Segurança acumulada Osler (%)') is not None:
                 st.caption(f"Segurança acumulada Osler: {row['Segurança acumulada Osler (%)']:g}% em {row['Questões distintas Osler']} questões distintas · retrato de {row['Retrato Osler']}. Inclui recuperações nas revisões.")
@@ -55,14 +57,15 @@ def _topic_list(rows,signature,go_record,cumulative=False):
 
 def render_topic_table(service,go_record):
     view=service.overview(today_local().isoformat())
-    counts={phase:sum(t.get('learning_state')==phase for t in view['planning_states']) for phase in ['dominado','aprendendo','alerta']}
+    counts={phase:sum(t.get('learning_state')==phase and t['status']!='sem_registro' for t in view['planning_states']) for phase in ['dominado','aprendendo','alerta']}
     st.caption('Situação atual dos temas · selecione um grupo para filtrar')
     with st.container(key='topic_states'):
-        panels=st.columns(3)
-        for panel,phase,label in zip(panels,['dominado','aprendendo','alerta'],['Dominados','Aprendendo','Em alerta']):
+        panels=st.columns(4)
+        for panel,phase,label in zip(panels[:3],['dominado','aprendendo','alerta'],['Dominados','Aprendendo','Em alerta']):
             panel.button(f'{label} · {counts[phase]}',key='focus_'+phase,on_click=_set_focus,args=(label,),width='stretch')
+        panels[3].button('Não vistos · '+str(sum(t['status']=='sem_registro' for t in view['planning_states'])),key='focus_unseen',on_click=_set_focus,args=('Sem estudo registrado',),width='stretch')
     with st.expander('O que significa cada grupo?'):
-        st.caption('Dominados: acerto com convicção, amostra suficiente e revisão em dia. Aprendendo: desenvolvimento ou medição pendente. Em alerta: sem estudo registrado, baixo rendimento ou revisão vencida.')
+        st.caption('Dominados: acerto com convicção em blocos, amostra suficiente e revisão em dia. Aprendendo: desenvolvimento ou medição pendente. Em alerta: baixo rendimento ou compromisso de revisão vencido. Não vistos: entram aos poucos, por incidência. Segurança alta na Osler aparece na coluna de evidência; não equivale a primeira tentativa.')
     has_snapshot=any(t.get('planner_safety') for t in view['states'])
     cumulative=has_snapshot and st.radio('Histórico ou resultados registrados?',['Histórico da Osler','Blocos registrados no app'],horizontal=True,key='statistics_source')=='Histórico da Osler'
     if cumulative:
@@ -81,7 +84,7 @@ def render_topic_table(service,go_record):
     all_rows=[r for r in all_rows if tuple(normalize_path(r['Caminho'].split(' → '))) not in aggregate_paths]
     areas=sorted({r['Área'] for r in all_rows})
     area=area_col.selectbox('Área',['Todas',*areas],key='statistics_area')
-    focus=focus_col.selectbox('Mostrar',['Todos os temas','Dominados','Aprendendo','Em alerta','Sem estudo registrado','Erros abaixo de 60%','Com questões no período'],key='statistics_focus')
+    focus=focus_col.selectbox('Mostrar',['Todos os temas','Priorizar agora','Segurança alta na Osler','Dominados','Aprendendo','Em alerta','Sem estudo registrado','Erros abaixo de 60%','Com questões no período'],key='statistics_focus')
     mode='Todas' if cumulative else mode_col.selectbox('Questões',list(MODES),key='statistics_mode')
     rows=topic_statistics(specific_states,view['sessions'],period,reference,mode)
     rows=[r for r in rows if tuple(normalize_path(r['Caminho'].split(' → '))) not in aggregate_paths]
@@ -90,6 +93,8 @@ def render_topic_table(service,go_record):
         rows=[r for r in rows if query in normalize_path([r['Caminho']])[0]]
     if area!='Todas': rows=[r for r in rows if r['Área']==area]
     if focus=='Em alerta': rows=[r for r in rows if r['Estado']=='Em alerta']
+    elif focus=='Priorizar agora': rows=[r for r in rows if r['Prioridade'] in {'Alta','Urgente'}]
+    elif focus=='Segurança alta na Osler': rows=[r for r in rows if r['Domínio / evidência']=='Segurança alta na Osler']
     elif focus=='Dominados': rows=[r for r in rows if r['Estado']=='Dominado']
     elif focus=='Aprendendo': rows=[r for r in rows if r['Estado']=='Aprendendo']
     elif focus=='Sem estudo registrado':
@@ -114,13 +119,13 @@ def render_topic_table(service,go_record):
     def label(day): return '/'.join(reversed(day.split('-')))
     st.caption(f"{len(rows)} temas nos filtros · histórico importado mais recente por tema." if cumulative else f"{label(start) if start else 'Todo o histórico'} até {label(end)} · {len(rows)} temas nos filtros. Semana começa na segunda; mês segue o calendário.")
     detail=st.checkbox('Exibir mais estatísticas',key='statistics_detail')
-    fields=['Tema','Estado','Questões realizadas','Convicção (%)','Último contato','Próxima revisão','Prioridade','Fonte do histórico'] if cumulative else ['Tema','Área','Estado','Questões','Acerto (%)','Com convicção (%)','Próxima revisão']
+    fields=['Tema','Estado','Questões realizadas','Convicção (%)','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Área','Estado','Questões','Acerto (%)','Com convicção (%)','Próxima revisão']
     has_planner=any(r.get('Retrato Osler') for r in rows)
     if has_planner and not cumulative:
         fields.insert(-1,'Segurança acumulada Osler (%)')
         st.caption('Segurança acumulada Osler inclui acertos recuperados em revisões. É um retrato datado, separado dos resultados do período e do acerto em questões novas.')
     if detail: fields+=['Meta do tema (%)','Lotes consolidados (%)','Questões com convicção informada','Prioridade','Último contato','Incidência relativa (%)','Respondidas no PDF','Acerto no PDF','Situação','Novas','Repetidas','Mistas','Questões com acertos exatos','Questões aproximadas','Acerto aproximado (%)','Caminho']
-    if detail and has_planner: fields+=['Questões distintas Osler','Retrato Osler','Pendências no retrato Osler']
+    if detail and has_planner: fields+=['Questões distintas Osler','Retrato Osler','Pendências no retrato Osler','Posição na fila inicial']
     fields=list(dict.fromkeys(fields))
     frame=pd.DataFrame(rows,columns=['topic_id',*fields])
     displayed=frame[fields]
