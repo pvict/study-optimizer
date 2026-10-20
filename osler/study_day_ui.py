@@ -41,10 +41,12 @@ def _day_settings(service,view,day):
         p=AdaptiveProfile(**record['configured_profile'])
         with st.form('today_distribution'):
             share=st.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='today_new_share')
+            workload_mode=st.radio('Distribuição',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
+                                   format_func={'adaptive':'Adaptativa','fixed':'Fixa'}.get,key='today_workload_mode',horizontal=True)
             st.caption(f"Em uma meta de {plan['base_questions']}: {round(plan['base_questions']*share/100)} questões em temas novos e {plan['base_questions']-round(plan['base_questions']*share/100)} em revisões. Revisões incluem diagnóstico de temas já estudados; questões novas do banco podem aparecer nos dois grupos.")
             save_share=st.form_submit_button('Salvar divisão da rotina',key='save_today_distribution')
         if save_share:
-            try: service.store.save_profile(replace(p,new_share=share/100),record['id'])
+            try: service.store.save_profile(replace(p,new_share=share/100,workload_mode=workload_mode),record['id'])
             except ValueError:
                 st.session_state.pop('distribution_profile_snapshot',None)
                 raise
@@ -74,6 +76,10 @@ def render_study_day(service,go_record,go_review):
         if plan['extra_questions']: st.caption(f"{plan['base_questions']} da meta + {plan['extra_questions']} que você adicionou para adiantar.")
         if plan['overrun_questions']: st.caption(f"{plan['overrun_questions']} questões já feitas acima da meta anterior foram preservadas nas revisões extras.")
     override=plan.get('routine_override',{})
+    capacity=plan.get('capacity',{})
+    if capacity.get('mode')=='adaptive':
+        if capacity['effective_share']<capacity['reference_share']: st.caption('Hoje, mais espaço para revisões. Sua divisão de referência continua salva; o ajuste é recalculado a cada dia.')
+        if capacity.get('unused_questions'): st.caption(f"{capacity['unused_questions']} questões da meta ficaram livres: respeitamos a dose dos blocos e a capacidade de repetir. Você pode usar Adiantar revisões.")
     if override.get('mode')=='reviews': st.info('Novos temas pausados hoje pelo plano temporário. Gerencie em Calendário → Reorganizar atrasos.')
     elif override.get('mode')=='extra': st.info(f"Plano temporário: até {override['extra_questions']} questões adicionais de revisão hoje. Seu padrão está preservado.")
     work,extra=st.columns([1.85,1],gap='large')
@@ -89,13 +95,25 @@ def render_study_day(service,go_record,go_review):
                 block_heading(item)
                 st.caption(' › '.join(item['path'][:-1]))
                 block_context(item)
+                if item.get('review_kind')=='lot_only': st.caption('Retorno de respostas sem convicção · a revisão completa do tema mantém sua própria data.')
                 if item.get('preventive_priority'): st.caption('Prioridade do plano preventivo')
                 if item.get('rescheduled'): st.caption('Recuperação agendada · atraso original desde '+item['original_due'])
                 if item['added_by_user']: st.caption(f"Adicionado por você · {item['extra_pending']} questões extras neste bloco · só hoje")
                 elif item['priority']=='urgente': st.caption('Prioridade urgente · comece por aqui')
                 mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
-                st.button('Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if index==1 else 'secondary',
-                          on_click=go_record,args=(item['topic_id'],item['questions'],mode),width='stretch')
+                if item.get('review_kind')=='lot_only':
+                    lots=[lot for lot in item['pending_reviews'] if lot['due_date']<=day]
+                    for lot in lots:
+                        st.button(f"Revisar lote de {lot['questions']} respostas",key='study_lot_'+lot['session_id'],
+                                  on_click=go_review,args=(lot,),width='stretch')
+                    complement=max(0,item['questions']-sum(lot['questions'] for lot in lots))
+                    if complement:
+                        st.caption(f'Complete o bloco com {complement} questões do tema, registradas separadamente dos lotes.')
+                        st.button('Registrar complemento',key='study_complement_'+item['topic_id'],on_click=go_record,
+                                  args=(item['topic_id'],complement,'mistas'),width='stretch')
+                else:
+                    st.button('Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if index==1 else 'secondary',
+                              on_click=go_record,args=(item['topic_id'],item['questions'],mode),width='stretch')
                 with st.expander('Ver próximas revisões'):
                     st.write(item['reason'])
                     trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)

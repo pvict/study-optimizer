@@ -1,5 +1,7 @@
 # Documentação
 
+- [Rotina adaptativa: capacidade, lotes, cobertura e limites — v0.18](research/capacidade-adaptativa-v0.18.md)
+
 - [Sistema visual](../DESIGN.md): tokens e organização da interface.
 - [Fila inicial e priorização](research/priorizacao-inicial-v0.17.md): histórico sem dívida inicial, carga, evidência e limites.
 - [Metas dos temas e referências de prova](research/meta-em-duas-camadas-v0.16.md): fontes, escolhas e limites da versão 0.16.

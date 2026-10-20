@@ -2,12 +2,13 @@
 
 Aplicativo local para organizar a preparação para residência médica: plano diário por quantidade de questões, acompanhamento de desempenho e revisões espaçadas por tema específico.
 
-**Versão 0.17.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.18.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 ## O que o aplicativo oferece
 
 - **Hoje:** blocos de questões priorizados por incidência, desempenho, incerteza e tempo sem contato; registro do resultado e revisões extras.
 - **Calendário:** Agenda, Semana e Mês; atrasos, recuperação e prevenção de pendências com comparação antes/depois e opção de desfazer.
+- **Rotina adaptativa:** referência de novos/revisões com ajuste à demanda e à capacidade de repetir nos próximos14dias; comparação com divisão fixa, custo em cobertura e riscos residuais visíveis. Doses não são infladas para preencher a meta. O modo fixo continua disponível.
 - **Temas:** filtros de situação, períodos de análise, tabela ou lista paginada e exportação dos resultados filtrados.
 - **Registro:** acertos, convicção, questões novas/repetidas/mistas, importação de CSV/TSV e histórico de correções.
 - **Ajustes:** meta diária, metas de acerto nos temas (global ou por área), Minhas provas e incidências por instituição.

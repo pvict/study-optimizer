@@ -6,9 +6,9 @@ def topic_is_new(t):
     return t.get('is_new_for_day',t['status']=='sem_registro')
 
 
-def _fill(selected,counts,target):
+def _fill(selected,counts,target,capped=False):
     while sum(counts.get(t['topic_id'],0) for t in selected)<target:
-        candidates=[t for t in selected if counts.get(t['topic_id'],0)<t['allocation_capacity']]
+        candidates=[t for t in selected if counts.get(t['topic_id'],0)<min(t['allocation_capacity'],t.get('recommended_questions',t['allocation_capacity']))] if capped else [t for t in selected if counts.get(t['topic_id'],0)<t['allocation_capacity']]
         if not candidates: break
         chosen=max(candidates,key=lambda t:t['score']/(counts.get(t['topic_id'],0)+1))
         counts[chosen['topic_id']]=counts.get(chosen['topic_id'],0)+1
@@ -56,7 +56,8 @@ def category_allocation(available,states,profile,budget,day_target,today):
     _,groups=best
     selected=[t for group in groups for t,q in group]
     counts={t['topic_id']:q for group in groups for t,q in group}
-    for group,quota in zip(groups,[want_new,want_reviews]): _fill([t for t,q in group],counts,quota)
+    capped=profile.workload_mode=='adaptive'
+    for group,quota in zip(groups,[want_new,want_reviews]): _fill([t for t,q in group],counts,quota,capped)
     # Ceder sobra é explícito; uma preferência de 0%/100% permanece estrita.
     if 0<profile.new_share<1:
         for t in available:
@@ -67,7 +68,7 @@ def category_allocation(available,states,profile,budget,day_target,today):
             if required>=minimum:
                 selected.append(t)
                 counts[t['topic_id']]=required
-        _fill(selected,counts,budget)
+        _fill(selected,counts,budget,capped)
     actual_new=sum(counts[t['topic_id']] for t in selected if topic_is_new(t))
     actual_reviews=sum(counts.values())-actual_new
     return selected,counts,{'requested_share':profile.new_share,'target_new':new_target,'target_reviews':day_target-new_target,

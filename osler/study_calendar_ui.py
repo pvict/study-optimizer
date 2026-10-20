@@ -6,6 +6,7 @@ from .planner_service import today_local
 from .study_replanning import past_calendar
 from .study_replanning_ui import render_replanning
 from .study_prevention_ui import render_prevention,open_prevention
+from .study_capacity_ui import render_capacity_summary
 
 
 def _select_day(day):
@@ -31,8 +32,8 @@ def _day_summary(day,plan,context,today):
     booked=sum(i.get('rescheduled',False) for i in plan['items'])
     if booked: st.html(f'<div class="calendar-badge calendar-booked">{booked} recuperações</div>')
     if day>today and plan.get('topic_backlog'):
-        st.html(f'<div class="calendar-badge calendar-risk">{plan["topic_backlog"]} revisões com risco de ficar sem vaga</div>')
-        st.button('Ver revisões',key='calendar_risks_'+day.isoformat(),on_click=open_prevention,args=(day.isoformat(),),width='stretch')
+        st.caption(f"{plan['topic_backlog']} revisões a encaixar")
+        if plan.get('capacity',{}).get('mode')!='adaptive': st.button('Ver revisões',key='calendar_risks_'+day.isoformat(),on_click=open_prevention,args=(day.isoformat(),),width='stretch')
     if plan.get('pending_planned'): st.caption(f"{plan['pending_planned']} retornos de 7 dias")
     if plan.get('pending_backlog'): st.caption(f"{plan['pending_backlog']} pendências sem vaga")
     if plan['items']: st.caption(plan['items'][0]['path'][-1]+(f" +{len(plan['items'])-1} temas" if len(plan['items'])>1 else ''))
@@ -44,7 +45,7 @@ def _date_button(day,plan,selected):
               disabled=plan is None,type='primary' if day.isoformat()==selected else 'secondary',width='stretch')
 
 
-def render_calendar(service,go_record):
+def render_calendar(service,go_record,go_review=None):
     today=today_local()
     start_date=service.store.profile()['profile'].get('start_date')
     if start_date: st.caption('Início do cronograma: '+ '/'.join(reversed(start_date.split('-'))))
@@ -60,6 +61,7 @@ def render_calendar(service,go_record):
     initial=min(max(today,date.fromisoformat(start_date)),today+timedelta(days=547)) if start_date else today
     if start_date and date.fromisoformat(start_date)>today+timedelta(days=547): st.caption('O início está além do horizonte atual de18meses. O calendário ainda não programa blocos nesse período.')
     reference=top[1].date_input('Ir para uma data',value=initial,min_value=today-timedelta(days=90),max_value=today+timedelta(days=547),key='calendar_reference',on_change=_reference_changed)
+    render_capacity_summary(service,max(reference.isoformat(),today.isoformat(),start_date or today.isoformat()))
     end=min(today+timedelta(days=547),reference.replace(day=calendar.monthrange(reference.year,reference.month)[1])+timedelta(days=7))
     plans=service.calendar(max(1,(end-today).days+1))
     by_date={p['date']:p for p in plans}
@@ -114,7 +116,11 @@ def render_calendar(service,go_record):
             left.caption(' › '.join(item['path'][:-1]))
             if selected==today.isoformat():
                 mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
-                right.button('Registrar',key='calendar_record_'+item['topic_id'],on_click=go_record,args=(item['topic_id'],item['questions'],mode))
+                if item.get('review_kind')=='lot_only' and go_review:
+                    for lot in item['pending_reviews']:
+                        if lot['due_date']<=selected: right.button('Revisar lote',key='calendar_lot_'+lot['session_id'],on_click=go_review,args=(lot,))
+                    left.caption('O complemento do bloco pode ser registrado na tela Hoje.')
+                else: right.button('Registrar',key='calendar_record_'+item['topic_id'],on_click=go_record,args=(item['topic_id'],item['questions'],mode))
     if not plan['items']: st.info('Dia sem blocos previstos. Pode ser descanso ou intervalo entre revisões.')
     snapshot=st.session_state.setdefault('calendar_snapshot_'+selected,service.store.day(selected,service.store.profile()['profile']['max_questions']))
     with st.expander('Programar quantidade ou descanso deste dia'):

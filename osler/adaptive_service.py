@@ -29,9 +29,10 @@ from .prevention_service import PreventiveServiceMixin
 from .study_prevention import preventive_state
 from .planner_snapshot import load_planner_contexts
 from .review_policy import POLICY_VERSION
+from .capacity_service import CapacityServiceMixin
 
 
-class AdaptiveService(PreventiveServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
@@ -201,7 +202,8 @@ class AdaptiveService(PreventiveServiceMixin):
         question_target=questions if questions is not None else routine_questions if minutes is None else None
         extra_paths=[tuple(normalize_path(e['path'])) for e in extras]
         disjoint=[t for t in planning_states if not any(tuple(normalize_path(t['path']))!=p and (tuple(normalize_path(t['path']))[:len(p)]==p or p[:len(t['path'])]==tuple(normalize_path(t['path']))) for p in extra_paths)]
-        plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=agenda['rows'])
+        from .study_capacity import capacity_limits
+        plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=agenda['rows'],capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda))
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')

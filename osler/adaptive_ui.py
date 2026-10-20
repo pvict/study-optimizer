@@ -68,7 +68,7 @@ def render_adaptive(repo):
             if key.startswith('calendar_snapshot_'): st.session_state.pop(key,None)
     try:
         if view=='Meu dia': render_study_day(service,_go_record,_go_review)
-        elif view=='Calendário': render_calendar(service,_go_record)
+        elif view=='Calendário': render_calendar(service,_go_record,_go_review)
         elif view=='Registrar resultados': _register(service)
         elif view=='Temas e estatísticas': render_topic_table(service,_go_record)
         else:
@@ -192,6 +192,8 @@ def _settings(service):
         st.caption('O tempo disponível não limita essa meta. Você pode mudar um dia específico na tela Hoje.')
         share_percent=st.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='settings_new_share')
         share=share_percent/100
+        workload_mode=st.radio('Como distribuir a rotina?',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
+                               format_func={'adaptive':'Adaptativa — abre espaço para revisões','fixed':'Fixa — mantém a proporção escolhida'}.get,key='settings_workload_mode')
         with st.expander('Metas por grande área (opcional)'):
             catalog,_=service.catalog(today_local().isoformat())
             from .models import normalize_path
@@ -220,7 +222,7 @@ def _settings(service):
             if len(parts)!=2 or parts[0] in institutions: raise ValueError('Use instituição;peso, sem nomes repetidos.')
             institutions[parts[0]]=float(parts[1].replace(',','.'))
         service.store.save_profile(replace(p,target_accuracy=target,exam_date=exam.isoformat(),start_date=start.isoformat() if start else None,max_questions=int(count),
-                                           institution_weights=institutions,new_share=share,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap),
+                                           institution_weights=institutions,new_share=share,workload_mode=workload_mode,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap),
                                            area_targets={r['Área']:float(r['Meta (%)']) for _,r in area_frame.iterrows() if r['Usar meta própria']}),record['id'])
         st.session_state.pop('adaptive_profile_snapshot',None)
         st.session_state['adaptive_notice']='Planejamento atualizado. As próximas quantidades já seguem esses ajustes.'

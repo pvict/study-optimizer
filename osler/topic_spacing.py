@@ -8,7 +8,7 @@ from .planning import _date
 def spacing_state(entries,profile,as_of,incidence_strength=0):
     daily=defaultdict(list)
     for e in entries:
-        if e['kind']=='bloco' and e['day']<=as_of: daily[e['day']].append(e)
+        if e['kind']=='bloco' and e['day']<=as_of and not e.get('review_of'): daily[e['day']].append(e)
     ease,streak,interval,last=2.5,0,7,None
     block_days=[]
     for day,blocks in sorted(daily.items()):

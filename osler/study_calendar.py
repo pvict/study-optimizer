@@ -7,6 +7,7 @@ from .adaptive_planning import allocate_day
 from .study_replanning import effective_routine
 from .study_prevention import preventive_state,projected_backlog
 from .review_policy import review_order
+from .study_capacity import practice_state,capacity_limits
 
 
 def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None):
@@ -28,6 +29,8 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         for state in working:
             returns=[q['due_date'] for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
             decorated=preventive_state(state,day,agenda.get('policies',[]),returns)
+            decorated['pending_reviews']=[{**q,'questions':pending[q['session_id']]['remaining']} for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
+            decorated.update(practice_state(decorated,day,daily_profile))
             due=decorated['allocation_due']
             eligible=(not state.get('reschedule_date') or state['reschedule_date']<=day) and (not offset or day==profile.start_date or due is None or due<=day)
             if not eligible: continue
@@ -47,7 +50,8 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         # Reservas também podem antecipar a fila normal; jamais duplicar o tema.
         active_ids={t['topic_id'] for t in active}
         active.extend(by_id[r['topic_id']] for r in due_reservations if r['topic_id'] in by_id and r['topic_id'] not in active_ids)
-        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations)
+        capacity_states=[{**t,'pending_reviews':[{**q,'questions':pending[q['session_id']]['remaining']} for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]} for t in working]
+        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations,capacity_states=capacity_states,capacity_limits=capacity_limits(profile,day,settings,agenda))
         plan['routine_override']=agenda['overrides'].get(day,{})
         scheduled_pending=0
         for item in plan['items']:
@@ -70,7 +74,9 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
                     record['remaining']-=assigned
                     free-=assigned
                     scheduled_pending+=assigned
-            t['next_review']=(_date(day)+timedelta(days=t.get('review_interval_days',7))).isoformat()
+            if item.get('review_kind')!='lot_only': t['theme_review_due']=(_date(day)+timedelta(days=t.get('review_interval_days',7))).isoformat()
+            future_returns=[q['due_date'] for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
+            t['next_review']=min(future_returns+([t.get('theme_review_due')] if t.get('theme_review_due') else []),default=None)
             t['last_contact']=day
             t['available_new']=max(0,t['available_new']-item['new_questions'])
             t['status']='revisao'

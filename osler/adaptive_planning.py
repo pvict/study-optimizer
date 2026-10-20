@@ -159,7 +159,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         # Sinais adversos alteram urgência, mantendo cada modalidade fora do posterior das outras.
         signals=[]
         for mode in ('novas','mistas','repetidas'):
-            series=_series([e for e in recent if e['mode']==mode])
+            series=_series([e for e in recent if e['mode']==mode and not e.get('review_of')])
             if series['reported_n']>=5 and series['reported_percent'] is not None and series['reported_percent']<profile.target_accuracy/100:
                 signals.append({'mode':mode,'n':series['reported_n'],'percent':series['reported_percent']})
         alert=min(signals,key=lambda s:s['percent']) if signals else None
@@ -215,7 +215,12 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if pending_due: reason=f'Revisar {pending_due} respostas ainda sem convicção, com retorno marcado'
         if safety_alert and not pending_due: reason=f"Reforçar segurança acumulada da Osler ({100*safety_rate:.1f}% em {snapshot['unique_questions']} questões distintas; retrato de {snapshot['observed_date']})"
         if manual_adverse: reason='Reforçar erros críticos ou recorrentes informados por você'
-        due=(_date(spacing['last_evidence_day'])+timedelta(days=interval)).isoformat() if spacing['last_evidence_day'] else (_date(last)+timedelta(days=interval)).isoformat() if last else None
+        theme_contacts=[e['day'] for e in entries if e['kind']!='acumulado' and not e.get('review_of')]+[e['last_contact'] for e in entries if e.get('last_contact') and not e.get('review_of')]
+        if known: theme_contacts.append(known)
+        if snapshot and snapshot['last_contact']: theme_contacts.append(snapshot['last_contact'])
+        theme_last=max(theme_contacts,default=None)
+        due=(_date(spacing['last_evidence_day'])+timedelta(days=interval)).isoformat() if spacing['last_evidence_day'] else (_date(theme_last)+timedelta(days=interval)).isoformat() if theme_last else None
+        theme_due=due
         if pending: due=min([q['due_date'] for q in pending]+([due] if due else []))
         if reduced_due:
             reduction_return=(_date(topic['cards_reduced_day'])+timedelta(days=14)).isoformat()
@@ -241,7 +246,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         states.append({**topic,'performance':performance,'repeated':repeated,'baseline':baseline,'performance_source':source,'alert_signal':alert,
                        'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
                        'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,
-                       'retention_due':retention_due,
+                       'retention_due':retention_due,'theme_review_due':theme_due,
                        'review_committed':committed,'review_origin':'retorno de respostas' if pending else 'acompanhamento de cartões' if topic.get('cards_reduced_day') else 'blocos registrados' if committed else 'fila inicial',
                        'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse),profile.target_accuracy),
                        'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
@@ -249,6 +254,9 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})
         states[-1].update(question_dose(states[-1],profile))
+        states[-1]['theme_recommended_questions']=states[-1]['recommended_questions']
+        from .study_capacity import practice_state
+        states[-1].update(practice_state(states[-1],as_of,profile))
         states[-1]['is_new_for_day']=not(topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline or snapshot and snapshot['unique_questions'] or any(d<as_of for d in contact_dates))
         number,stage=next_stage(states[-1],as_of)
         states[-1].update({'review_number':number,'stage':stage})
@@ -263,7 +271,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     return sorted(states,key=lambda t:review_order(t,as_of))
 
 
-def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None):
+def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None):
     profile.validate()
     not_started=bool(profile.start_date and as_of<profile.start_date)
     if not_started: kind='descanso'; extra_topics=None; reservations=None
@@ -319,9 +327,11 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         t=by_id.get(row['topic_id'])
         if not t or row['date']>as_of or len(recovered)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
-        q=min(row['remaining'],t['total'],group_targets[group],max(0,budget-sum(r['questions'] for r in recovered)))
+        remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
+        group_budget=remaining_budget if profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        q=min(row['remaining'],t['total'],group_budget,remaining_budget)
         if q:
-            group_targets[group]-=q
+            group_targets[group]=max(0,group_targets[group]-q)
             recovered.append({**t,'questions':q,'new_questions':min(q,t['available_new']),'repeat_questions':max(0,q-t['available_new']),
                               'added_by_user':False,'rescheduled':True,'reschedule_date':row['date'],'original_due':row['original_due'],
                               'reason':'Recuperação reagendada; atraso original preservado'})
@@ -329,7 +339,11 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     recovery_ids={r['topic_id'] for r in recovered}
     extra_counts={t['topic_id']:t['questions'] for t in extras}
     minimum=min(profile.min_block,budget)
-    available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in states
+    from .study_capacity import capacity_policy
+    candidates,allocation_profile,capacity=capacity_policy(capacity_states if capacity_states is not None else states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits)
+    candidate_ids={t['topic_id'] for t in candidates}
+    candidates=[t for t in states if t['topic_id'] in candidate_ids]
+    available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in candidates
                if t['topic_id'] not in recovery_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and
                t['total']>=profile.min_block and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,minimum)]
@@ -338,7 +352,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         available.sort(key=lambda t:(ranks[t['priority']],t.get('anticipated_days',0)>0,not t.get('preventive_priority',False),-t['score']))
     from dataclasses import replace
     virtual=[{'path':r['path'],'questions':r['questions']} for r in recovered]
-    selected,counts,distribution=category_allocation(available,states,replace(profile,max_topics=max(0,profile.max_topics-len(recovered))),budget,question_target if question_target is not None else target,today+virtual)
+    selected,counts,distribution=category_allocation(available,states,replace(allocation_profile,max_topics=max(0,profile.max_topics-len(recovered))),budget,question_target if question_target is not None else target,today+virtual)
     for row in recovered:
         group='new' if topic_is_new(row) else 'reviews'
         distribution['done_'+group]-=row['questions']
@@ -362,7 +376,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     total=sum(i['questions'] for i in items)
     order={'urgente':0,'alta':1,'normal':2}
     items.sort(key=lambda t:(not t.get('rescheduled',False),*review_order(t,as_of)))
-    return {'items':items,'questions':total,'done_questions':done,'spent_minutes':spent,'reserves_minutes':reserves,
+    capacity['unused_questions']=max(0,target-done-total)
+    return {'items':items,'questions':total,'capacity':capacity,'done_questions':done,'spent_minutes':spent,'reserves_minutes':reserves,
             'planned_minutes':spent+reserves+total*profile.minutes_per_question,'budget':budget,'minutes_per_question':profile.minutes_per_question,
             'kind':kind,'date':as_of,'target_accuracy':profile.target_accuracy,'available_minutes':minutes,
             'not_started':not_started,'start_date':profile.start_date,

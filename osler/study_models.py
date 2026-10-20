@@ -72,8 +72,10 @@ class AdaptiveProfile:
     area_targets: dict[str,float] = field(default_factory=dict)
     primary_exam_id: str | None = None
     start_date: str | None = None
+    workload_mode: str = 'fixed'
 
     def validate(self):
+        if self.workload_mode not in {'fixed','adaptive'}: raise ValueError('Escolha divisão fixa ou adaptativa.')
         _number(self.target_accuracy, 'Meta de acerto', positive=True, maximum=100)
         _date(self.exam_date)
         if self.start_date is not None: _date(self.start_date)
