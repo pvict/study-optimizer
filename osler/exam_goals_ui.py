@@ -92,6 +92,7 @@ def render_exam_goals(service):
             notes=st.text_area('Observações',value=data.get('notes',''),key='exam_field_notes')
         save=st.form_submit_button('Salvar prova',type='primary',key='save_exam')
     if save:
+        if day is None: raise ValueError('Informe a data da prova antes de salvar.')
         target=ExamTarget(institution,day.isoformat(),cutoff,maximum,source,year,deadline.isoformat() if deadline else None,confidence,notes)
         goals.save(target,target_id=editing['target_id'] if editing else None,expected_version=editing['version'] if editing else 0)
         st.session_state['exam_reset_pending']=True

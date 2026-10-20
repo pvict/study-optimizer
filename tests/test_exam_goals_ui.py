@@ -42,6 +42,21 @@ def test_exam_form_three_targets_edit_principal_void_and_sources(tmp_path,monkey
     assert len(exams.events())==5
 
 
+def test_empty_exam_date_shows_recoverable_error(tmp_path,monkeypatch,project_root,sample_pdf):
+    repo,*_=setup_assessment(tmp_path,sample_pdf)
+    monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
+    app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
+    app.radio(key='adaptive_view').set_value('Ajustes').run()
+    app.radio(key='study_settings_section').set_value('Minhas provas').run()
+    app.text_input(key='exam_field_institution').set_value('Prova de teste')
+    app.number_input(key='exam_field_cutoff').set_value(75.)
+    app.text_input(key='exam_field_source').set_value('Documento de teste')
+    app.date_input(key='exam_field_date').set_value(None)
+    app.button(key='save_exam').click().run()
+    assert not app.exception
+    assert app.error and not ExamGoals(repo).active()
+
+
 def test_principal_flow_has_no_legacy_and_no_new_required_registration_field(tmp_path,monkeypatch,project_root,sample_pdf):
     setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
