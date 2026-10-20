@@ -21,6 +21,7 @@ SCHEMA = {
     7: {"reduction_actions": "id payload digest created_at"},
     8: {"study_events": "id session_id version action payload created_at", "study_profiles": "id payload created_at", "study_plan_runs": "id payload digest created_at"},
     9: {"study_days": "day revision payload updated_at"},
+    10: {"exam_targets": "id target_id version action payload created_at"},
 }
 
 
@@ -30,7 +31,7 @@ def check_database(path):
             if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
                 raise ValueError("Banco falhou na verificação de integridade.")
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if not 2 <= version <= 9:
+            if not 2 <= version <= 10:
                 raise ValueError("Versão do banco não suportada.")
             for required_version, tables in SCHEMA.items():
                 if required_version > version:
@@ -44,6 +45,10 @@ def check_database(path):
                 data = json.loads(payload)
                 data["records"] = [json.loads(r[0]) for r in db.execute("SELECT payload FROM records WHERE report_id=? ORDER BY ordinal", (digest,))]
                 Report.from_dict(data)
+            if version>=10:
+                from .exam_goals import ExamTarget
+                for payload, in db.execute('SELECT payload FROM exam_targets'):
+                    ExamTarget(**json.loads(payload)).validate()
             return version, [r[0] for r in reports]
     except (sqlite3.Error, KeyError, TypeError, AttributeError, json.JSONDecodeError) as exc:
         raise ValueError("Estrutura ou conteúdo do banco incompatível com o aplicativo.") from exc

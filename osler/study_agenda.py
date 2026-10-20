@@ -8,7 +8,7 @@ from .models import normalize_path
 
 def planning_token(db):
     tables=['study_events','study_profiles','study_plan_runs','guide_settings','guide_days','incidence_datasets',
-            'observations','observation_events','reduction_actions','audit_events','planner_events']
+            'observations','observation_events','reduction_actions','audit_events','planner_events','exam_targets']
     values=[(name,db.execute('SELECT COALESCE(MAX(rowid),0) FROM '+name).fetchone()[0]) for name in tables]
     values.append(('days',[tuple(r) for r in db.execute('SELECT day,revision FROM study_days ORDER BY day')]))
     return hashlib.sha256(_encoded(values).encode()).hexdigest()

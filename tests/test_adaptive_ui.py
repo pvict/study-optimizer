@@ -51,7 +51,7 @@ def test_profile_form_preserves_displayed_revision_on_concurrent_change(tmp_path
     app.radio(key='adaptive_view').set_value('Ajustes').run()
     store=AdaptiveService(repo).store
     store.save_profile(AdaptiveProfile(target_accuracy=85,max_questions=100),0)
-    next(x for x in app.number_input if x.label=='Meta de acerto (%)').set_value(80.)
+    next(x for x in app.number_input if x.label=='Meta de acerto nos temas (%)').set_value(80.)
     next(b for b in app.button if b.label=='Salvar planejamento').click().run()
     assert not app.exception
     assert any('atualizado' in e.value for e in app.error)

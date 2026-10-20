@@ -38,7 +38,7 @@ def _day_settings(service,view,day):
         st.divider()
         st.markdown('**Dividir novos e revisões**')
         record=st.session_state.setdefault('distribution_profile_snapshot',service.store.profile())
-        p=AdaptiveProfile(**record['profile'])
+        p=AdaptiveProfile(**record['configured_profile'])
         with st.form('today_distribution'):
             share=st.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='today_new_share')
             st.caption(f"Em uma meta de {plan['base_questions']}: {round(plan['base_questions']*share/100)} questões em temas novos e {plan['base_questions']-round(plan['base_questions']*share/100)} em revisões. Revisões incluem diagnóstico de temas já estudados; questões novas do banco podem aparecer nos dois grupos.")
@@ -124,7 +124,7 @@ def render_study_day(service,go_record,go_review):
                         st.button('Adicionar ao meu dia',on_click=_change_extra,args=(service,day,selected,int(q),view['day']['revision']),width='stretch')
                     else: st.caption('A quantidade conhecida desse banco já foi adicionada hoje.')
                 st.caption('Só entra no progresso depois que você registrar o resultado.')
-        st.caption('Meta de acerto: '+f"{view['profile']['target_accuracy']:g}%"+' · Flashcards: referência de 500 revisões/dia, separada das questões.')
+        st.caption('Meta global nos temas: '+f"{view['profile']['target_accuracy']:g}%"+' · Flashcards: referência de 500 revisões/dia, separada das questões.')
     with st.expander('Como este plano foi escolhido'):
         st.write('O plano combina incidência, desempenho, tamanho da amostra e tempo sem contato. Erros em questões novas, repetidas ou mistas podem dar prioridade à revisão. A quantidade do dia é definida por você; o tempo não limita o plano.')
         if dist['adjusted']: st.caption('A proporção precisou ser aproximada por disponibilidade, blocos mínimos ou limite de temas. Revisões extras ficam fora da divisão automática.')

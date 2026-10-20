@@ -69,6 +69,8 @@ class AdaptiveProfile:
     recent_days: int = 90
     min_block: int = 10
     max_contact_gap: int = 30
+    area_targets: dict[str,float] = field(default_factory=dict)
+    primary_exam_id: str | None = None
 
     def validate(self):
         _number(self.target_accuracy, 'Meta de acerto', positive=True, maximum=100)
@@ -87,7 +89,17 @@ class AdaptiveProfile:
             raise ValueError('Use cada instituição uma única vez, sem duplicar grafias.')
         for value in self.institution_weights.values():
             _number(value, 'Peso da instituição', positive=True)
+        if not isinstance(self.area_targets,dict) or any(not isinstance(k,str) or not k.strip() for k in self.area_targets):
+            raise ValueError('Metas por área inválidas.')
+        if len(set(normalize_path(list(self.area_targets))))!=len(self.area_targets): raise ValueError('Use cada área uma única vez.')
+        for value in self.area_targets.values(): _number(value,'Meta de acerto nos temas',positive=True,maximum=100)
+        if self.primary_exam_id is not None and (not isinstance(self.primary_exam_id,str) or not self.primary_exam_id.strip()):
+            raise ValueError('Prova principal inválida.')
         return self
+
+    def target_for_area(self,area):
+        key=normalize_path([area])[0]
+        return next((v for k,v in self.area_targets.items() if normalize_path([k])[0]==key),self.target_accuracy)
 
     def to_dict(self):
         return asdict(self)

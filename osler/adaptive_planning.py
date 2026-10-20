@@ -1,5 +1,6 @@
 """Alocação explícita de prática; incerteza estatística não é previsão de aprovação."""
 from collections import defaultdict
+from dataclasses import replace
 import math
 from datetime import timedelta
 
@@ -119,7 +120,9 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if contact<=as_of: contact_paths[key]=max(contact,contact_paths.get(key,contact))
     states=[]
     queued=review_queue(sessions) if all('session_id' in s for s in sessions) else []
+    base_profile=profile
     for topic in topics:
+        profile=replace(base_profile,target_accuracy=base_profile.target_for_area(topic['path'][0]))
         key=tuple(normalize_path(topic['path']))
         entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') else by_path[key]
         recent=[e for e in entries if e['kind']=='bloco' and (day-_date(e['day'])).days<=profile.recent_days]
@@ -205,7 +208,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         available=max(0,topic['total']-topic['answered_pdf']-new_since_pdf)
         states.append({**topic,'performance':performance,'repeated':repeated,'baseline':baseline,'performance_source':source,'alert_signal':alert,
                        'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
-                       'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,
+                       'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,
                        'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':not bool(topic['report_date']),
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})

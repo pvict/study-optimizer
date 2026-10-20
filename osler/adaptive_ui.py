@@ -14,6 +14,8 @@ from .study_day_ui import render_study_day
 from .study_tables_ui import render_topic_table
 from .topic_picker_ui import pick_topic, reset_picker
 from .study_calendar_ui import render_calendar
+from .exam_goals_ui import render_exam_goals
+from .exam_goals import ExamGoals
 
 VIEWS=['Meu dia','Calendário','Temas e estatísticas','Registrar resultados','Ajustes']
 
@@ -58,6 +60,7 @@ def render_adaptive(repo):
     with st.container(key='study_navigation'):
         view=st.radio('Seu estudo',VIEWS,format_func=lambda v:{'Meu dia':'Hoje','Temas e estatísticas':'Temas','Registrar resultados':'Registrar'}.get(v,v),horizontal=True,key='adaptive_view',label_visibility='collapsed')
     if view!='Ajustes': st.session_state.pop('adaptive_profile_snapshot',None)
+    if view!='Ajustes': st.session_state.pop('exam_primary_snapshot',None)
     if view!='Meu dia': st.session_state.pop('day_form_snapshot',None)
     if view!='Meu dia': st.session_state.pop('distribution_profile_snapshot',None)
     if view!='Calendário':
@@ -70,8 +73,9 @@ def render_adaptive(repo):
         elif view=='Temas e estatísticas': render_topic_table(service,_go_record)
         else:
             st.subheader('Seu plano, do seu jeito')
-            settings=st.radio('O que ajustar?',['Meta e rotina','Instituições e incidências'],horizontal=True,key='study_settings_section')
+            settings=st.radio('O que ajustar?',['Meta e rotina','Minhas provas','Instituições e incidências'],horizontal=True,key='study_settings_section')
             if settings=='Meta e rotina': _settings(service)
+            elif settings=='Minhas provas': render_exam_goals(service)
             else: render_guide_settings(repo)
     except (ValueError,sqlite3.Error,OSError) as exc:
         st.error(str(exc))
@@ -173,15 +177,30 @@ def _settings(service):
         st.session_state.pop('adaptive_profile_snapshot',None)
         st.rerun()
     record=st.session_state.setdefault('adaptive_profile_snapshot',service.store.profile())
-    p=AdaptiveProfile(**record['profile'])
+    p=AdaptiveProfile(**record['configured_profile'])
     st.write('Ajustes globais. Não é necessário configurar cada tema.')
     with st.form('adaptive_profile'):
-        target=st.number_input('Meta de acerto (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
-        exam=st.date_input('Data de referência da prova',value=date.fromisoformat(p.exam_date))
+        target=st.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
+        st.caption('Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
+        if ExamGoals(service.repository).active():
+            exam=date.fromisoformat(p.exam_date)
+            st.caption('Data efetiva do plano: '+record['profile']['exam_date']+'. Gerencie em Minhas provas.')
+        else: exam=st.date_input('Data de referência da prova',value=date.fromisoformat(p.exam_date))
         count=st.number_input('Meta padrão de questões por dia',min_value=1,max_value=1000,value=p.max_questions)
         st.caption('O tempo disponível não limita essa meta. Você pode mudar um dia específico na tela Hoje.')
         share_percent=st.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='settings_new_share')
         share=share_percent/100
+        with st.expander('Metas por grande área (opcional)'):
+            catalog,_=service.catalog(today_local().isoformat())
+            from .models import normalize_path
+            areas={normalize_path([t['path'][0]])[0]:t['path'][0] for t in catalog}
+            for name in p.area_targets: areas.setdefault(normalize_path([name])[0],name)
+            values=[{'Área':name,'Usar meta própria':any(normalize_path([name])==normalize_path([k]) for k in p.area_targets),
+                     'Meta (%)':float(p.target_for_area(name))} for name in sorted(areas.values())]
+            import pandas as pd
+            area_frame=st.data_editor(pd.DataFrame(values,columns=['Área','Usar meta própria','Meta (%)']),hide_index=True,width='stretch',disabled=['Área'],key='area_targets_'+str(record['id']),
+                                      column_config={'Meta (%)':st.column_config.NumberColumn(min_value=1.,max_value=100.,step=1.)})
+            st.caption('Ative só as áreas que quiser personalizar. As demais usam a meta global; não há configuração por subtema.')
         st.caption(f"{share_percent}% de questões em temas novos · {100-share_percent}% em revisões e diagnósticos. A proporção pode ser aproximada se faltarem temas elegíveis ou vagas por dia.")
         with st.expander('Instituições, distribuição e detalhes'):
             weights=st.text_area('Instituições e importância (uma por linha: nome;peso)',value='\n'.join(f'{k};{v:g}' for k,v in p.institution_weights.items()),placeholder='USP;60\nPSU-MG;40')
@@ -199,7 +218,8 @@ def _settings(service):
             if len(parts)!=2 or parts[0] in institutions: raise ValueError('Use instituição;peso, sem nomes repetidos.')
             institutions[parts[0]]=float(parts[1].replace(',','.'))
         service.store.save_profile(replace(p,target_accuracy=target,exam_date=exam.isoformat(),max_questions=int(count),
-                                           institution_weights=institutions,new_share=share,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap)),record['id'])
+                                           institution_weights=institutions,new_share=share,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap),
+                                           area_targets={r['Área']:float(r['Meta (%)']) for _,r in area_frame.iterrows() if r['Usar meta própria']}),record['id'])
         st.session_state.pop('adaptive_profile_snapshot',None)
         st.session_state['adaptive_notice']='Planejamento atualizado. As próximas quantidades já seguem esses ajustes.'
         st.rerun()

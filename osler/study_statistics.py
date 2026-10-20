@@ -58,7 +58,7 @@ def topic_statistics(states,sessions,period,reference,mode='Todas'):
                      'Com convicção (%)':100*sum(e['confident_correct'] for e in confident)/cn if cn else None,
                      'Lotes consolidados (%)':100*sum(p['consolidated'] for p in cohorts)/cohort_n if cohort_n else None,
                      'Questões com convicção informada':cn,'Estado':{'dominado':'Dominado','aprendendo':'Aprendendo','alerta':'Em alerta'}.get(t.get('learning_state'),'Sem avaliação'),
-                     'Próxima revisão':t.get('next_review'),
+                     'Próxima revisão':t.get('next_review'),'Meta do tema (%)':t.get('target_accuracy'),
                      'Acerto (%)':100*correct/n if n else None,'Questões aproximadas':approximate_n,
                      'Acerto aproximado (%)':sum(e['questions']*e['percent'] for e in approx)/approximate_n if approximate_n else None,
                      **{label:sum(e['questions'] for e in entries if e['mode']==value) for label,value in MODES.items() if value},

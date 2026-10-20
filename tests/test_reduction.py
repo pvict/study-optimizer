@@ -13,6 +13,12 @@ def reduction_app(project_root):
     return app.radio(key='main_view').set_value('Diminuir revisões').run()
 
 
+def legacy_reduction_app(project_root):
+    app=AppTest.from_file(str(project_root/'app.py'),default_timeout=30).run()
+    app.radio(key='main_view').set_value('Ferramentas').run()
+    return app.selectbox(key='advanced_view').set_value('Reduções anteriores').run()
+
+
 def test_reduction_separates_workload_gap_from_candidate_cards(tmp_path, sample_pdf):
     repo, assessment, matching, row = setup_assessment(tmp_path, sample_pdf)
     assessment.save_observation(matching, row.row_id, known(), 0)
@@ -77,8 +83,8 @@ def test_main_screen_exposes_reduction_without_per_topic_forms(tmp_path, monkeyp
     assert len(app.text_input) == 0
     assert len(app.number_input) == 0
     assert len(app.checkbox) == 0
-    assert any('Cicatrização e Avaliação de Feridas' in text.value for text in app.text)
-    assert any('146' in text.value and 'cartões' in text.value for text in app.text)
+    assert any('Cicatrização e Avaliação de Feridas' in str(frame.value.values) for frame in app.dataframe)
+    assert not any(b.key and b.key.startswith('reduce_') for b in app.button)
     assert any('não são revisões por dia' in text.value for text in app.caption)
     assert not any(b.label == 'Já fiz essa mudança na Osler' for b in app.button)
 
@@ -87,7 +93,7 @@ def test_reduction_shortcut_keeps_the_existing_batch(tmp_path, monkeypatch, proj
     from test_planner import setup_plan
     repo, _, _, _, planner, batch_id = setup_plan(tmp_path, sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
-    app = reduction_app(project_root)
+    app = legacy_reduction_app(project_root)
     next(b for b in app.button if b.label == 'Acompanhar esta redução').click().run()
     assert not app.exception
     assert app.radio(key='main_view').value == 'Ferramentas'
@@ -106,7 +112,7 @@ def test_shortcut_selects_clicked_topic_inside_a_multiple_item_batch(tmp_path, m
     bid = planner.create_batch(matching, [other.row_id, row.row_id], 'Dois assuntos', 'Teste', '2026-10-14')
     wanted = next(i for i in planner.get_batch(bid)['items'] if i['row_id'] == row.row_id)
     monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
-    app = reduction_app(project_root)
+    app = legacy_reduction_app(project_root)
     app.button(key=f'reduce_{row.row_id}').click().run()
     assert not app.exception
     assert app.selectbox(key=f'planner_item_{bid}').value == wanted['id']
@@ -116,7 +122,7 @@ def test_reduction_respects_the_same_policy_as_the_planner(tmp_path, monkeypatch
     repo, assessment, matching, row = setup_assessment(tmp_path, sample_pdf)
     assessment.save_observation(matching, row.row_id, known(), 0)
     monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
-    app = reduction_app(project_root)
+    app = legacy_reduction_app(project_root)
     app.session_state['assessment_config'] = {'min_questions': 100}
     app.run()
     assert not app.exception

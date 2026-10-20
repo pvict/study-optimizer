@@ -2,7 +2,7 @@
 
 Aplicativo local para organizar a preparação para residência médica: plano diário por quantidade de questões, acompanhamento de desempenho e revisões espaçadas por tema específico.
 
-**Versão 0.14.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler.
+**Versão 0.16.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 ## O que o aplicativo oferece
 
@@ -10,8 +10,9 @@ Aplicativo local para organizar a preparação para residência médica: plano d
 - **Calendário:** Agenda, Semana e Mês; atrasos, recuperação e prevenção de pendências com comparação antes/depois e opção de desfazer.
 - **Temas:** filtros de situação, períodos de análise, tabela ou lista paginada e exportação dos resultados filtrados.
 - **Registro:** acertos, convicção, questões novas/repetidas/mistas, importação de CSV/TSV e histórico de correções.
-- **Ajustes:** meta diária, proporção de questões entre temas novos e revisões, data da prova e incidências por instituição.
-- **Flashcards e ferramentas:** análise de relatórios, sugestões de redução seletiva, simulação, histórico e backup/restauração.
+- **Ajustes:** meta diária, metas de acerto nos temas (global ou por área), Minhas provas e incidências por instituição.
+- **Flashcards:** lista prática de redução seletiva, com aplicação manual.
+- **Arquivos e ferramentas:** importação e backup; classificação A–D, planejador de suspensões, simulação, painel antigo e roteiro simples identificados como legado, separados do fluxo principal.
 
 O plano usa sempre temas específicos. PDFs são contexto documental: sua data não vira contato de estudo, e percentual revisado não vira percentual de acerto. A meta de90% orienta a preparação; não representa previsão ou garantia de aprovação. As fórmulas de planejamento e seus limites estão na [documentação](docs/README.md).
 
@@ -39,10 +40,14 @@ Em Linux/macOS, use `.venv/bin/python` no lugar de `.venv\Scripts\python.exe`. `
 ## Primeiro uso
 
 1. Em **Arquivos e ferramentas → Dados e classificação → Importar relatórios**, importe os PDFs exportados manualmente.
-2. Em **Meu estudo → Ajustes**, escolha sua meta diária e a divisão entre questões em temas novos e revisões.
+2. Em **Meu estudo → Ajustes → Meta e rotina**, escolha a quantidade diária, a divisão novos/revisões e a meta de acerto nos temas. Metas por grande área são opcionais; áreas sem ajuste usam a global.
 3. Em **Hoje**, faça um bloco e clique em **Registrar este bloco**. O tema e a quantidade já vêm preenchidos.
 4. Registre quantas fez, quantas acertou e, quando souber, quantos acertos foram com convicção. Deixar convicção vazia significa desconhecida.
 5. Use **Calendário** para consultar a programação. **Planejar pendências com antecedência** compara estratégias antes de aplicá-las.
+
+Em **Ajustes → Minhas provas**, cadastre instituição, data e corte com a fonte consultada. Edição, inscrição e observações são opcionais. Você pode editar por nova versão ou desconsiderar sem apagar o histórico. A prova principal escolhida define a data usada pelo plano; no automático, vale a futura mais próxima (ou a passada mais recente se não houver futuras). Sem provas cadastradas, a data configurada anterior é preservada; o padrão continua30/11/2027.
+
+**São duas referências diferentes:** a meta de temas orienta acerto com convicção em questões novas e amostra suficiente; o corte informado de uma prova é somente referência documental (`corte / nota máxima`). Nenhum deles é probabilidade de aprovação. As fórmulas de espaçamento, doses e alocação permanecem as anteriores; metas por área apenas resolvem o parâmetro de meta do tema. [Fonte, hipótese e limites](docs/research/meta-em-duas-camadas-v0.16.md).
 
 Incidências podem ser importadas a qualquer momento em **Ajustes → Instituições e incidências**, em HTML, CSV ou TSV. O conjunto de instituições deve corresponder ao arquivo; incidência desconhecida não é tratada como baixa.
 
@@ -53,6 +58,8 @@ O banco SQLite, os originais e os exports ficam na pasta local `data/`. Configur
 O `.gitignore` exclui banco, PDFs, backups, exports, relatórios de execução, capturas, credenciais e arquivos temporários. O código pode ser atualizado sem incluir esses arquivos no GitHub. Não use `git add -f` para contornar essas exclusões com dados pessoais.
 
 O servidor escuta somente em `127.0.0.1`: o endereço funciona no próprio computador. A adaptação da interface a telas estreitas não habilita acesso de outro aparelho pela rede.
+
+Esta versão migra aditivamente o banco para schema10, com histórico de provas em `exam_targets`. Faça backup antes de atualizar. Para reverter ao código0.14, restaure também um backup anterior (schema9) em outra pasta e preserve a pasta atual; código antigo não abre schema10. Nunca altere `user_version` manualmente para simular reversão.
 
 ## Desenvolvimento e testes
 

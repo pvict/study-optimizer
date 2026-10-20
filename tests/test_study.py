@@ -50,12 +50,12 @@ def test_contact_and_profile_are_validated_without_fake_performance(tmp_path):
         replace(profile, institution_weights={'A':-1}).validate()
 
 
-def test_schema9_backup_roundtrip_preserves_new_and_old_data(tmp_path):
+def test_schema10_backup_roundtrip_preserves_new_and_old_data(tmp_path):
     from osler.backups import create_backup, inspect_backup, restore_backup
     repo = Repository(tmp_path/'data')
     store = StudyStore(repo)
     store.save_batch([('one', entry(), 0)])
     backup = create_backup(repo)
-    assert inspect_backup(backup.read_bytes())['schema_version'] == 9
+    assert inspect_backup(backup.read_bytes())['schema_version'] == 10
     other = StudyStore(Repository(restore_backup(backup.read_bytes(), tmp_path/'restored')))
     assert other.events() == store.events()

@@ -195,7 +195,7 @@ def run():
 
 def _advanced_tools(repo, project_root):
     st.title("Ferramentas e arquivos")
-    st.caption("Você pode usar o guia diário sem preencher estes formulários. Aqui ficam os detalhes e os recursos anteriores.")
+    st.caption("Importação, backup e recursos de apoio. Ferramentas anteriores estão identificadas como legado.")
     all_entries = repo.list_reports()
     entries = repo.list_reports(include_duplicates=False)
     show_equivalent = st.checkbox("Mostrar relatórios equivalentes", value=False)
@@ -208,7 +208,14 @@ def _advanced_tools(repo, project_root):
         report = repo.get_report(selected)
         if by_id[selected]["duplicate_of"]:
             st.info("Conteúdo equivalente a outro relatório; original preservado.")
-    view = st.selectbox("Abrir ferramenta", ["Dados e classificação", "Painel", "Planejador de Suspensões", "Simulação e rotina", "Evolução", "Backup e restauração", "Roteiro simples", "Meu caminho", "Preferências do roteiro"], key="advanced_view")
+    legacy={'Painel','Planejador de Suspensões','Simulação e rotina','Roteiro simples','Meu caminho','Preferências do roteiro','Reduções anteriores'}
+    view = st.selectbox("Abrir ferramenta", ["Dados e classificação", "Painel", "Planejador de Suspensões", "Simulação e rotina", "Evolução", "Backup e restauração", "Roteiro simples", "Meu caminho", "Preferências do roteiro","Reduções anteriores"],format_func=lambda v:v+' (legado)' if v in legacy else v,key="advanced_view")
+    if view in legacy: st.caption('Recurso legado · preservado para consulta e continuidade dos registros anteriores.')
+    if view=='Reduções anteriores':
+        from .practical_reduction_ui import render_legacy_details
+        from .reduction_ui import _open_tool
+        render_legacy_details(repo,_open_tool)
+        return
     if view == "Roteiro simples":
         render_today(repo)
         return
@@ -248,4 +255,5 @@ def _data_tabs(repo, report):
     with crossing:
         render_crossing(repo)
     with assessment:
+        st.caption('Classificação A–D · legado')
         render_assessment(repo)

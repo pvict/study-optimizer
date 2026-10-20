@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+from dataclasses import replace
 
 from .reduction_storage import ReductionStore
 from .storage import utc_now
@@ -27,6 +28,8 @@ class StudyStore:
             ''')
             if db.execute('PRAGMA user_version').fetchone()[0] < 9:
                 db.execute('PRAGMA user_version=9')
+            from .exam_goals import migrate_exam_targets
+            migrate_exam_targets(db)
 
     def day(self,day,default_questions=60):
         _date(day)
@@ -101,7 +104,12 @@ class StudyStore:
     def profile(self):
         with self.repository._connection() as db:
             row = db.execute('SELECT * FROM study_profiles ORDER BY id DESC LIMIT 1').fetchone()
-            return {'id':row['id'],'profile':json.loads(row['payload'])} if row else {'id':0,'profile':AdaptiveProfile().to_dict()}
+        configured=AdaptiveProfile(**json.loads(row['payload'])) if row else AdaptiveProfile()
+        from .exam_goals import active_exams,principal_exam
+        from .planner_service import today_local
+        principal=principal_exam(configured,active_exams(self.repository),today_local().isoformat())
+        effective=replace(configured,exam_date=principal['target']['exam_date']) if principal else configured
+        return {'id':row['id'] if row else 0,'profile':effective.to_dict(),'configured_profile':configured.to_dict()}
 
     def save_profile(self, profile, expected_id):
         profile.validate()

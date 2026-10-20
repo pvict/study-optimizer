@@ -73,7 +73,13 @@ def render_practical(repo, open_tool):
             st.caption('O total pode caber e ainda haver picos. Teto diário não elimina pendências. Compare uma nova previsão com os mesmos filtros após suas mudanças para medir o efeito.')
         else:
             st.write('Não há uma contagem de revisões por período. Isso não impede usar a lista de temas.')
-    with st.expander('Abrir lotes e avaliações detalhadas anteriores'):
+
+
+def render_legacy_details(repo,open_tool):
+    config=ClassifierConfig(**st.session_state.get('assessment_config',{})).validate()
+    view=PracticalReductionService(repo).overview(today_local().isoformat(),500,config=config)
+    st.caption('Legado · lotes e avaliações anteriores. Aplicação na Osler continua manual.')
+    with st.expander('Abrir lotes e avaliações detalhadas anteriores',expanded=True):
         for candidate in view['candidates']:
             st.text(candidate['path'][-1])
             st.text(f"{candidate['cards']} cartões no registro anterior")
