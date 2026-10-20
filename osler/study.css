@@ -1,0 +1,120 @@
+:root {
+  --study-primary: #2563eb;
+  --study-primary-deep: #1d4ed8;
+  --study-bg: #f5f7fb;
+  --study-surface: #ffffff;
+  --study-soft: #edf2fa;
+  --study-ink: #172b4d;
+  --study-muted: #52627a;
+  --study-line: #dce3ed;
+  --study-success: #166534;
+  --study-success-bg: #f0fdf4;
+  --study-warning: #9a3412;
+  --study-warning-bg: #fff7ed;
+  --study-danger: #991b1b;
+  --study-danger-bg: #fef2f2;
+  --study-radius: 12px;
+  --study-space: 1rem;
+}
+.stApp { background: var(--study-bg); color: var(--study-ink); }
+.stApp ::selection { background: #dbeafe; color: var(--study-ink); }
+.stApp input, .stApp textarea { caret-color: var(--study-primary); }
+.block-container { max-width: 1240px; padding: 2.2rem 2rem 4rem; container: study / inline-size; }
+.stApp h1 { font-size: 1.9rem; line-height: 1.2; letter-spacing: -.025em; font-weight: 700; padding-bottom: .3rem; }
+.stApp h2 { font-size: 1.3rem; line-height: 1.3; letter-spacing: -.015em; font-weight: 650; }
+.stApp h3 { font-size: 1.1rem; line-height: 1.4; font-weight: 650; }
+.stApp p, .stApp li { line-height: 1.55; }
+.stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label { overflow-wrap: anywhere; }
+.stApp [data-testid="stCaptionContainer"] { color: var(--study-muted); }
+.stApp [data-testid="stCaptionContainer"] p { font-size: .875rem; }
+.stApp input::placeholder, .stApp textarea::placeholder { color: var(--study-muted); opacity: 1; }
+.stApp [data-testid="stSidebar"] { background: var(--study-surface); border-right: 1px solid var(--study-line); }
+.stApp [data-testid="stSidebar"] h1 { font-size: 1.35rem; letter-spacing: -.02em; }
+.stApp [data-testid="stColumn"], .stApp [data-testid="stVerticalBlock"] { min-width: 0; }
+.stApp [data-testid="stDataFrame"], .stApp [data-testid="stDataEditor"] { max-width: 100%; min-width: 0; }
+.stApp [data-testid="stMetric"] { font-variant-numeric: tabular-nums; padding: .2rem 0; }
+.stApp [data-testid="stMetricValue"] { font-size: 1.85rem; font-weight: 650; color: var(--study-ink); }
+.stApp [data-testid="stMetricLabel"] p { color: var(--study-muted); white-space: normal; overflow: visible; }
+.stApp [data-testid="stForm"] { background: var(--study-surface); border-radius: var(--study-radius); }
+.stApp [data-testid="stExpander"] { background: var(--study-surface); border-radius: var(--study-radius); }
+.stApp [data-testid="stExpander"] summary { min-height: 44px; }
+.stApp button { min-height: 44px; border-radius: 8px; white-space: normal; }
+.stApp [data-testid="stButton"] button, .stApp [data-testid="stFormSubmitButton"] button {
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+.stApp button:focus-visible, .stApp a:focus-visible, .stApp input:focus-visible,
+.stApp textarea:focus-visible, .stApp summary:focus-visible {
+  outline: 3px solid var(--study-primary-deep); outline-offset: 3px;
+}
+.stApp label:has(input:focus-visible) { outline: 3px solid var(--study-primary-deep); outline-offset: 3px; }
+.stApp a { text-underline-offset: .18em; }
+.stApp [data-testid="stRadio"] label, .stApp [data-testid="stCheckbox"] label { min-height: 44px; align-items: center; }
+.stApp [data-testid="stRadio"] [role="radiogroup"] { gap: .3rem .8rem; }
+.st-key-study_navigation { padding: .3rem 0 1rem; border-bottom: 1px solid var(--study-line); margin-bottom: .5rem; }
+.st-key-adaptive_view [role="radiogroup"] { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; }
+.st-key-adaptive_view label { margin: 0; min-width: 0; border-radius: 8px; padding: .45rem .65rem; }
+.st-key-adaptive_view label:has(input:checked) { background: #e8efff; color: var(--study-primary-deep); }
+.st-key-adaptive_view label p { font-size: .9rem; font-weight: 600; }
+.st-key-study_summary { padding: 1rem 0 1.2rem; border-bottom: 1px solid var(--study-line); }
+.st-key-study_work { padding-top: .4rem; }
+.st-key-study_support { padding-top: .4rem; }
+[class*="st-key-study_block_"] { background: var(--study-surface); border-radius: var(--study-radius); }
+.study-block-heading { display: flex; align-items: start; justify-content: space-between; gap: .8rem; margin: 0 0 .35rem; }
+.study-block-heading h3 { margin: 0; padding: 0; flex: 1; min-width: 0; }
+.study-dose { flex-shrink: 0; font-size: .9rem; font-weight: 650; color: var(--study-primary-deep); background: #e8efff; padding: .35rem .55rem; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.study-block-meta { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; font-size: .875rem; color: var(--study-muted); margin: .4rem 0 .65rem; }
+.study-status { display: inline-block; padding: .2rem .5rem; border-radius: 6px; font-size: .8rem; font-weight: 600; }
+.study-status-alerta { color: var(--study-warning); background: var(--study-warning-bg); }
+.study-status-aprendendo { color: var(--study-primary-deep); background: #e8efff; }
+.study-status-dominado { color: var(--study-success); background: var(--study-success-bg); }
+.st-key-topic_states { padding: .4rem 0 1rem; }
+.st-key-focus_dominado button { color: var(--study-success); }
+.st-key-focus_aprendendo button { color: var(--study-primary-deep); }
+.st-key-focus_alerta button { color: var(--study-warning); }
+.calendar-badge { display: inline-block; border-radius: 6px; padding: .25rem .4rem; font-size: .8rem; font-weight: 600; margin: .2rem .2rem .2rem 0; overflow-wrap: anywhere; }
+.calendar-late { color: var(--study-danger); background: var(--study-danger-bg); }
+.calendar-booked { color: var(--study-primary-deep); background: #e8efff; }
+.calendar-risk { color: var(--study-warning); background: var(--study-warning-bg); }
+.st-key-calendar_grid button, .st-key-calendar_agenda button { width: 100%; }
+.study-list-summary { display: flex; gap: .5rem 1rem; flex-wrap: wrap; color: var(--study-muted); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.study-list-summary strong { color: var(--study-ink); font-weight: 600; }
+@media (max-width: 1000px) {
+  .block-container { padding-inline: 1.25rem; }
+  .st-key-calendar_grid [data-testid="stHorizontalBlock"] { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .4rem; }
+  .st-key-calendar_grid [data-testid="stColumn"] { width: 100%; }
+}
+@media (max-width: 760px) {
+  .block-container { padding: 1.2rem max(1rem, env(safe-area-inset-left)) 3rem; }
+  .stApp h1 { font-size: 1.65rem; }
+  .stApp [data-testid="stHorizontalBlock"] { flex-direction: column; align-items: stretch; gap: .8rem; }
+  .stApp [data-testid="stColumn"] { width: 100%; flex: 1 1 100%; }
+  .stApp input, .stApp textarea, .stApp [data-baseweb="select"] { font-size: 16px; }
+  .st-key-adaptive_view [role="radiogroup"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .st-key-adaptive_view label { padding-inline: .3rem; }
+  .st-key-study_summary [data-testid="stHorizontalBlock"], .st-key-topic_states [data-testid="stHorizontalBlock"] {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .55rem;
+  }
+  .st-key-study_summary [data-testid="stMetricValue"] { font-size: 1.55rem; }
+  .st-key-study_summary [data-testid="stMetricLabel"] p { font-size: .8rem; }
+  .st-key-topic_states button { padding: .35rem; }
+  .st-key-topic_states button p { font-size: .8rem; }
+  .st-key-calendar_grid [data-testid="stHorizontalBlock"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .study-block-heading { flex-wrap: wrap; }
+  .study-dose { font-size: .85rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stApp [data-testid="stButton"] button, .stApp [data-testid="stFormSubmitButton"] button { transition: none; }
+}
+@container study (max-width: 700px) {
+  [data-testid="stHorizontalBlock"] { flex-direction: column; align-items: stretch; gap: .8rem; }
+  [data-testid="stColumn"] { width: 100%; flex: 1 1 100%; }
+  .st-key-adaptive_view [role="radiogroup"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .st-key-study_summary [data-testid="stHorizontalBlock"], .st-key-topic_states [data-testid="stHorizontalBlock"] {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .55rem;
+  }
+  .st-key-calendar_grid [data-testid="stHorizontalBlock"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+}
+@container study (max-width: 350px) {
+  .st-key-adaptive_view [role="radiogroup"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .st-key-adaptive_view label:last-child { grid-column: 1 / -1; }
+}

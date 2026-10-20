@@ -1,0 +1,11 @@
+[project]
+name = "osler-study-optimizer"
+version = "0.14.0"
+description = "Análise local de estudos, decisões manuais e rotina sustentável"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+markers = ["real: usa PDFs reais presentes na pasta do projeto"]

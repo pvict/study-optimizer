@@ -1,0 +1,51 @@
+# Ambiente e arquivos gerados
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+/tmp/
+*.log
+
+# Dados pessoais e originais: permanecem somente na máquina
+/data/
+/data-restaurada-*/
+/.osler-local.json
+*.pdf
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.zip
+/examples/
+
+# Credenciais e configuração privada
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.pem
+*.key
+*.p12
+
+# Relatórios de execução, screenshots e exportações locais
+/docs/*
+!/docs/research/
+!/docs/design/
+!/docs/third-party/
+!/docs/README.md
+/docs/research/*.json
+/docs/research/fluidmed-public-artifacts/
+
+# Publicar apenas o sistema visual, sem sessões/capturas do Impeccable
+/.impeccable/*
+!/.impeccable/design.json
+
+# Metadados locais do sistema
+.DS_Store
+Thumbs.db
