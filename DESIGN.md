@@ -5,8 +5,8 @@ colors:
   primary: "#2457d6"
   primary-deep: "#1e46ad"
   page: "#f3f4f6"
-  surface: "#ffffff"
-  soft: "#e9edf4"
+  surface: "#e8edf5"
+  soft: "#dfe7f1"
   field-line: "#7d8796"
   field-bg: "#f7f8fa"
   ink: "#1d1d1f"
@@ -146,7 +146,7 @@ components:
 
 **Creative North Star: "Clareza para estudar"**
 
-A identidade existente combina azul Osler, fundo neutro, superfícies brancas e apoio cinza contrastante. Abas sem círculos distinguem destinos de campos de formulário. A direção Operate valoriza leitura rápida e ações de estudo evidentes: mostrar o que falta, oferecer o próximo bloco e deixar ajustes e explicações em segundo plano. O uso confirmado abrange computador e celular. Evolução estende a identidade com uma jornada elegante de marcos e conquistas discretas; estratégia em [Evolução](docs/design/evolucao.md).
+A identidade existente combina azul Osler, fundo neutro, superfícies em azul-cinza e apoio cinza contrastante. Abas sem círculos distinguem destinos de campos de formulário. A direção Operate valoriza leitura rápida e ações de estudo evidentes: mostrar o que falta, oferecer o próximo bloco e deixar ajustes e explicações em segundo plano. O uso confirmado abrange computador e celular. Evolução estende a identidade com uma jornada elegante de marcos e conquistas discretas; estratégia em [Evolução](docs/design/evolucao.md).
 
 Este documento registra o código atual, sem criar uma identidade nova. A referência normativa é `osler/study.css`, aplicada por `study_style.py`, com componentes em `study_components.py`, `study_day_ui.py`, `study_tables_ui.py`, `study_calendar_ui.py` e `adaptive_ui.py`, mais o tema de `.streamlit/config.toml`. Os tokens acima registram valores reutilizados; estilos e comportamento nativos dependem do Streamlit 1.66. A cascata efetiva do navegador não foi inspecionada. Este registro atualiza o sistema existente para o redesign de apresentação autorizado, preservando seus compromissos confirmados.
 
@@ -168,7 +168,7 @@ Um azul nítido organiza a navegação e as ações sobre uma base clara e fria.
 - **Azul de seleção de texto** (`selection`): seleção de texto com tinta principal.
 
 ### Neutral
-- **Fundo neutro** (`page`) e **superfície branca** (`surface`): página e agrupamentos de trabalho.
+- **Fundo neutro** (`page`) e **superfície em azul-cinza** (`surface`): página e agrupamentos de trabalho.
 - **Tinta** (`ink`) e **texto de apoio** (`muted`): hierarquia entre informação principal e contexto.
 - **Apoio cinza** (`soft`): lateral e painel de apoio do estudo.
 - **Linha clara** (`line`): separadores e contornos de agrupamento.
@@ -178,7 +178,7 @@ Os pares `success` / `success-bg`, `warning` / `warning-bg` e `danger` / `danger
 
 Correspondência com o CSS: `primary` → `--study-primary`, `primary-deep` → `--study-primary-deep`, `page` → `--study-bg`, `surface` → `--study-surface`, `soft` → `--study-soft`, `ink` → `--study-ink`, `muted` → `--study-muted`, `line` → `--study-line`, `field-line` → `--study-field-line`, `selected` → `--study-selected`; os pares semânticos seguem `--study-<nome>`. `field-bg` e `selection` registram os literais reutilizados nos seletores, sem declarar propriedades CSS novas.
 
-Cálculo estático de contraste dos pares definidos: tinta/branco (16,83:1), apoio/branco (6,05:1), apoio/fundo (5,50:1), apoio/cinza (5,15:1), branco/azul (6,16:1), azul profundo/seleção (7,46:1), borda de campo/branco (3,63:1); pares semânticos entre (6,81:1) e (7,60:1). Os pares textuais medidos superam (4,5:1); o limite de campo supera (3:1) contra branco. Isso não verifica cascata, estados nativos ou conformidade completa.
+Cálculo estático dos pares atuais: tinta/superfície (14,32:1), texto de apoio/superfície (5,15:1), texto de apoio/painel (4,85:1), borda de campo/superfície (3,09:1), azul profundo/superfície (7,05:1). Branco/azul de ação continua (6,16:1). Os pares textuais medidos superam (4,5:1); o limite de campo supera (3:1). Isso não verifica cascata, estados nativos ou conformidade completa.
 
 As rampas OKLCH do sidecar são auxiliares de visualização calculados a partir das cores existentes; não são tokens adicionais nem cores usadas pela aplicação. O frontmatter continua normativo.
 
@@ -234,11 +234,11 @@ Usar widgets nativos e rótulos visíveis. Seletores próprios definem fundo `fi
 
 ### Navigation
 
-Grupo radio nativo com Hoje, Calendário, Evolução, Temas, Registrar e Ajustes. O rótulo do grupo fica visualmente recolhido. Os círculos visuais são ocultados nos grupos com keys explícitas; o widget continua sendo radio, sem inventar semântica ARIA de tab. Seleção usa superfície branca, texto azul profundo e traço inferior azul de (3px), com cantos retos; hover usa seleção suave. Manter keys, inputs e comportamento nativo de teclado. A lateral mantém três destinos superiores, com seleção branca sobre apoio cinza; calendário, períodos, visualizações e ajustes recebem tratamento local de abas. Abas nativas de biblioteca mantêm seu próprio papel de tab, altura mínima de (44px) e rolagem horizontal local. Os snippets do sidecar demonstram regras locais, sem reconstruir o runtime Streamlit.
+Grupo radio nativo com Hoje, Calendário, Evolução, Temas, Registrar e Ajustes. O rótulo do grupo fica visualmente recolhido. Os círculos visuais são ocultados nos grupos com keys explícitas; o widget continua sendo radio, sem inventar semântica ARIA de tab. Seleção usa superfície em azul-cinza, texto azul profundo e traço inferior azul de (3px), com cantos retos; hover usa seleção suave. Manter keys, inputs e comportamento nativo de teclado. A lateral mantém três destinos superiores, com seleção em azul-cinza sobre apoio mais escuro; calendário, períodos, visualizações e ajustes recebem tratamento local de abas. Abas nativas de biblioteca mantêm seu próprio papel de tab, altura mínima de (44px) e rolagem horizontal local. Os snippets do sidecar demonstram regras locais, sem reconstruir o runtime Streamlit.
 
 ### Cards / Containers
 
-Bloco de estudo tem superfície branca e raio de superfície. Borda e padding do `st.container(border=True)` permanecem nativos, sem valor inventado aqui. O primeiro bloco recebe borda azul; o apoio usa fundo `soft` e padding de (1rem), reduzido a (.75rem) em viewport estreita. Blocos recebem padding vertical de (.1rem) e gap interno de (.4rem). Cabeçalho reúne tema e dose; a dose não encolhe e o cabeçalho pode quebrar em largura estreita. Abaixo vêm caminho, estado/etapa e a ação. Detalhes de revisões ficam recolhidos.
+Bloco de estudo tem superfície em azul-cinza e raio de superfície. Borda e padding do `st.container(border=True)` permanecem nativos, sem valor inventado aqui. O primeiro bloco recebe borda azul; o apoio usa fundo `soft` e padding de (1rem), reduzido a (.75rem) em viewport estreita. Blocos recebem padding vertical de (.1rem) e gap interno de (.4rem). Cabeçalho reúne tema e dose; a dose não encolhe e o cabeçalho pode quebrar em largura estreita. Abaixo vêm caminho, estado/etapa e a ação. Detalhes de revisões ficam recolhidos.
 
 Formulários e expanders recebem o mesmo fundo e raio. Meta e rotina organiza Rotina diária e Objetivos e datas. Ajustes diários, adiantamento e explicações seguem divulgação progressiva. A redução de esforço percebido e os painéis com ação, das referências Revenue-Centric Design, orientam esta hierarquia sem criar promessas ou urgência.
 
@@ -273,3 +273,7 @@ A execução principal informou baseline de (416 testes) e suíte específica de
 - **Don't** depender de hover, ocultar ações essenciais no celular ou remover foco visível.
 - **Don't** automatizar a plataforma Osler ou aplicações de suspensão/reativação; a interface trabalha com exportações manuais e entradas do usuário.
 - **Don't** declarar validação visual, toque ou conformidade completa a partir de CSS, detector estático ou AppTest.
+
+### Correção dos filtros após evidência do usuário
+
+A captura enviada após o redesign mostrou os quatro filtros de estado truncados. A grade CSS recebia colunas nativas ainda com largura proporcional: o reset local para100% remove essa segunda redução. Os filtros usam faixas sem caixa, com indicador inferior e texto completo; a busca não tem painel de fundo. Superfícies usam azul-cinza em vez de branco. Não houve nova captura do navegador; a correção foi examinada no código e funcionalmente.

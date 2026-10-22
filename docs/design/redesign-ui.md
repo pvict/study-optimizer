@@ -2,9 +2,15 @@
 
 Aplicação do prompt e da auditoria fornecidos pelo usuário, com prioridade explícita para abas visíveis, contraste entre seções e menos seletores nas tarefas frequentes. Direção Operate, orientada por Impeccable e Revenue-Centric Design: mostrar a tarefa principal antes dos ajustes. Sem fontes remotas, scripts externos ou dependências novas.
 
+## Ajuste após a captura do usuário
+
+O usuário rejeitou os painéis brancos e mostrou os quatro filtros de estado truncados. A largura proporcional das colunas nativas permanecia ativa dentro da grade CSS; as colunas agora recebem100% da célula, sem a segunda redução para25%. Os filtros têm largura inteira, texto sem reticências e indicador inferior, sem caixas brancas. A busca usa apenas um separador. Superfícies passam para #e8edf5 e apoio para #dfe7f1; tema, CSS e documentação foram sincronizados. Legendas têm a cor aplicada diretamente ao parágrafo, além do container, para não herdar o tom esmaecido nativo.
+
+Contraste calculado atualizado: texto de apoio/superfície5,15:1; texto de apoio/painel4,85:1; borda de campo/superfície3,09:1. A tabela abaixo registra a medição da etapa inicial, anterior a esse ajuste. A captura do usuário é evidência do defeito anterior; não há captura posterior pelo agente.14testes de UI passaram após a correção.
+
 ## Arquivos e decisões
 
-- `osler/study.css`, `.streamlit/config.toml`, `DESIGN.md`, `.impeccable/design.json`: mesma paleta, fundo neutro, superfícies brancas, apoio cinza, campos com borda e foco. A borda de campos usa #7d8796, mais escura que a borda decorativa #d9dde3; fundo da página #f3f4f6 para separar as superfícies.
+- `osler/study.css`, `.streamlit/config.toml`, `DESIGN.md`, `.impeccable/design.json`: mesma paleta, fundo neutro, superfícies em azul-cinza, apoio mais escuro, campos com borda e foco. A borda de campos usa #7d8796, mais escura que a borda decorativa #d9dde3; fundo da página #f3f4f6 para separar as superfícies.
 - `osler/ui.py`, `osler/adaptive_ui.py`: navegação em abas por apresentação, mantendo os widgets radio, suas keys, callbacks e teclado. Streamlit1.66 permite tabs com seleção, mas AppTest não oferece clique nessa seleção; a troca de contrato foi evitada. As abas nativas da biblioteca continuam existentes. Ferramentas de apoio ficam recolhidas e backup tem atalho visível.
 - `osler/study_day_ui.py`: resumo compacto e ação do primeiro bloco em destaque; demais botões têm menor peso.
 - `osler/study_calendar_ui.py`: programação e detalhe do dia antes de recuperação, prevenção e capacidade. Retornos de telas históricas/início ainda permitem acessar a gestão.

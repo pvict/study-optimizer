@@ -48,17 +48,7 @@
       },
       "surface": {
         "role": "neutral",
-        "displayName": "Superfície branca",
-        "tonalRamp": [
-          "oklch(15.00% 0.00000 0.00)",
-          "oklch(26.43% 0.00000 0.00)",
-          "oklch(37.86% 0.00000 0.00)",
-          "oklch(49.29% 0.00000 0.00)",
-          "oklch(60.71% 0.00000 0.00)",
-          "oklch(72.14% 0.00000 0.00)",
-          "oklch(83.57% 0.00000 0.00)",
-          "oklch(95.00% 0.00000 0.00)"
-        ]
+        "displayName": "Superfície em azul-cinza"
       },
       "ink": {
         "role": "neutral",
@@ -216,17 +206,7 @@
       },
       "soft": {
         "role": "neutral",
-        "displayName": "Apoio cinza",
-        "tonalRamp": [
-          "oklch(15.00% 0.01036 261.79)",
-          "oklch(26.43% 0.01036 261.79)",
-          "oklch(37.86% 0.01036 261.79)",
-          "oklch(49.29% 0.01036 261.79)",
-          "oklch(60.71% 0.01036 261.79)",
-          "oklch(72.14% 0.01036 261.79)",
-          "oklch(83.57% 0.01036 261.79)",
-          "oklch(95.00% 0.01036 261.79)"
-        ]
+        "displayName": "Apoio cinza"
       },
       "field-line": {
         "role": "neutral",
@@ -349,7 +329,7 @@
       "refersTo": "navigation-selected",
       "description": "Seis destinos com aparência de abas; inputs radio e foco preservados. Exemplo isolado, sem alterar papel ARIA para tab.",
       "html": "<div class=\"ds-nav-shell\"><div class=\"ds-navigation\" role=\"radiogroup\" aria-label=\"Seu estudo\"><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\" checked><span>Hoje</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Calendário</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Evolução</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Temas</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Registrar</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Ajustes</span></label></div></div>",
-      "css": ".ds-nav-shell{container:ds-study/inline-size;border-bottom:1px solid var(--study-line,#d9dde3)}.ds-navigation{font-family:sans-serif;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.4rem}.ds-nav-label{display:flex;align-items:center;justify-content:center;position:relative;margin:0;min-width:0;min-height:44px;border-radius:0;border-bottom:3px solid transparent;padding:.4rem .3rem;font-size:.9rem;font-weight:600;overflow-wrap:anywhere}.ds-nav-label input{position:absolute;opacity:0;width:1px;height:1px}.ds-nav-label:hover{background:var(--study-selected,#eef3ff)}.ds-nav-label:has(input:checked){background:var(--study-surface,#ffffff);color:var(--study-primary-deep,#1e46ad);border-bottom-color:var(--study-primary,#2457d6)}.ds-nav-label:has(input:focus-visible){outline:3px solid var(--study-primary-deep,#1e46ad);outline-offset:3px}@media(max-width:760px){.ds-navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}@container ds-study (max-width:700px){.ds-navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}@container ds-study (max-width:350px){.ds-navigation{grid-template-columns:repeat(2,minmax(0,1fr))}.ds-nav-label:last-child:nth-child(odd){grid-column:1/-1}}"
+      "css": ".ds-nav-shell{container:ds-study/inline-size;border-bottom:1px solid var(--study-line,#d9dde3)}.ds-navigation{font-family:sans-serif;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.4rem}.ds-nav-label{display:flex;align-items:center;justify-content:center;position:relative;margin:0;min-width:0;min-height:44px;border-radius:0;border-bottom:3px solid transparent;padding:.4rem .3rem;font-size:.9rem;font-weight:600;overflow-wrap:anywhere}.ds-nav-label input{position:absolute;opacity:0;width:1px;height:1px}.ds-nav-label:hover{background:var(--study-selected,#eef3ff)}.ds-nav-label:has(input:checked){background:var(--study-surface,#e8edf5);color:var(--study-primary-deep,#1e46ad);border-bottom-color:var(--study-primary,#2457d6)}.ds-nav-label:has(input:focus-visible){outline:3px solid var(--study-primary-deep,#1e46ad);outline-offset:3px}@media(max-width:760px){.ds-navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}@container ds-study (max-width:700px){.ds-navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}@container ds-study (max-width:350px){.ds-navigation{grid-template-columns:repeat(2,minmax(0,1fr))}.ds-nav-label:last-child:nth-child(odd){grid-column:1/-1}}"
     },
     {
       "name": "Estados de aprendizagem",
@@ -365,7 +345,7 @@
       "refersTo": "study-block",
       "description": "Regras próprias de superfície, padding vertical e cabeçalho; sem reproduzir borda ou padding horizontal nativos do container Streamlit.",
       "html": "<article class=\"ds-block\"><div class=\"ds-block-heading\"><h3>Tema selecionado</h3><span class=\"ds-block-dose\">questões</span></div><div class=\"ds-block-meta\"><span>Etapa do plano</span></div></article>",
-      "css": ".ds-block{font-family:sans-serif;background:var(--study-surface, #ffffff);border-radius:var(--study-radius, 12px);padding-block:.1rem;color:var(--study-ink, #1d1d1f)}.ds-block-heading{display:flex;align-items:start;justify-content:space-between;gap:.8rem;margin:0 0 .35rem}.ds-block-heading h3{margin:0;padding:0;flex:1;min-width:0;font-size:1.1rem;line-height:1.4;font-weight:650;overflow-wrap:anywhere}.ds-block-dose{flex-shrink:0;font-size:.9rem;font-weight:650;color:var(--study-primary-deep, #1e46ad);background:#eef3ff;padding:.35rem .55rem;border-radius:6px;font-variant-numeric:tabular-nums}.ds-block-meta{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:.875rem;color:var(--study-muted, #5f6368);margin:.15rem 0 .3rem}@media(max-width:760px){.ds-block-heading{flex-wrap:wrap}.ds-block-dose{font-size:.85rem}}"
+      "css": ".ds-block{font-family:sans-serif;background:var(--study-surface, #e8edf5);border-radius:var(--study-radius, 12px);padding-block:.1rem;color:var(--study-ink, #1d1d1f)}.ds-block-heading{display:flex;align-items:start;justify-content:space-between;gap:.8rem;margin:0 0 .35rem}.ds-block-heading h3{margin:0;padding:0;flex:1;min-width:0;font-size:1.1rem;line-height:1.4;font-weight:650;overflow-wrap:anywhere}.ds-block-dose{flex-shrink:0;font-size:.9rem;font-weight:650;color:var(--study-primary-deep, #1e46ad);background:#eef3ff;padding:.35rem .55rem;border-radius:6px;font-variant-numeric:tabular-nums}.ds-block-meta{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:.875rem;color:var(--study-muted, #5f6368);margin:.15rem 0 .3rem}@media(max-width:760px){.ds-block-heading{flex-wrap:wrap}.ds-block-dose{font-size:.85rem}}"
     },
     {
       "name": "Resumo de Hoje",
@@ -373,20 +353,20 @@
       "refersTo": "summary",
       "description": "Faixa compacta do progresso; sem valores de demonstração ou barra fictícia.",
       "html": "<div class=\"ds-summary\"><strong>Questões registradas</strong><span>Restantes no plano</span></div>",
-      "css": ".ds-summary{font-family:sans-serif;display:flex;gap:.3rem 1rem;justify-content:space-between;flex-wrap:wrap;font-variant-numeric:tabular-nums;padding:.8rem 1rem;background:var(--study-surface,#ffffff);border:1px solid var(--study-line,#d9dde3);border-radius:8px}.ds-summary strong{font-size:1rem;color:var(--study-ink,#1d1d1f)}.ds-summary span{font-size:.9rem;color:var(--study-muted,#5f6368)}"
+      "css": ".ds-summary{font-family:sans-serif;display:flex;gap:.3rem 1rem;justify-content:space-between;flex-wrap:wrap;font-variant-numeric:tabular-nums;padding:.8rem 1rem;background:var(--study-surface,#e8edf5);border:1px solid var(--study-line,#d9dde3);border-radius:8px}.ds-summary strong{font-size:1rem;color:var(--study-ink,#1d1d1f)}.ds-summary span{font-size:.9rem;color:var(--study-muted,#5f6368)}"
     },
     {
       "name": "Apoio de estudo",
       "kind": "card",
       "refersTo": "support",
-      "description": "Superfície de apoio distinta da área branca de trabalho.",
+      "description": "Superfície de apoio mais escura que a área de trabalho em azul-cinza.",
       "html": "<aside class=\"ds-support\">Ajustes e revisões disponíveis</aside>",
-      "css": ".ds-support{font-family:sans-serif;padding:1rem;background:var(--study-soft,#e9edf4);color:var(--study-ink,#1d1d1f);border-radius:var(--study-radius,12px)}@media(max-width:760px){.ds-support{padding:.75rem}}"
+      "css": ".ds-support{font-family:sans-serif;padding:1rem;background:var(--study-soft,#dfe7f1);color:var(--study-ink,#1d1d1f);border-radius:var(--study-radius,12px)}@media(max-width:760px){.ds-support{padding:.75rem}}"
     }
   ],
   "narrative": {
     "northStar": "Clareza para estudar",
-    "overview": "A identidade existente combina azul Osler, fundo neutro, superfícies brancas e apoio cinza contrastante. Abas sem círculos distinguem destinos de campos de formulário. A direção Operate valoriza leitura rápida e ações de estudo evidentes: mostrar o que falta, oferecer o próximo bloco e deixar ajustes e explicações em segundo plano. O uso confirmado abrange computador e celular. Evolução estende a identidade com uma jornada elegante de marcos e conquistas discretas; estratégia em [Evolução](docs/design/evolucao.md).\n\nEste documento registra o código atual, sem criar uma identidade nova. A referência normativa é `osler/study.css`, aplicada por `study_style.py`, com componentes em `study_components.py`, `study_day_ui.py`, `study_tables_ui.py`, `study_calendar_ui.py` e `adaptive_ui.py`, mais o tema de `.streamlit/config.toml`. Os tokens acima registram valores reutilizados; estilos e comportamento nativos dependem do Streamlit 1.66. A cascata efetiva do navegador não foi inspecionada. Este registro atualiza o sistema existente para o redesign de apresentação autorizado, preservando seus compromissos confirmados.",
+    "overview": "A identidade existente combina azul Osler, fundo neutro, superfícies em azul-cinza e apoio cinza contrastante. Abas sem círculos distinguem destinos de campos de formulário. A direção Operate valoriza leitura rápida e ações de estudo evidentes: mostrar o que falta, oferecer o próximo bloco e deixar ajustes e explicações em segundo plano. O uso confirmado abrange computador e celular. Evolução estende a identidade com uma jornada elegante de marcos e conquistas discretas; estratégia em [Evolução](docs/design/evolucao.md).\n\nEste documento registra o código atual, sem criar uma identidade nova. A referência normativa é `osler/study.css`, aplicada por `study_style.py`, com componentes em `study_components.py`, `study_day_ui.py`, `study_tables_ui.py`, `study_calendar_ui.py` e `adaptive_ui.py`, mais o tema de `.streamlit/config.toml`. Os tokens acima registram valores reutilizados; estilos e comportamento nativos dependem do Streamlit 1.66. A cascata efetiva do navegador não foi inspecionada. Este registro atualiza o sistema existente para o redesign de apresentação autorizado, preservando seus compromissos confirmados.",
     "keyCharacteristics": [
       "Português simples, ações específicas e detalhes recolhidos.",
       "Abas claras sem círculos, campos delimitados e hierarquia entre trabalho e apoio.",

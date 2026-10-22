@@ -2,8 +2,8 @@
   --study-primary: #2457d6;
   --study-primary-deep: #1e46ad;
   --study-bg: #f3f4f6;
-  --study-surface: #ffffff;
-  --study-soft: #e9edf4;
+  --study-surface: #e8edf5;
+  --study-soft: #dfe7f1;
   --study-ink: #1d1d1f;
   --study-muted: #5f6368;
   --study-line: #d9dde3;
@@ -28,7 +28,7 @@
 .stApp p, .stApp li { line-height: 1.55; }
 .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label { overflow-wrap: anywhere; }
 .stApp [data-testid="stCaptionContainer"] { color: var(--study-muted); }
-.stApp [data-testid="stCaptionContainer"] p { font-size: .875rem; }
+.stApp [data-testid="stCaptionContainer"] p { font-size: .875rem; color: var(--study-muted); }
 .stApp input::placeholder, .stApp textarea::placeholder { color: var(--study-muted); opacity: 1; }
 .stApp [data-testid="stSidebar"] { background: var(--study-soft); border-right: 1px solid var(--study-line); }
 .stApp [data-testid="stSidebar"] h1 { font-size: 1.35rem; letter-spacing: -.02em; }
@@ -205,9 +205,13 @@
 .st-key-study_block_1 { border-color: var(--study-primary); }
 .study-block-meta { margin-block: .15rem .3rem; }
 .study-block-meta > span:last-child { font-size: .8rem; }
-.st-key-topic_filters { padding: .75rem 1rem; background: var(--study-surface); border-radius: 8px; }
+.st-key-topic_filters { padding: .75rem 0; border-top: 1px solid var(--study-line); }
 .st-key-topic_states [data-testid="stHorizontalBlock"] { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .5rem; }
-.st-key-topic_states button { background: var(--study-surface); border-color: var(--study-line); }
+.st-key-topic_states [data-testid="stColumn"] { width: 100%; min-width: 0; flex: none; }
+.st-key-topic_states button { width: 100%; background: transparent; border: 0; border-bottom: 2px solid var(--study-line); border-radius: 0; padding: .5rem; }
+.stApp .st-key-topic_states button p { white-space: normal; overflow: visible; text-overflow: clip; }
+.st-key-topic_states button[kind="primary"] { background: var(--study-selected); color: var(--study-primary-deep); border-bottom-color: var(--study-primary); }
+.st-key-topic_states button:hover { background: var(--study-selected); }
 .st-key-topic_summary [data-testid="stMetricValue"] { font-size: 1.25rem; }
 .st-key-topic_summary [data-testid="stMetricLabel"] p { font-size: .8rem; }
 .st-key-calendar_management { padding-top: 1.5rem; margin-top: 1rem; border-top: 1px solid var(--study-field-line); }

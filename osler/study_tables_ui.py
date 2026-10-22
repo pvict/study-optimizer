@@ -67,8 +67,8 @@ def render_topic_table(service,go_record):
     with st.container(key='topic_states'):
         panels=st.columns(4)
         for panel,phase,label in zip(panels[:3],['dominado','aprendendo','alerta'],['Dominados','Aprendendo','Em alerta']):
-            panel.button(f'{label} · {counts[phase]}',key='focus_'+phase,on_click=_set_focus,args=(label,),width='stretch')
-        panels[3].button('Não vistos · '+str(sum(t['status']=='sem_registro' for t in view['planning_states'])),key='focus_unseen',on_click=_set_focus,args=('Sem estudo registrado',),width='stretch')
+            panel.button(f'{label} · {counts[phase]}',key='focus_'+phase,on_click=_set_focus,args=(label,),width='stretch',type='primary' if st.session_state.get('statistics_focus')==label else 'secondary')
+        panels[3].button('Não vistos · '+str(sum(t['status']=='sem_registro' for t in view['planning_states'])),key='focus_unseen',on_click=_set_focus,args=('Sem estudo registrado',),width='stretch',type='primary' if st.session_state.get('statistics_focus')=='Sem estudo registrado' else 'secondary')
     with st.container(key='topic_filters'):
         search_col,focus_col=st.columns([2,1])
         search=search_col.text_input('Buscar tema',placeholder='Ex.: trauma, diabetes, pediatria',key='statistics_search')
