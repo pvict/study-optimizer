@@ -8,6 +8,7 @@ from .planning import _date
 from .study_evolution import evolution_attention
 from .evolution_performance import performance_outlook
 from .evolution_components import journey_html,achievement_html,point_at,number,date_label
+from .evolution_spacing import SCENARIOS,SCENARIO_VERSION
 
 
 def _open_topic(path):
@@ -79,22 +80,26 @@ def render_evolution(service):
     selected=min(end,(today+timedelta(days=horizon.get(period,547))).isoformat())
     if period=='Escolher data': selected=st.date_input('Data da projeção',value=min(today+timedelta(days=30),date.fromisoformat(end)),min_value=today,max_value=date.fromisoformat(end),key='evolution_date',format='DD/MM/YYYY').isoformat()
     scenario=None
-    with st.expander('Simular outra carga diária'):
+    with st.expander('Premissas e carga da simulação'):
+        spacing_scenario=st.radio('Como projetar as próximas revisões?',list(SCENARIOS),format_func=SCENARIOS.get,key='evolution_spacing')
+        st.caption('O primeiro cenário amplia os intervalos conforme a política do app, se os blocos atingirem a meta com convicção. O segundo mantém os intervalos atuais. Nenhuma hipótese muda seu plano ou seus resultados.')
         simulate=st.checkbox('Comparar com outra meta de questões',key='evolution_simulate')
         if simulate: scenario=int(st.number_input('Questões por dia neste cenário',1,1000,profile['max_questions'],key='evolution_questions'))
         st.caption('A simulação preserva seus ajustes. Descansos e adicionais já programados continuam valendo; ao simular outra carga, ela substitui as metas-base dos dias.')
-    key=[service.agenda.token(),today.isoformat(),scenario]
+    key=[SCENARIO_VERSION,service.agenda.token(),today.isoformat(),scenario,spacing_scenario]
     cache=st.session_state.get('evolution_context_cache',{})
     if cache.get('key')!=key:
         with st.spinner('Projetando sua jornada com a rotina atual…'):
-            cache={'key':key,'context':service.evolution_context(scenario)}
+            cache={'key':key,'context':service.evolution_context(scenario,spacing_scenario=spacing_scenario)}
             st.session_state['evolution_context_cache']=cache
     context=cache['context']; snapshot=context['snapshot']; point=point_at(snapshot,selected)
     if profile['exam_date']<today.isoformat(): st.info('A data de referência da preparação já passou. Seu histórico continua disponível; ajuste a prova para projetar os próximos meses.')
     if not context['exam_in_horizon']: st.caption('A prova está além do horizonte de18meses disponível. A jornada vai até '+date_label(end)+'.')
     if not snapshot['total_topics']: st.info('Importe seu relatório de questões para construir a jornada por temas. Nenhuma conquista ou evolução foi criada como exemplo.')
     st.subheader('Seu caminho até '+date_label(selected))
-    st.caption('Realizado: registros e histórico documentado. Previsto: execução do cenário, mantendo o desempenho e os intervalos atuais.')
+    if spacing_scenario=='progressive':
+        st.caption(f"Previsto se os próximos blocos atingirem sua meta com convicção: intervalos avançam até {profile['max_contact_gap']} dias, com ajuste por incidência. É uma hipótese de planejamento, sem ganho de acerto ou domínio registrado.")
+    else: st.caption('Previsto mantendo os intervalos atuais e executando os blocos. Realizado corresponde aos registros e ao histórico documentado.')
     st.html(journey_html(context,selected))
     with st.container(key='evolution_summary'):
         a,b,c=st.columns(3)
@@ -102,9 +107,11 @@ def render_evolution(service):
         b.metric('Temas com prática',f"{point['covered']}/{snapshot['total_topics']}")
         c.metric('Cobertura',f"{point['coverage_pct']:.1f}%" if snapshot['total_topics'] else 'Sem catálogo')
     st.caption('Respostas incluem repetições. O histórico importado conta para a cobertura; não é somado aos blocos do app. Cobertura não comprova domínio.')
+    additional=point['covered']-snapshot['covered_now']
+    st.caption(f"Base documentada hoje: {snapshot['covered_now']} temas · mais {additional} temas com prática prevista até a data escolhida.")
     month_before=max(context['as_of'],(_date(selected)-timedelta(days=30)).isoformat())
-    if selected>context['as_of'] and point['covered']==point_at(snapshot,month_before)['covered']:
-        st.caption('A cobertura fica estável neste trecho do cenário porque a rotina prioriza revisões. Novos resultados e mudanças na distribuição podem abrir espaço para outros temas.')
+    if selected>context['as_of'] and point['covered']<snapshot['total_topics'] and point['covered']==point_at(snapshot,month_before)['covered']:
+        st.caption('Sem primeiros contatos adicionais neste trecho com os limites atuais. Mais tempo pode continuar ocupado pelas revisões; a divisão entre novos e revisões, as doses e o limite de temas por dia restringem a cobertura.')
     chart=st.radio('Acompanhar',['Questões respondidas','Cobertura dos temas','Rendimento'],horizontal=True,key='evolution_chart')
     if chart=='Rendimento': _performance(context,selected)
     else: st.altair_chart(progress_chart(context,selected,chart=='Cobertura dos temas'),width='stretch')
@@ -125,7 +132,10 @@ def render_evolution(service):
                                                 'Última medida (%)':100*r['rate'] if r['rate'] is not None else None,
                                                 'Fonte da medida':r['rate_source'],'Caminho':' › '.join(r['path'])} for r in attention]),hide_index=True,width='stretch')
         for warning in context['incidence_warnings']: st.caption(warning)
-        st.caption('A projeção usa o mesmo calendário adaptativo. Menos temas novos pode limitar a cobertura até novos resultados liberarem espaço. Contatos previstos não aumentam convicção, domínio ou conquistas reais.')
+        st.caption('A projeção usa o alocador do calendário com a hipótese selecionada. Somente a Evolução permite avançar intervalos de forma condicional; o calendário operacional continua dependendo de resultados reais. Contatos previstos não aumentam convicção, domínio ou conquistas reais.')
+        st.caption('Doses e rendimento conhecidos são mantidos. Os lotes já conhecidos entram no cálculo; não são gerados novos lotes nem resíduos hipotéticos de erros de 7 dias. Erros e faltas futuros podem exigir mais revisões e reduzir a cobertura deste cenário.')
+        if point.get('reviews_waiting') or point.get('pending_responses'):
+            st.caption(f"Nesta data do cenário: {point.get('reviews_waiting',0)} temas com revisão prevista aguardariam vaga e {point.get('pending_responses',0)} respostas de lotes conhecidos aguardariam revisão. São limites previstos, sem criar pendências reais.")
         st.caption('Totais acumulados informados reconhecem cobertura, mas não são somados aos blocos realizados no app nem desbloqueiam conquistas de registros de blocos.')
         st.caption('Estimativas de rendimento usam apenas questões novas com acertos exatos; histórico insuficiente ou horizonte longo não gera percentual inventado. Não é probabilidade de aprovação.')
         st.dataframe(pd.DataFrame(snapshot['points']).query('date <= @selected')[['date','attempts','future_attempts','covered','coverage_pct','kind']].rename(columns={'date':'Data','attempts':'Respostas no app','future_attempts':'Respostas previstas adicionais','covered':'Temas cobertos','coverage_pct':'Cobertura (%)','kind':'Estado'}),hide_index=True,width='stretch')

@@ -1,4 +1,4 @@
-"""Projeção de contatos planejados, sem sessões/acertos simulados ou gravações."""
+"""Contatos operacionais; cenário de aprendizado opcional apenas para Evolução."""
 from copy import deepcopy
 from datetime import timedelta
 
@@ -10,7 +10,9 @@ from .review_policy import review_order
 from .study_capacity import practice_state,capacity_limits
 
 
-def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None):
+def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged'):
+    from .evolution_spacing import SCENARIOS,advance_projected_spacing
+    if spacing_scenario not in SCENARIOS: raise ValueError('Escolha um cenário de espaçamento válido.')
     if type(days) is not int or not 1<=days<=548: raise ValueError('O calendário prevê até18meses.')
     working=deepcopy(states)
     contact_counts={t['topic_id']:len([d for d in t.get('spacing',{}).get('block_days',[]) if d<=start]) for t in working}
@@ -21,7 +23,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         day=(_date(start)+timedelta(days=offset)).isoformat()
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
         daily_profile,daily_target=effective_routine(profile,config,agenda['overrides'].get(day,{}))
-        if profile.start_date and day<profile.start_date:
+        if (profile.start_date and day<profile.start_date) or (spacing_scenario=='progressive' and day>profile.exam_date):
             plan=allocate_day([],daily_profile,None,config['kind'],sessions if offset==0 else [],day,question_target=daily_target)
             output.append({**plan,'projection':True,'pending_planned':0,'pending_backlog':0,'topic_backlog':0,'backlog_items':[]})
             continue
@@ -74,6 +76,9 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
                     record['remaining']-=assigned
                     free-=assigned
                     scheduled_pending+=assigned
+            if spacing_scenario=='progressive':
+                advance_projected_spacing(t,profile,day,item['questions'],lot_only=item.get('review_kind')=='lot_only')
+                item['assumed_interval_after']=t.get('review_interval_days',7)
             if item.get('review_kind')!='lot_only': t['theme_review_due']=(_date(day)+timedelta(days=t.get('review_interval_days',7))).isoformat()
             future_returns=[q['due_date'] for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
             t['next_review']=min(future_returns+([t.get('theme_review_due')] if t.get('theme_review_due') else []),default=None)
@@ -83,7 +88,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             t['is_new_for_day']=False
             t['priority']=t.get('evidence_priority',t['priority'])
             t['review_committed']=True
-            # Só contato previsto. Nenhum sucesso, confiança ou posterior é inventado.
+            # Só projeção: evidência observada, posteriors e sessões não são alterados.
         backlog=projected_backlog(working,pending,day,start_date=profile.start_date)
         output.append({**plan,'projection':offset>0,'pending_planned':scheduled_pending,
                        'pending_backlog':sum(q['remaining'] for q in pending.values() if q['due_date']<=day),

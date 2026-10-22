@@ -15,6 +15,37 @@ def test_evolution_projection_does_not_write_or_change_routine(tmp_path,sample_p
     assert not service.store.active('2026-10-15')
 
 
+def test_evolution_spacing_assumption_is_explicit_and_read_only(tmp_path,sample_pdf):
+    repo,*_=setup_assessment(tmp_path,sample_pdf)
+    service=AdaptiveService(repo); token=service.agenda.token(); profile=service.store.profile()
+    advancing=service.evolution_context()
+    current=service.evolution_context(spacing_scenario='unchanged')
+    assert advancing['spacing_scenario']=='progressive'
+    assert current['spacing_scenario']=='unchanged'
+    assert advancing['assumptions']['max_contact_gap']==profile['profile']['max_contact_gap']
+    assert service.agenda.token()==token and service.store.profile()==profile
+    assert not service.store.active('2026-10-15')
+
+
+def test_switching_spacing_scenario_recalculates_but_period_uses_cache(tmp_path,sample_pdf,monkeypatch,project_root):
+    setup_assessment(tmp_path,sample_pdf); calls=[]
+    original=AdaptiveService.evolution_context
+    def tracked(self,*args,**kwargs):
+        calls.append(kwargs.get('spacing_scenario','progressive'))
+        return original(self,*args,**kwargs)
+    monkeypatch.setattr(AdaptiveService,'evolution_context',tracked)
+    monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
+    app=AppTest.from_file(str(project_root/'app.py'),default_timeout=120)
+    app.session_state['adaptive_view']='Evolução'; app.run()
+    assert app.radio(key='evolution_spacing').value=='progressive'
+    assert len(calls)==1
+    app.radio(key='evolution_period').set_value('3 meses').run()
+    assert len(calls)==1
+    app.radio(key='evolution_spacing').set_value('unchanged').run()
+    assert not app.exception and calls==['progressive','unchanged']
+    assert any('intervalos atuais' in c.value for c in app.caption)
+
+
 def test_evolution_navigation_dates_charts_and_empty_performance(tmp_path,sample_pdf,monkeypatch,project_root):
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))

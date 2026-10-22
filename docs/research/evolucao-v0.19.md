@@ -1,5 +1,7 @@
 # Evolução, cenários e conquistas — v0.19
 
+**Atualização:** a limitação de intervalos congelados descrita abaixo foi corrigida na Evolução por [cenários de espaçamento condicional](evolucao-espacamento-condicional.md). O calendário operacional preserva a referência sem sucessos futuros presumidos.
+
 ## Volume e cobertura
 
 A jornada usa o mesmo `forecast_calendar` do plano, com carga, descansos, agenda, cotas, doses e revisões vigentes. Executar o cenário não grava sessões, planos, perfil ou domínio. O horizonte é limitado pela prova de referência e por548dias; fim passado apresenta apenas a base atual. Datas muito distantes são identificadas como limite disponível, não como fim da preparação.
