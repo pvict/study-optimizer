@@ -17,6 +17,7 @@ from .study_calendar_ui import render_calendar
 from .exam_goals_ui import render_exam_goals
 from .exam_goals import ExamGoals
 from .study_evolution_ui import render_evolution
+from .study_activity_ui import render_result_feedback
 
 VIEWS=['Meu dia','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Ajustes']
 
@@ -73,7 +74,7 @@ def render_adaptive(repo):
         for key in list(st.session_state):
             if key.startswith('calendar_snapshot_'): st.session_state.pop(key,None)
     try:
-        if view=='Meu dia': render_study_day(service,_go_record,_go_review)
+        if view=='Meu dia': render_study_day(service,_go_record,_go_review,_edit)
         elif view=='Calendário': render_calendar(service,_go_record,_go_review)
         elif view=='Registrar resultados':
             with st.container(key='study_registration'): _register(service)
@@ -95,7 +96,7 @@ def _register(service):
     if saved:
         st.subheader('Registro concluído')
         st.write(saved['topic'])
-        st.caption('Seu resultado já está no histórico. Consulte os próximos blocos ou inicie outro registro.')
+        render_result_feedback(service.overview(today_local().isoformat()),saved.get('session_id'))
         st.button('Voltar ao plano',key='study_back_to_plan',type='primary',on_click=_back_to_plan)
         st.button('Registrar outro estudo',key='study_another_entry',on_click=_go_record,args=(saved['topic_id'],20))
         return
@@ -146,7 +147,7 @@ def _register(service):
                          confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'))
         sid=editing['session_id'] if editing else st.session_state.setdefault('study_entry_id',uuid.uuid4().hex)
         service.save_entry(entry,sid,editing['version'] if editing else 0)
-        st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected}
+        st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected,'session_id':sid}
         for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of']: st.session_state.pop(key,None)
         st.session_state['adaptive_notice']='Resultado salvo. O plano, os alertas e a evolução foram atualizados.'
         st.rerun()
@@ -178,6 +179,7 @@ def _register(service):
 def _edit(event):
     from .models import stable_topic_id
     reset_picker('record')
+    st.session_state['adaptive_view']='Registrar resultados'
     st.session_state.pop('study_saved',None)
     e=event['entry']
     st.session_state['study_edit']=event

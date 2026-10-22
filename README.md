@@ -8,7 +8,7 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 
 ## O que o aplicativo oferece
 
-- **Hoje:** blocos de questões priorizados por incidência, desempenho, incerteza e tempo sem contato; registro do resultado e revisões extras.
+- **Hoje:** abas Para fazer e Feito hoje, com blocos priorizados, resultados do dia e acesso à correção dos lançamentos. Após salvar, veja seu desempenho e os próximos passos do tema. [Fluxo e critérios](docs/research/atividade-diaria-e-feedback.md).
 - **Calendário:** Agenda, Semana e Mês; atrasos, recuperação e prevenção de pendências com comparação antes/depois e opção de desfazer.
 - **Rotina adaptativa:** referência de novos/revisões com ajuste à demanda e à capacidade de repetir nos próximos14dias; comparação com divisão fixa, custo em cobertura e riscos residuais visíveis. Doses não são infladas para preencher a meta. O modo fixo continua disponível.
 - **Evolução:** jornada por semanas, meses e fim da preparação, com respostas, cobertura e pontos de atenção. Compare intervalos atuais com avanço condicional das revisões ao atingir a meta; cada cenário respeita a carga e fica separado dos resultados reais. [Hipóteses e limites](docs/research/evolucao-espacamento-condicional.md).

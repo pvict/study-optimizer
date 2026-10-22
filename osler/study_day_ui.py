@@ -7,6 +7,8 @@ from .topic_picker_ui import pick_topic
 from .study_models import AdaptiveProfile
 from .study_trajectory_ui import trajectory_detail
 from .study_components import block_heading,block_context
+from .study_activity_ui import render_day_activity
+from .study_feedback import day_activity
 
 
 def _change_extra(service,day,topic_id,questions,revision,remove=False):
@@ -55,7 +57,7 @@ def _day_settings(service,view,day):
             st.rerun()
 
 
-def render_study_day(service,go_record,go_review):
+def render_study_day(service,go_record,go_review,go_edit=None):
     day=today_local().isoformat()
     view=service.overview(day)
     service.remember_day(view)
@@ -63,6 +65,7 @@ def render_study_day(service,go_record,go_review):
     if plan.get('not_started'):
         st.info('Seu cronograma começa em '+ '/'.join(reversed(plan['start_date'].split('-')))+'. Até lá, não há meta diária nem faltas no aplicativo.')
         st.caption('Seu histórico da Osler já está disponível em Temas. O Calendário mostra os blocos a partir do início; os contatos anteriores continuam orientando as prioridades.')
+        render_day_activity(view,go_edit)
         return
     with st.container(key='study_summary'):
         st.html(f'<div class="study-progress-summary"><strong>{plan["done_questions"]} de {plan["target_questions"]} questões registradas</strong><span>{plan["questions"]} para fazer no plano</span></div>')
@@ -82,43 +85,47 @@ def render_study_day(service,go_record,go_review):
     work,extra=st.columns([1.85,1],gap='large')
     with work,st.container(key='study_work'):
         st.subheader('Blocos de questões')
-        if plan['kind']=='descanso': st.info('Descanse hoje. O plano recomeça sem dívida de questões. Para retomar agora, abra Ajustar meu dia.')
-        elif not view['states']: st.info('Comece importando seu relatório de questões em Arquivos e ferramentas → Dados e classificação → Importar relatórios.')
-        elif not plan['items']:
-            if plan['done_questions']>=plan['target_questions']: st.success('Meta registrada. Se quiser continuar, abra Adiantar revisões.')
-            else: st.info('Nenhum bloco automático para hoje. Consulte o Calendário ou abra Adiantar revisões.')
-        for index,item in enumerate(plan['items'],1):
-            with st.container(border=True,key=f'study_block_{index}'):
-                block_heading(item)
-                st.caption(' › '.join(item['path'][:-1]))
-                block_context(item)
-                if item.get('review_kind')=='lot_only': st.caption('Retorno de respostas sem convicção · a revisão completa do tema mantém sua própria data.')
-                if item.get('preventive_priority'): st.caption('Prioridade do plano preventivo')
-                if item.get('rescheduled'): st.caption('Recuperação agendada · atraso original desde '+item['original_due'])
-                if item['added_by_user']: st.caption(f"Adicionado por você · {item['extra_pending']} questões extras neste bloco · só hoje")
-                elif item['priority']=='urgente': st.caption('Prioridade urgente · comece por aqui')
-                mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
-                if item.get('review_kind')=='lot_only':
-                    lots=[lot for lot in item['pending_reviews'] if lot['due_date']<=day]
-                    for lot in lots:
-                        st.button(f"Revisar lote de {lot['questions']} respostas",key='study_lot_'+lot['session_id'],
-                                  on_click=go_review,args=(lot,),width='stretch')
-                    complement=max(0,item['questions']-sum(lot['questions'] for lot in lots))
-                    if complement:
-                        st.caption(f'Complete o bloco com {complement} questões do tema, registradas separadamente dos lotes.')
-                        st.button('Registrar complemento',key='study_complement_'+item['topic_id'],on_click=go_record,
-                                  args=(item['topic_id'],complement,'mistas'),width='stretch')
-                else:
-                    st.button('Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if index==1 else 'secondary',
-                              on_click=go_record,args=(item['topic_id'],item['questions'],mode))
-                with st.expander('Ver próximas revisões'):
-                    st.write(item['reason'])
-                    trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)
-                if item['added_by_user']:
-                    st.button('Retirar revisão extra',key=f"remove_extra_{item['topic_id']}",on_click=_change_extra,
-                              args=(service,day,item['topic_id'],0,view['day']['revision'],True))
-        if plan['kind']!='descanso' and view['states'] and plan['questions']<max(0,plan['target_questions']-plan['done_questions']):
-            st.info('Parte da meta não pôde ser distribuída com os temas e limites atuais. Adicione outro tema ou ajuste o número de temas em Ajustes.')
+        activity=day_activity(view)
+        remaining,completed=st.tabs(['Para fazer',f"Feito hoje ({activity['questions']})"])
+        with completed: render_day_activity(view,go_edit)
+        with remaining:
+            if plan['kind']=='descanso': st.info('Descanse hoje. O plano recomeça sem dívida de questões. Para retomar agora, abra Ajustar meu dia.')
+            elif not view['states']: st.info('Comece importando seu relatório de questões em Arquivos e ferramentas → Dados e classificação → Importar relatórios.')
+            elif not plan['items']:
+                if plan['done_questions']>=plan['target_questions']: st.success('Meta registrada. Se quiser continuar, abra Adiantar revisões.')
+                else: st.info('Nenhum bloco automático para hoje. Consulte o Calendário ou abra Adiantar revisões.')
+            for index,item in enumerate(plan['items'],1):
+                with st.container(border=True,key=f'study_block_{index}'):
+                    block_heading(item)
+                    st.caption(' › '.join(item['path'][:-1]))
+                    block_context(item)
+                    if item.get('review_kind')=='lot_only': st.caption('Retorno de respostas sem convicção · a revisão completa do tema mantém sua própria data.')
+                    if item.get('preventive_priority'): st.caption('Prioridade do plano preventivo')
+                    if item.get('rescheduled'): st.caption('Recuperação agendada · atraso original desde '+item['original_due'])
+                    if item['added_by_user']: st.caption(f"Adicionado por você · {item['extra_pending']} questões extras neste bloco · só hoje")
+                    elif item['priority']=='urgente': st.caption('Prioridade urgente · comece por aqui')
+                    mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
+                    if item.get('review_kind')=='lot_only':
+                        lots=[lot for lot in item['pending_reviews'] if lot['due_date']<=day]
+                        for lot in lots:
+                            st.button(f"Revisar lote de {lot['questions']} respostas",key='study_lot_'+lot['session_id'],
+                                      on_click=go_review,args=(lot,),width='stretch')
+                        complement=max(0,item['questions']-sum(lot['questions'] for lot in lots))
+                        if complement:
+                            st.caption(f'Complete o bloco com {complement} questões do tema, registradas separadamente dos lotes.')
+                            st.button('Registrar complemento',key='study_complement_'+item['topic_id'],on_click=go_record,
+                                      args=(item['topic_id'],complement,'mistas'),width='stretch')
+                    else:
+                        st.button('Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if index==1 else 'secondary',
+                                  on_click=go_record,args=(item['topic_id'],item['questions'],mode))
+                    with st.expander('Ver próximas revisões'):
+                        st.write(item['reason'])
+                        trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)
+                    if item['added_by_user']:
+                        st.button('Retirar revisão extra',key=f"remove_extra_{item['topic_id']}",on_click=_change_extra,
+                                  args=(service,day,item['topic_id'],0,view['day']['revision'],True))
+            if plan['kind']!='descanso' and view['states'] and plan['questions']<max(0,plan['target_questions']-plan['done_questions']):
+                st.info('Parte da meta não pôde ser distribuída com os temas e limites atuais. Adicione outro tema ou ajuste o número de temas em Ajustes.')
     with extra,st.container(key='study_support'):
         due=[q for q in view['review_queue'] if q['due_date']<=day]
         if due and plan['kind']!='descanso':
