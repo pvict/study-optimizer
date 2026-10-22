@@ -253,7 +253,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                        'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})
-        states[-1].update(question_dose(states[-1],profile))
+        states[-1].update(question_dose(states[-1],profile,entries,as_of))
         states[-1]['theme_recommended_questions']=states[-1]['recommended_questions']
         from .study_capacity import practice_state
         states[-1].update(practice_state(states[-1],as_of,profile))

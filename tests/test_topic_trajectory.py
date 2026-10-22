@@ -37,7 +37,7 @@ def test_one_day_or_tiny_followups_do_not_prove_spaced_relearning():
     assert result['last_evidence_day']=='2026-10-01'
 
 
-def test_trajectory_repeats_through_exam_and_distinguishes_demand_from_capacity():
+def test_trajectory_keeps_followups_conditional_and_distinguishes_capacity():
     from osler.topic_trajectory import topic_trajectory, trajectory_summary
     p=AdaptiveProfile(exam_date='2026-12-01',max_questions=20,max_topics=1)
     states=topic_states([topic('A'),topic('Tiny',total=1)],[],[],{},'2026-10-15',p)
@@ -46,9 +46,10 @@ def test_trajectory_repeats_through_exam_and_distinguishes_demand_from_capacity(
     roadmap=topic_trajectory(state,p,'2026-10-15')
     assert roadmap['steps'][0]['stage']=='Primeiro contato'
     assert roadmap['steps'][1]['stage']=='Revisão 1'
-    assert len(roadmap['steps'])>=5
-    assert roadmap['recommended_total']==sum(s['questions'] for s in roadmap['steps'])
-    assert roadmap['steps'][-1]['date']<=p.exam_date
+    assert len(roadmap['steps'])==5
+    assert roadmap['recommended_total'] is None
+    assert roadmap['steps'][0]['date']<=p.exam_date
+    assert all(s['questions'] is None and s['date'] is None for s in roadmap['steps'][1:])
     tiny=topic_trajectory(next(t for t in states if t['topic_id']=='Tiny'),p,'2026-10-15')
     assert tiny['available_per_block']==1 and tiny['complement_per_block']>=9
     summary=trajectory_summary(states,p,'2026-10-15',[])

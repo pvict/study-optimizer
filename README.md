@@ -13,6 +13,7 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 - **Rotina adaptativa:** referência de novos/revisões com ajuste à demanda e à capacidade de repetir nos próximos14dias; comparação com divisão fixa, custo em cobertura e riscos residuais visíveis. Doses não são infladas para preencher a meta. O modo fixo continua disponível.
 - **Evolução:** jornada por semanas, meses e fim da preparação, com respostas, cobertura e pontos de atenção. Compare intervalos atuais com avanço condicional das revisões ao atingir a meta; cada cenário respeita a carga e fica separado dos resultados reais. [Hipóteses e limites](docs/research/evolucao-espacamento-condicional.md).
 - **Temas:** filtros de situação, períodos de análise, tabela ou lista paginada e exportação dos resultados filtrados.
+- **Revisões por tema:** dose do próximo bloco ajustada aos resultados reais; manutenção menor após bons encontros espaçados, reforço após dificuldades e revisões seguintes a recalcular. [Critérios e limites](docs/research/dose-adaptativa-por-tema.md).
 - **Registro:** acertos, convicção, questões novas/repetidas/mistas, importação de CSV/TSV e histórico de correções.
 - **Ajustes:** meta diária, metas de acerto nos temas (global ou por área), Minhas provas e incidências por instituição.
 - **Flashcards:** lista prática de redução seletiva, com aplicação manual.

@@ -34,7 +34,7 @@ render_trajectories(Service(),{'profile':AdaptiveProfile().to_dict(),'planning_s
     assert any('import' in i.value.lower() for i in app.info)
 
 
-def test_topic_trajectory_is_accessible_with_numbered_reviews_and_totals(tmp_path,monkeypatch,project_root,sample_pdf):
+def test_topic_trajectory_is_accessible_without_prescribing_a_lifetime_total(tmp_path,monkeypatch,project_root,sample_pdf):
     setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
@@ -42,9 +42,10 @@ def test_topic_trajectory_is_accessible_with_numbered_reviews_and_totals(tmp_pat
     app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
     app.toggle(key='show_trajectories').set_value(True).run()
     assert not app.exception
-    assert any('Demanda até a prova' in str(frame.value.columns) for frame in app.dataframe)
+    assert any('Próximo bloco' in str(frame.value.columns) for frame in app.dataframe)
     assert any('Revisão 1' in str(frame.value.values) for frame in app.dataframe)
-    assert any('mantendo' in c.value.lower() for c in app.caption)
+    assert any('A recalcular' in str(frame.value.values) for frame in app.dataframe)
+    assert not any('até a prova' in m.label for m in app.metric)
 
 
 def test_today_displays_specific_stage_and_recurrent_review_details(tmp_path,monkeypatch,project_root,sample_pdf):
