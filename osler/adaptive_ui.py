@@ -23,6 +23,7 @@ VIEWS=['Meu dia','Calendário','Evolução','Temas e estatísticas','Registrar r
 
 def _go_record(topic_id,questions,mode='novas'):
     reset_picker('record')
+    st.session_state.pop('study_saved',None)
     st.session_state['adaptive_view']='Registrar resultados'
     st.session_state['adaptive_topic']=topic_id
     st.session_state['study_n']=questions
@@ -45,9 +46,15 @@ def _go_review(item):
     st.session_state['study_review_of']=item['session_id']
 
 
+def _back_to_plan():
+    st.session_state['adaptive_view']='Meu dia'
+
+
 def render_adaptive(repo):
     service=AdaptiveService(repo)
     if st.session_state.get('adaptive_view') not in VIEWS: st.session_state['adaptive_view']='Meu dia'
+    with st.container(key='study_navigation'):
+        view=st.radio('Seu estudo',VIEWS,format_func=lambda v:{'Meu dia':'Hoje','Temas e estatísticas':'Temas','Registrar resultados':'Registrar'}.get(v,v),horizontal=True,key='adaptive_view',label_visibility='collapsed',width='stretch')
     current=st.session_state['adaptive_view']
     st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
               'Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução'}[current])
@@ -58,8 +65,6 @@ def render_adaptive(repo):
                 'Ajustes':'Defina sua rotina uma vez. Ajuste quando precisar.','Evolução':'Enxergue o que já construiu e explore os próximos capítulos da preparação.'}[current])
     if 'adaptive_notice' in st.session_state: st.success(st.session_state.pop('adaptive_notice'))
     if 'adaptive_error' in st.session_state: st.error(st.session_state.pop('adaptive_error'))
-    with st.container(key='study_navigation'):
-        view=st.radio('Seu estudo',VIEWS,format_func=lambda v:{'Meu dia':'Hoje','Temas e estatísticas':'Temas','Registrar resultados':'Registrar'}.get(v,v),horizontal=True,key='adaptive_view',label_visibility='collapsed')
     if view!='Ajustes': st.session_state.pop('adaptive_profile_snapshot',None)
     if view!='Ajustes': st.session_state.pop('exam_primary_snapshot',None)
     if view!='Meu dia': st.session_state.pop('day_form_snapshot',None)
@@ -70,13 +75,15 @@ def render_adaptive(repo):
     try:
         if view=='Meu dia': render_study_day(service,_go_record,_go_review)
         elif view=='Calendário': render_calendar(service,_go_record,_go_review)
-        elif view=='Registrar resultados': _register(service)
+        elif view=='Registrar resultados':
+            with st.container(key='study_registration'): _register(service)
         elif view=='Temas e estatísticas': render_topic_table(service,_go_record)
         elif view=='Evolução': render_evolution(service)
         else:
             st.subheader('Seu plano, do seu jeito')
             settings=st.radio('O que ajustar?',['Meta e rotina','Minhas provas','Instituições e incidências'],horizontal=True,key='study_settings_section')
-            if settings=='Meta e rotina': _settings(service)
+            if settings=='Meta e rotina':
+                with st.container(key='study_settings'): _settings(service)
             elif settings=='Minhas provas': render_exam_goals(service)
             else: render_guide_settings(repo)
     except (ValueError,sqlite3.Error,OSError) as exc:
@@ -84,6 +91,14 @@ def render_adaptive(repo):
 
 
 def _register(service):
+    saved=st.session_state.get('study_saved')
+    if saved:
+        st.subheader('Registro concluído')
+        st.write(saved['topic'])
+        st.caption('Seu resultado já está no histórico. Consulte os próximos blocos ou inicie outro registro.')
+        st.button('Voltar ao plano',key='study_back_to_plan',type='primary',on_click=_back_to_plan)
+        st.button('Registrar outro estudo',key='study_another_entry',on_click=_go_record,args=(saved['topic_id'],20))
+        return
     topics,_=service.catalog(today_local().isoformat(),include_parents=True)
     if not topics:
         st.info('Importe um relatório Qbank em Ferramentas para reconhecer os temas. Nenhum indicador por subtema é obrigatório.')
@@ -121,7 +136,7 @@ def _register(service):
             st.caption('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
         else: n,correct,percent,confident=0,None,None,None
         with st.expander('Data, modalidade e detalhes'):
-            day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date')
+            day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date',format='DD/MM/YYYY')
             mode=st.selectbox('Essas questões eram',['novas','repetidas','mistas'],format_func={'novas':'Novas para mim','repetidas':'Questões que já fiz antes','mistas':'Mistura ou não sei separar'}.get,key='study_mode') if kind!='contato' else 'mistas'
             duration=st.number_input('Minutos gastos neste estudo',min_value=0.1,max_value=1440.,value=None,key='study_duration')
             last=st.text_input('Último contato conhecido no acumulado (AAAA-MM-DD)',key='study_last_contact') if kind=='acumulado' else None
@@ -131,6 +146,7 @@ def _register(service):
                          confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'))
         sid=editing['session_id'] if editing else st.session_state.setdefault('study_entry_id',uuid.uuid4().hex)
         service.save_entry(entry,sid,editing['version'] if editing else 0)
+        st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected}
         for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of']: st.session_state.pop(key,None)
         st.session_state['adaptive_notice']='Resultado salvo. O plano, os alertas e a evolução foram atualizados.'
         st.rerun()
@@ -162,6 +178,7 @@ def _register(service):
 def _edit(event):
     from .models import stable_topic_id
     reset_picker('record')
+    st.session_state.pop('study_saved',None)
     e=event['entry']
     st.session_state['study_edit']=event
     st.session_state.pop('record_search',None)
@@ -182,20 +199,23 @@ def _settings(service):
     p=AdaptiveProfile(**record['configured_profile'])
     st.write('Ajustes globais. Não é necessário configurar cada tema.')
     with st.form('adaptive_profile'):
-        start=st.date_input('Início do cronograma',value=date.fromisoformat(p.start_date) if p.start_date else None,key='settings_start_date')
-        st.caption('Antes dessa data, o app não cobra metas nem faltas. O histórico anterior continua valendo para as revisões.')
-        target=st.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
-        st.caption('Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
-        if ExamGoals(service.repository).active():
-            exam=date.fromisoformat(p.exam_date)
-            st.caption('Data efetiva do plano: '+record['profile']['exam_date']+'. Gerencie em Minhas provas.')
-        else: exam=st.date_input('Data de referência da prova',value=date.fromisoformat(p.exam_date))
+        st.subheader('Rotina diária')
         count=st.number_input('Meta padrão de questões por dia',min_value=1,max_value=1000,value=p.max_questions)
         st.caption('O tempo disponível não limita essa meta. Você pode mudar um dia específico na tela Hoje.')
         share_percent=st.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='settings_new_share')
         share=share_percent/100
         workload_mode=st.radio('Como distribuir a rotina?',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
                                format_func={'adaptive':'Adaptativa — abre espaço para revisões','fixed':'Fixa — mantém a proporção escolhida'}.get,key='settings_workload_mode')
+        st.divider()
+        st.subheader('Objetivos e datas')
+        start=st.date_input('Início do cronograma',value=date.fromisoformat(p.start_date) if p.start_date else None,key='settings_start_date',format='DD/MM/YYYY')
+        st.caption('Antes dessa data, o app não cobra metas nem faltas. O histórico anterior continua valendo para as revisões.')
+        target=st.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
+        st.caption('Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
+        if ExamGoals(service.repository).active():
+            exam=date.fromisoformat(p.exam_date)
+            st.caption('Data efetiva do plano: '+record['profile']['exam_date']+'. Gerencie em Minhas provas.')
+        else: exam=st.date_input('Data de referência da prova',value=date.fromisoformat(p.exam_date),format='DD/MM/YYYY')
         with st.expander('Metas por grande área (opcional)'):
             catalog,_=service.catalog(today_local().isoformat())
             from .models import normalize_path

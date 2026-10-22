@@ -54,11 +54,15 @@ def _library(repo: Repository):
                      "Temas terminais": sum(r.is_leaf for r in report.records),
                      "Importação": "Equivalente a outro" if item["duplicate_of"] else "Conteúdo independente",
                      "Validação": "Há achados para revisão" if report.status == "revisar" else "Verificações documentais OK"})
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",column_config={"Arquivo":st.column_config.TextColumn(width="large"),"Validação":st.column_config.TextColumn(width="large")})
+    with st.expander("Ver nomes completos e fontes"):
+        for row in rows:
+            st.text(row['Arquivo'])
+            st.caption(f"{row['Tipo']} · {row['Escopo']} · {row['Data']} · {row['Validação']}")
     dates = {item["report_date"] for item in entries if item["report_date"]}
     if len(dates) < 2:
-        st.info("Há apenas uma data de relatório disponível. Acompanhamento longitudinal será implementado em um marco posterior.")
-    st.caption("Marco 3 · importação, cruzamento e classificação com dados manuais. Aplicação de suspensões continua exclusivamente manual na Osler.")
+        st.info("Há uma única data de relatório. Importe outra data para comparar os relatórios ao longo do tempo.")
+    st.caption("Originais preservados · alterações na Osler continuam manuais.")
 
 
 def _import_tab(repo: Repository):
@@ -178,12 +182,13 @@ def run():
                     st.error(str(recovery_error))
         return
     st.sidebar.title("Osler")
-    st.sidebar.caption("Seu estudo para a residência")
+    st.sidebar.caption("Preparação para a residência")
     views = ["Plano de questões", "Diminuir revisões", "Ferramentas"]
     if st.session_state.get("main_view") not in views:
         st.session_state["main_view"] = "Plano de questões"
-    view = st.sidebar.radio("Onde vamos?", views,format_func={"Plano de questões":"Meu estudo","Diminuir revisões":"Flashcards","Ferramentas":"Arquivos e ferramentas"}.get,key="main_view")
-    st.sidebar.caption("Tudo fica no seu computador. As ações na Osler continuam sendo feitas por você.")
+    view = st.sidebar.radio("Navegação", views,format_func={"Plano de questões":"Meu estudo","Diminuir revisões":"Flashcards","Ferramentas":"Arquivos e ferramentas"}.get,key="main_view",label_visibility="collapsed")
+    with st.sidebar.expander("Sobre o app"):
+        st.caption("Tudo fica no seu computador. As ações na Osler continuam sendo feitas por você.")
     if view == "Plano de questões":
         render_adaptive(repo)
         return
@@ -194,22 +199,25 @@ def run():
 
 
 def _advanced_tools(repo, project_root):
-    st.title("Ferramentas e arquivos")
-    st.caption("Importação, backup e recursos de apoio. Ferramentas anteriores estão identificadas como legado.")
+    st.title("Arquivos e ferramentas")
+    st.caption("Seus relatórios, importações e cópias de segurança.")
     all_entries = repo.list_reports()
     entries = repo.list_reports(include_duplicates=False)
-    show_equivalent = st.checkbox("Mostrar relatórios equivalentes", value=False)
+    def open_backup(): st.session_state['advanced_view']='Backup e restauração'
+    st.button('Backup e restauração',key='open_backup',on_click=open_backup)
+    advanced_controls=st.expander("Avançado · selecionar relatório ou ferramenta")
+    show_equivalent = advanced_controls.checkbox("Mostrar relatórios equivalentes", value=False)
     options = all_entries if show_equivalent else entries
     report = None
     if options:
         by_id = {item["file_sha256"]: item for item in options}
-        selected = st.selectbox("Relatório para inspecionar", list(by_id),
+        selected = advanced_controls.selectbox("Relatório para inspecionar", list(by_id),
                                          format_func=lambda key: f"{TYPE_LABELS[by_id[key]['kind']]} · {SCOPE_LABELS[by_id[key]['scope']]} · {_date(by_id[key]['report_date'])}", key="inspect_report_id")
         report = repo.get_report(selected)
         if by_id[selected]["duplicate_of"]:
             st.info("Conteúdo equivalente a outro relatório; original preservado.")
     legacy={'Painel','Planejador de Suspensões','Simulação e rotina','Roteiro simples','Meu caminho','Preferências do roteiro','Reduções anteriores'}
-    view = st.selectbox("Abrir ferramenta", ["Dados e classificação", "Painel", "Planejador de Suspensões", "Simulação e rotina", "Evolução", "Backup e restauração", "Roteiro simples", "Meu caminho", "Preferências do roteiro","Reduções anteriores"],format_func=lambda v:v+' (legado)' if v in legacy else v,key="advanced_view")
+    view = advanced_controls.selectbox("Abrir ferramenta", ["Dados e classificação", "Painel", "Planejador de Suspensões", "Simulação e rotina", "Evolução", "Backup e restauração", "Roteiro simples", "Meu caminho", "Preferências do roteiro","Reduções anteriores"],format_func=lambda v:v+' (legado)' if v in legacy else v,key="advanced_view")
     if view in legacy: st.caption('Recurso legado · preservado para consulta e continuidade dos registros anteriores.')
     if view=='Reduções anteriores':
         from .practical_reduction_ui import render_legacy_details

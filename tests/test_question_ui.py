@@ -18,7 +18,7 @@ def test_today_uses_question_goal_without_time_widget_and_persists_extra(tmp_pat
     assert len(app.radio(key='main_view').options)==3
     assert {'Hoje','Calendário','Evolução','Temas','Registrar','Ajustes'}<=set(app.radio(key='adaptive_view').options)
     assert not any('tempo total' in s.label.lower() for s in app.select_slider)
-    assert any(m.label=='Meta de hoje' and m.value=='60' for m in app.metric)
+    assert any('0 de 60 questões registradas' in h.value for h in app.get('html'))
     app.number_input(key='day_questions').set_value(40)
     next(b for b in app.button if b.label=='Atualizar meta de hoje').click().run()
     assert not app.exception

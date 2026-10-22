@@ -64,7 +64,7 @@ def _batches(service):
         target = st.selectbox("O que você quer registrar?", options, format_func=STATUS_LABELS.get, key=f"action_target_{item_id}_{item['revision']}")
         actions = {"aguardando_validacao": "Quero avaliar este tema", "aprovado_usuario": "Quero fazer essa redução", "aplicado_manualmente": "Já fiz essa mudança na Osler", "reativado": "Já reativei na Osler", "cancelado": "Tirar deste lote"}
         with st.form(f"planner_action_{item_id}_{item['revision']}"):
-            action_date = st.date_input("Data da decisão ou ação realizada", value=today_local(), max_value=today_local())
+            action_date = st.date_input("Data da decisão ou ação realizada", value=today_local(), max_value=today_local(),format='DD/MM/YYYY')
             reason = st.text_area("Quer deixar uma observação? (opcional)")
             if target in {"aplicado_manualmente", "reativado"}:
                 st.caption("Use este botão somente depois de realizar a ação pessoalmente na Osler.")
@@ -96,7 +96,7 @@ def render_planner(repo):
         q_id = _choose(q, "Qbank do planejador", "planner_q_id")
     with c2:
         f_id = _choose(f, "Flashcards do planejador", "planner_f_id")
-    day = c3.date_input("Data da seleção", value=today_local(), max_value=today_local(), key="planner_asof").isoformat()
+    day = c3.date_input("Data da seleção", value=today_local(), max_value=today_local(), key="planner_asof",format='DD/MM/YYYY').isoformat()
     cfg = ClassifierConfig(**st.session_state.get("assessment_config", {})).validate()
     try:
         matching = load_matching(repo, q_id, f_id)

@@ -4,6 +4,8 @@ Aplicativo local para organizar a preparação para residência médica: plano d
 
 **Versão 0.19.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
+A interface usa navegação visível em abas, campos com contorno e contraste entre conteúdo e apoio. Hoje tem resumo compacto; Calendário mostra a programação antes das ferramentas de recuperação; Temas reúne filtros secundários em “Mais filtros”. Após salvar um resultado, a confirmação oferece retorno ao plano ou um novo registro. [Decisões e limites da verificação do redesign](docs/design/redesign-ui.md).
+
 ## O que o aplicativo oferece
 
 - **Hoje:** blocos de questões priorizados por incidência, desempenho, incerteza e tempo sem contato; registro do resultado e revisões extras.

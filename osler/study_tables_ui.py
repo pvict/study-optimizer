@@ -21,6 +21,11 @@ def _set_focus(focus):
     st.session_state['statistics_focus']=focus
 
 
+def _clear_filters():
+    for key in ['statistics_search','statistics_area','statistics_focus','statistics_mode','statistics_detail']:
+        st.session_state.pop(key,None)
+
+
 def _topic_list(rows,signature,go_record,cumulative=False):
     if not rows:
         st.info('Nenhum tema nesses filtros. Tente outra busca ou escolha Todos os temas.')
@@ -64,28 +69,29 @@ def render_topic_table(service,go_record):
         for panel,phase,label in zip(panels[:3],['dominado','aprendendo','alerta'],['Dominados','Aprendendo','Em alerta']):
             panel.button(f'{label} · {counts[phase]}',key='focus_'+phase,on_click=_set_focus,args=(label,),width='stretch')
         panels[3].button('Não vistos · '+str(sum(t['status']=='sem_registro' for t in view['planning_states'])),key='focus_unseen',on_click=_set_focus,args=('Sem estudo registrado',),width='stretch')
-    with st.expander('O que significa cada grupo?'):
-        st.caption('Dominados: acerto com convicção em blocos, amostra suficiente e revisão em dia. Aprendendo: desenvolvimento ou medição pendente. Em alerta: baixo rendimento ou compromisso de revisão vencido. Não vistos: entram aos poucos, por incidência. Segurança alta na Osler aparece na coluna de evidência; não equivale a primeira tentativa.')
+    with st.container(key='topic_filters'):
+        search_col,focus_col=st.columns([2,1])
+        search=search_col.text_input('Buscar tema',placeholder='Ex.: trauma, diabetes, pediatria',key='statistics_search')
+        focus=focus_col.selectbox('Mostrar',['Todos os temas','Priorizar agora','Segurança alta na Osler','Dominados','Aprendendo','Em alerta','Sem estudo registrado','Erros abaixo de 60%','Com questões no período'],key='statistics_focus')
     has_snapshot=any(t.get('planner_safety') for t in view['states'])
     cumulative=has_snapshot and st.radio('Histórico ou resultados registrados?',['Histórico da Osler','Blocos registrados no app'],horizontal=True,key='statistics_source')=='Histórico da Osler'
     if cumulative:
         period='Todo o período'; reference=today_local().isoformat()
-        st.caption('Questões realizadas são questões distintas já vistas. Convicção é a segurança acumulada da Osler, incluindo recuperações nas revisões. Dados do último arquivo importado; não são questões feitas hoje.')
-        search=st.text_input('Buscar tema',placeholder='Ex.: trauma, diabetes, pediatria',key='statistics_search')
+        st.caption('Histórico importado · questões distintas e convicção acumulada, incluindo recuperações. Não são questões feitas hoje.')
     else:
         period=st.radio('Ver resultados de',PERIODS,horizontal=True,key='statistics_period')
-        date_col,search_col=st.columns([1,2])
-        reference=date_col.date_input('Data de referência',value=today_local(),max_value=today_local(),key='statistics_date').isoformat()
-        search=search_col.text_input('Buscar tema',placeholder='Ex.: trauma, diabetes, pediatria',key='statistics_search')
-    area_col,focus_col,mode_col=st.columns([1,1.3,1])
+    more_filters=st.expander('Mais filtros e definições')
+    if not cumulative:
+        reference=more_filters.date_input('Data de referência',value=today_local(),max_value=today_local(),key='statistics_date',format='DD/MM/YYYY').isoformat()
     specific_states=[t for t in view['states'] if not t.get('historical_aggregate')]
     all_rows=topic_statistics(specific_states,view['sessions'],period,reference)
     aggregate_paths={tuple(normalize_path(t['path'])) for t in view['states'] if t.get('historical_aggregate')}
     all_rows=[r for r in all_rows if tuple(normalize_path(r['Caminho'].split(' → '))) not in aggregate_paths]
     areas=sorted({r['Área'] for r in all_rows})
-    area=area_col.selectbox('Área',['Todas',*areas],key='statistics_area')
-    focus=focus_col.selectbox('Mostrar',['Todos os temas','Priorizar agora','Segurança alta na Osler','Dominados','Aprendendo','Em alerta','Sem estudo registrado','Erros abaixo de 60%','Com questões no período'],key='statistics_focus')
-    mode='Todas' if cumulative else mode_col.selectbox('Questões',list(MODES),key='statistics_mode')
+    area=more_filters.selectbox('Área',['Todas',*areas],key='statistics_area')
+    mode='Todas' if cumulative else more_filters.selectbox('Questões',list(MODES),key='statistics_mode')
+    detail=more_filters.checkbox('Exibir mais estatísticas',key='statistics_detail')
+    more_filters.caption('Estado atual: Dominados têm convicção em blocos, amostra suficiente e revisão em dia; Aprendendo inclui medição pendente; Em alerta inclui baixo rendimento ou revisão vencida. Não vistos entram por incidência. O período filtra os resultados, sem redefinir o estado atual.')
     rows=topic_statistics(specific_states,view['sessions'],period,reference,mode)
     rows=[r for r in rows if tuple(normalize_path(r['Caminho'].split(' → '))) not in aggregate_paths]
     if search:
@@ -106,19 +112,21 @@ def render_topic_table(service,go_record):
     elif focus=='Com questões no período': rows=[r for r in rows if r['Questões']>0]
     n=sum(r['Questões com acertos exatos'] for r in rows)
     correct=sum(r['Acertos'] for r in rows)
-    a,b,c=st.columns(3)
+    with st.container(key='topic_summary'):
+        a,b,c=st.columns(3)
     if cumulative:
         a.metric('Temas com histórico Osler',sum(r['Retrato Osler'] is not None for r in rows))
         b.metric('Temas em alerta',sum(r['Estado']=='Em alerta' for r in rows))
         c.metric('Início do cronograma','/'.join(reversed(view['profile']['start_date'].split('-'))) if view['profile'].get('start_date') else 'Não definido')
     else:
         a.metric('Questões no período',sum(r['Questões'] for r in rows))
-        b.metric('Acerto no período',f'{100*correct/n:.1f}%' if n else 'Sem registro exato')
+        b.metric('Acerto no período',f'{100*correct/n:.1f}%' if n else '—')
         c.metric('Temas praticados',sum(r['Questões']>0 for r in rows))
+        if not n: st.caption('Acerto no período: ainda não há registro com quantidade exata de acertos nesses filtros.')
     start,end=period_bounds(period,reference)
     def label(day): return '/'.join(reversed(day.split('-')))
     st.caption(f"{len(rows)} temas nos filtros · histórico importado mais recente por tema." if cumulative else f"{label(start) if start else 'Todo o histórico'} até {label(end)} · {len(rows)} temas nos filtros. Semana começa na segunda; mês segue o calendário.")
-    detail=st.checkbox('Exibir mais estatísticas',key='statistics_detail')
+    st.button('Limpar filtros',key='statistics_clear',on_click=_clear_filters,disabled=not(search or area!='Todas' or focus!='Todos os temas' or mode!='Todas' or detail))
     fields=['Tema','Estado','Questões realizadas','Convicção (%)','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Área','Estado','Questões','Acerto (%)','Com convicção (%)','Próxima revisão']
     has_planner=any(r.get('Retrato Osler') for r in rows)
     if has_planner and not cumulative:

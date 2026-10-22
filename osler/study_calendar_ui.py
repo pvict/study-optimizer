@@ -54,14 +54,11 @@ def render_calendar(service,go_record,go_review=None):
     context=service.replanning()
     if any(t.get('review_committed') is False for t in context['view']['planning_states']):
         st.caption('O histórico importado forma uma fila de prioridades. Os primeiros contatos são distribuídos dentro da sua carga; não são dívidas de estudo. Alertas abaixo se referem a revisões já previstas neste cenário.')
-    render_replanning(service,context)
-    render_prevention(service)
     top=st.columns([1,1])
     mode=top[0].radio('Visão',['Agenda','Semana','Mês'],horizontal=True,key='calendar_mode')
     initial=min(max(today,date.fromisoformat(start_date)),today+timedelta(days=547)) if start_date else today
     if start_date and date.fromisoformat(start_date)>today+timedelta(days=547): st.caption('O início está além do horizonte atual de18meses. O calendário ainda não programa blocos nesse período.')
-    reference=top[1].date_input('Ir para uma data',value=initial,min_value=today-timedelta(days=90),max_value=today+timedelta(days=547),key='calendar_reference',on_change=_reference_changed)
-    render_capacity_summary(service,max(reference.isoformat(),today.isoformat(),start_date or today.isoformat()))
+    reference=top[1].date_input('Ir para uma data',value=initial,min_value=today-timedelta(days=90),max_value=today+timedelta(days=547),key='calendar_reference',on_change=_reference_changed,format='DD/MM/YYYY')
     end=min(today+timedelta(days=547),reference.replace(day=calendar.monthrange(reference.year,reference.month)[1])+timedelta(days=7))
     plans=service.calendar(max(1,(end-today).days+1))
     by_date={p['date']:p for p in plans}
@@ -87,7 +84,17 @@ def render_calendar(service,go_record,go_review=None):
                     with column.container(border=True):
                         _date_button(day,plan,selected)
                         _day_summary(day,plan,context,today)
-    plan=by_date[selected]
+    with st.container(key='calendar_selected_detail'):
+        _render_selected_day(service,go_record,go_review,today,start_date,selected,by_date[selected])
+    with st.container(key='calendar_management'):
+        st.subheader('Organizar as próximas revisões')
+        st.caption(f"{len(context['backlog'])} temas com atraso confirmado · opções de recuperação e prevenção abaixo.")
+        render_replanning(service,context)
+        render_prevention(service)
+        render_capacity_summary(service,max(reference.isoformat(),today.isoformat(),start_date or today.isoformat()))
+
+
+def _render_selected_day(service,go_record,go_review,today,start_date,selected,plan):
     st.subheader('Blocos de '+ '/'.join(reversed(selected.split('-'))))
     if plan.get('not_started'):
         st.info('O cronograma ainda não começou neste dia. Escolha uma data a partir de '+ '/'.join(reversed(start_date.split('-')))+'.')
@@ -95,7 +102,7 @@ def render_calendar(service,go_record,go_review=None):
     if plan.get('historical'):
         if not plan['has_plan']: st.info('Dia sem plano salvo. Não presumimos quais temas você deveria ter feito.')
         st.caption(f"{plan['done_questions']} questões realmente registradas nesse dia.")
-        for row in plan.get('delayed_topics',[]): st.warning(row['path'][-1]+f" · {row['days_late']}dias de atraso · reorganize pela seção de atrasos acima.")
+        for row in plan.get('delayed_topics',[]): st.warning(row['path'][-1]+f" · {row['days_late']}dias de atraso · reorganize pela seção de atrasos abaixo.")
         return
     if selected>today.isoformat() and plan.get('backlog_items'):
         import pandas as pd

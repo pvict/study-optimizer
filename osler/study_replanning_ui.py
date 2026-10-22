@@ -25,7 +25,7 @@ def render_replanning(service,context):
                         'extra':'Adiciona questões só neste período, destinadas às revisões. Não altera sua meta padrão.',
                         'custom':'Escolha a data de cada tema na tabela. As cotas e os limites diários continuam valendo.'}[mode])
             first,period=st.columns(2)
-            start=first.date_input('Começar em',today_local(),min_value=today_local(),max_value=today_local()+timedelta(days=458),key='replan_start')
+            start=first.date_input('Começar em',today_local(),min_value=today_local(),max_value=today_local()+timedelta(days=458),key='replan_start',format='DD/MM/YYYY')
             days=period.number_input('Distribuir em quantos dias?',1,90,7,key='replan_days')
             extra=st.number_input('Questões adicionais por dia',0,300,20,step=5,key='replan_extra') if mode=='extra' else 20
             all_selected=st.checkbox('Incluir todos os temas atrasados',value=True,key='replan_all')

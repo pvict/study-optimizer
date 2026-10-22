@@ -30,7 +30,7 @@ def _configuration(service):
                 st.rerun()
         with st.form("routine_settings"):
             c1, c2, c3 = st.columns(3)
-            start = c1.date_input("Início do cenário", value=date.fromisoformat(cfg.start_date), key="routine_input_start")
+            start = c1.date_input("Início do cenário", value=date.fromisoformat(cfg.start_date), key="routine_input_start",format='DD/MM/YYYY')
             days = c2.number_input("Período de planejamento (dias)", 1, 366, cfg.days, key="routine_input_days")
             cap = c3.number_input("Teto experimental de cartões gerais por dia", 0, 100000, cfg.daily_limit, key="routine_input_cap")
             sec = c1.number_input("Segundos por flashcard geral", 0.1, 3600.0, float(cfg.seconds_per_general), key="routine_input_general_seconds")
@@ -88,7 +88,7 @@ def _measurements(service):
         with st.form("planning_measurement"):
             kind = st.selectbox("Tipo de medição", list(MEASURE_LABELS), format_func=MEASURE_LABELS.get)
             count = st.number_input("Contagem consultada manualmente", 0, 100000000, 0)
-            observed = st.date_input("Data declarada da medição", value=today_local())
+            observed = st.date_input("Data declarada da medição", value=today_local(),format='DD/MM/YYYY')
             horizon = st.number_input("Horizonte de revisões (dias; ignorado para cartões pendentes)", 1, 366, 90)
             source = st.text_input("Origem e contexto da medição")
             approximate = st.checkbox("Contagem aproximada", value=False)

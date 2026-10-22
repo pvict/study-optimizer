@@ -77,7 +77,7 @@ def render_evolution(service):
     period=st.radio('Quero olhar para',options,index=1,horizontal=True,key='evolution_period')
     horizon={'2 semanas':14,'1 mês':30,'3 meses':90,'6 meses':180}
     selected=min(end,(today+timedelta(days=horizon.get(period,547))).isoformat())
-    if period=='Escolher data': selected=st.date_input('Data da projeção',value=min(today+timedelta(days=30),date.fromisoformat(end)),min_value=today,max_value=date.fromisoformat(end),key='evolution_date').isoformat()
+    if period=='Escolher data': selected=st.date_input('Data da projeção',value=min(today+timedelta(days=30),date.fromisoformat(end)),min_value=today,max_value=date.fromisoformat(end),key='evolution_date',format='DD/MM/YYYY').isoformat()
     scenario=None
     with st.expander('Simular outra carga diária'):
         simulate=st.checkbox('Comparar com outra meta de questões',key='evolution_simulate')

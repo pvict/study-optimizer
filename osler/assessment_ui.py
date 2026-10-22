@@ -89,7 +89,7 @@ def _edit_observation(service, matching, as_of, analyzed):
         st.info(f"Observação em uso: {current['observation_id']} · {data['data_observacao']} · {data['origem_da_informacao']}")
     with st.form(f"observation_form_{selected_id}_{revision}"):
         values = {}
-        observed = st.date_input("Data da observação", value=date.fromisoformat(data.get("data_observacao", as_of)))
+        observed = st.date_input("Data da observação", value=date.fromisoformat(data.get("data_observacao", as_of)),format='DD/MM/YYYY')
         values["data_observacao"] = observed.isoformat()
         values["origem_da_informacao"] = st.text_input("Origem dos indicadores", value=data.get("origem_da_informacao", ""), placeholder="Ex.: consulta manual na interface oficial")
         confidence_values = ["informado_usuario", "conferido_usuario", "estimado"]
@@ -169,7 +169,7 @@ def render_assessment(repo):
         q_id = _choose(q, "Qbank para classificar", "assessment_q_id")
     with c2:
         f_id = _choose(f, "Flashcards para classificar", "assessment_f_id")
-    as_of = c3.date_input("Data de análise", value=datetime.now(ZoneInfo("America/Sao_Paulo")).date(), key="assessment_asof").isoformat()
+    as_of = c3.date_input("Data de análise", value=datetime.now(ZoneInfo("America/Sao_Paulo")).date(), key="assessment_asof",format='DD/MM/YYYY').isoformat()
     config = _policies(service)
     try:
         matching = load_matching(repo, q_id, f_id)

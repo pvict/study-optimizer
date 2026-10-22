@@ -79,14 +79,14 @@ def render_exam_goals(service):
     st.markdown('**Editar prova · nova versão**' if editing else '**Cadastrar prova**')
     with st.form('exam_target_form'):
         institution=st.text_input('Instituição',value=data.get('institution',''),key='exam_field_institution')
-        day=st.date_input('Data da prova',value=date.fromisoformat(data.get('exam_date',current['profile']['exam_date'])),key='exam_field_date')
+        day=st.date_input('Data da prova',value=date.fromisoformat(data.get('exam_date',current['profile']['exam_date'])),key='exam_field_date',format='DD/MM/YYYY')
         left,right=st.columns(2)
         cutoff=left.number_input('Nota de corte de referência',min_value=0.,value=float(data['cutoff_score']) if data else None,key='exam_field_cutoff')
         maximum=right.number_input('Nota máxima da prova',min_value=.01,value=float(data.get('max_score',100)),key='exam_field_max')
         source=st.text_input('Fonte do corte (obrigatória)',value=data.get('cutoff_source',''),placeholder='Edital, documento ou link da edição consultada',key='exam_field_source')
         with st.expander('Edição, inscrição e observações (opcionais)'):
             year=st.number_input('Ano da edição',min_value=1,max_value=9999,value=data.get('exam_year'),key='exam_field_year')
-            deadline=st.date_input('Último dia de inscrição',value=date.fromisoformat(data['registration_deadline']) if data.get('registration_deadline') else None,key='exam_field_deadline')
+            deadline=st.date_input('Último dia de inscrição',value=date.fromisoformat(data['registration_deadline']) if data.get('registration_deadline') else None,key='exam_field_deadline',format='DD/MM/YYYY')
             choices=['informado','conferido','estimado']
             confidence=st.selectbox('Como este corte foi conferido?',choices,index=choices.index(data.get('cutoff_confidence','informado')),key='exam_field_confidence')
             notes=st.text_area('Observações',value=data.get('notes',''),key='exam_field_notes')

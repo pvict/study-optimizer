@@ -10,10 +10,13 @@ enableXsrfProtection = true
 gatherUsageStats = false
 serverAddress = "127.0.0.1"
 
+[client]
+toolbarMode = "minimal"
+
 [theme]
 base = "light"
-primaryColor = "#2563eb"
-backgroundColor = "#f5f7fb"
-secondaryBackgroundColor = "#ffffff"
-textColor = "#172b4d"
+primaryColor = "#2457d6"
+backgroundColor = "#f3f4f6"
+secondaryBackgroundColor = "#e9edf4"
+textColor = "#1d1d1f"
 font = "sans-serif"

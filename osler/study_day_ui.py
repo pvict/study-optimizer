@@ -65,12 +65,9 @@ def render_study_day(service,go_record,go_review):
         st.caption('Seu histórico da Osler já está disponível em Temas. O Calendário mostra os blocos a partir do início; os contatos anteriores continuam orientando as prioridades.')
         return
     with st.container(key='study_summary'):
-        a,b,c=st.columns(3)
-        a.metric('Meta de hoje',plan['target_questions'])
-        b.metric('Questões feitas',plan['done_questions'])
-        c.metric('Questões para fazer',plan['questions'])
+        st.html(f'<div class="study-progress-summary"><strong>{plan["done_questions"]} de {plan["target_questions"]} questões registradas</strong><span>{plan["questions"]} para fazer no plano</span></div>')
         if plan['target_questions']:
-            st.progress(min(1.,plan['done_questions']/plan['target_questions']),text=f"{plan['done_questions']} de {plan['target_questions']} questões registradas")
+            st.progress(min(1.,plan['done_questions']/plan['target_questions']))
         dist=plan['distribution']
         st.caption(f"Plano restante: {dist['planned_new']} questões em temas novos · {dist['planned_reviews']} em revisões e diagnósticos.")
         if plan['extra_questions']: st.caption(f"{plan['base_questions']} da meta + {plan['extra_questions']} que você adicionou para adiantar.")
@@ -113,7 +110,7 @@ def render_study_day(service,go_record,go_review):
                                   args=(item['topic_id'],complement,'mistas'),width='stretch')
                 else:
                     st.button('Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if index==1 else 'secondary',
-                              on_click=go_record,args=(item['topic_id'],item['questions'],mode),width='stretch')
+                              on_click=go_record,args=(item['topic_id'],item['questions'],mode))
                 with st.expander('Ver próximas revisões'):
                     st.write(item['reason'])
                     trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)

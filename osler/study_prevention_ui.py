@@ -31,7 +31,7 @@ def render_prevention(service):
         st.subheader('Prevenir atrasos nas próximas semanas')
         st.caption('Compare antes de mudar a rotina. O cenário supõe execução dos blocos; datas e riscos serão recalculados com seus resultados.')
         left,right=st.columns(2)
-        start=left.date_input('Analisar a partir de',value=today,min_value=today,max_value=latest,key='prevention_start')
+        start=left.date_input('Analisar a partir de',value=today,min_value=today,max_value=latest,key='prevention_start',format='DD/MM/YYYY')
         days=right.number_input('Dias para analisar',1,90,14,key='prevention_days')
         token=service.agenda.token()
         cache_key=[token,start.isoformat(),int(days)]
