@@ -16,8 +16,9 @@ from .topic_picker_ui import pick_topic, reset_picker
 from .study_calendar_ui import render_calendar
 from .exam_goals_ui import render_exam_goals
 from .exam_goals import ExamGoals
+from .study_evolution_ui import render_evolution
 
-VIEWS=['Meu dia','Calendário','Temas e estatísticas','Registrar resultados','Ajustes']
+VIEWS=['Meu dia','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Ajustes']
 
 
 def _go_record(topic_id,questions,mode='novas'):
@@ -49,12 +50,12 @@ def render_adaptive(repo):
     if st.session_state.get('adaptive_view') not in VIEWS: st.session_state['adaptive_view']='Meu dia'
     current=st.session_state['adaptive_view']
     st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
-              'Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano'}[current])
+              'Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução'}[current])
     st.caption({'Meu dia':'Faça os blocos abaixo e registre o resultado para atualizar o plano.',
                 'Calendário':'Consulte os próximos dias e abra espaço para suas revisões.',
                 'Temas e estatísticas':'Encontre o que precisa de atenção e acompanhe seu rendimento.',
                 'Registrar resultados':'Registre o que fez. O próximo plano acompanha seus resultados.',
-                'Ajustes':'Defina sua rotina uma vez. Ajuste quando precisar.'}[current])
+                'Ajustes':'Defina sua rotina uma vez. Ajuste quando precisar.','Evolução':'Enxergue o que já construiu e explore os próximos capítulos da preparação.'}[current])
     if 'adaptive_notice' in st.session_state: st.success(st.session_state.pop('adaptive_notice'))
     if 'adaptive_error' in st.session_state: st.error(st.session_state.pop('adaptive_error'))
     with st.container(key='study_navigation'):
@@ -71,6 +72,7 @@ def render_adaptive(repo):
         elif view=='Calendário': render_calendar(service,_go_record,_go_review)
         elif view=='Registrar resultados': _register(service)
         elif view=='Temas e estatísticas': render_topic_table(service,_go_record)
+        elif view=='Evolução': render_evolution(service)
         else:
             st.subheader('Seu plano, do seu jeito')
             settings=st.radio('O que ajustar?',['Meta e rotina','Minhas provas','Instituições e incidências'],horizontal=True,key='study_settings_section')

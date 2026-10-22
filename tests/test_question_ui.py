@@ -16,7 +16,7 @@ def test_today_uses_question_goal_without_time_widget_and_persists_extra(tmp_pat
     repo,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
     assert not app.exception
     assert len(app.radio(key='main_view').options)==3
-    assert len(app.radio(key='adaptive_view').options)==5
+    assert {'Hoje','Calendário','Evolução','Temas','Registrar','Ajustes'}<=set(app.radio(key='adaptive_view').options)
     assert not any('tempo total' in s.label.lower() for s in app.select_slider)
     assert any(m.label=='Meta de hoje' and m.value=='60' for m in app.metric)
     app.number_input(key='day_questions').set_value(40)

@@ -1,5 +1,7 @@
 # Documentação
 
+- [Evolução e jornada: cenários, rendimento e conquistas — v0.19](research/evolucao-v0.19.md)
+
 - [Rotina adaptativa: capacidade, lotes, cobertura e limites — v0.18](research/capacidade-adaptativa-v0.18.md)
 
 - [Sistema visual](../DESIGN.md): tokens e organização da interface.

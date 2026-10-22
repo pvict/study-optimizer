@@ -1,6 +1,6 @@
 [project]
 name = "osler-study-optimizer"
-version = "0.18.0"
+version = "0.19.0"
 description = "Análise local de estudos, decisões manuais e rotina sustentável"
 requires-python = ">=3.11"
 

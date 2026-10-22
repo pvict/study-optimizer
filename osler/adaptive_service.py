@@ -30,9 +30,10 @@ from .study_prevention import preventive_state
 from .planner_snapshot import load_planner_contexts
 from .review_policy import POLICY_VERSION
 from .capacity_service import CapacityServiceMixin
+from .evolution_service import EvolutionServiceMixin
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)

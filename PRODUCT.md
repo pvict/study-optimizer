@@ -1,0 +1,31 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+web
+
+## Users
+Pessoa que se prepara para residência médica, estudando pelo computador e celular. Contexto confirmado na conversa do projeto.
+
+## Product Purpose
+Organizar uma rotina viável em questões por dia, usando estudo realizado, convicção, incidência nas instituições e tempo sem contato para orientar temas específicos e revisões.
+
+## Operating Context
+Aplicativo local em Python/Streamlit. Fontes: arquivos exportados manualmente e registros do usuário. Sem acesso ou automação da plataforma Osler. Suspensões e reativações são aplicadas manualmente pelo usuário.
+
+## Capabilities and Constraints
+Calendário, rotina fixa/adaptativa, questões novas/repetidas, lotes de erros com retorno de7dias, estatísticas e histórico imutável. Convicção recuperada da Osler não é acerto de primeira tentativa. Preservar originais e versões. A meta de90% não é probabilidade de aprovação. Projeções não registram estudo ou domínio e precisam de premissas identificadas.
+
+## Brand Commitments
+Português simples, ações claras, configurações avançadas recolhidas; usar Impeccable e Revenue-Centric Design. Evolução deve oferecer jornada elegante, marcos e conquistas discretas, preferência confirmada pelo usuário em20/10/2026. Sem urgência artificial, progresso ou dados pessoais fictícios.
+
+## Evidence on Hand
+Código e documentação dos modelos; PDFs e tabelas importados localmente. Séries reais de desempenho podem estar ausentes: a interface precisa comunicar insuficiência em vez de preencher curvas com exemplos pessoais.
+
+## Product Principles
+- A rotina precisa caber na carga escolhida.
+- Separar evidência observada, interpretação e cenário futuro.
+- Mostrar próximos passos, deixando detalhes acessíveis.
+- Conquistas reconhecem realizações verificáveis.
+- Manter a mesma função acessível em computador e celular.

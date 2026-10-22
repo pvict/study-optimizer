@@ -117,7 +117,7 @@ components:
 
 **Creative North Star: "Clareza para estudar"**
 
-A identidade existente combina azul, superfícies claras e controles familiares. A direção Operate valoriza leitura rápida e ações de estudo evidentes: mostrar o que falta, oferecer o próximo bloco e deixar ajustes e explicações em segundo plano. O uso confirmado abrange computador e celular.
+A identidade existente combina azul, superfícies claras e controles familiares. A direção Operate valoriza leitura rápida e ações de estudo evidentes: mostrar o que falta, oferecer o próximo bloco e deixar ajustes e explicações em segundo plano. O uso confirmado abrange computador e celular. Evolução estende a identidade com uma jornada elegante de marcos e conquistas discretas; estratégia em [Evolução](docs/design/evolucao.md).
 
 Este documento registra o código atual, sem criar uma identidade nova. A referência normativa é `osler/study.css`, aplicada por `study_style.py`, com componentes em `study_components.py`, `study_day_ui.py`, `study_tables_ui.py`, `study_calendar_ui.py` e `adaptive_ui.py`, mais o tema de `.streamlit/config.toml`. Os tokens acima registram valores reutilizados; estilos e comportamento nativos dependem do Streamlit 1.66. A cascade efetiva do navegador não foi inspecionada.
 
@@ -164,7 +164,7 @@ Em viewport até (760px), o título principal passa a (1.65rem), o valor das mé
 
 O conteúdo tem largura máxima de (1240px), com margens internas (2.2rem 2rem 4rem). Até (1000px), o espaço horizontal passa a (1.25rem). Até (760px), usa (1.2rem max(1rem, env(safe-area-inset-left)) 3rem). Não presumir comportamento de safe area além dessa regra existente.
 
-Na tela Hoje, trabalho e apoio usam proporção (1.85:1); em largura estreita, colunas passam a uma pilha. Resumo e filtros de estado conservam três colunas compactas. A navegação tem cinco destinos, reflui para três colunas e, com container até (350px), para duas, com o último destino ocupando a linha. O container `study` também ativa a composição estreita até (700px), independentemente da largura da janela.
+Na tela Hoje, trabalho e apoio usam proporção (1.85:1); em largura estreita, colunas passam a uma pilha. Resumo e filtros de estado conservam três colunas compactas. A navegação tem seis destinos, reflui para três colunas e, com container até (350px), para duas; um último destino ocupa a linha apenas quando a quantidade é ímpar. O container `study` também ativa a composição estreita até (700px), independentemente da largura da janela.
 
 Calendário oferece Agenda, Semana e Mês; Agenda é a primeira opção. A grade semanal/mensal passa a sete colunas explícitas até (1000px) e a duas na faixa estreita. Tabelas têm largura contida; Temas oferece Lista paginada em até 12 itens, com ações por tema, como alternativa à rolagem horizontal. Não esconder funções essenciais por largura.
 
@@ -196,7 +196,7 @@ Usar widgets nativos e rótulos visíveis. O estilo próprio define cursor azul,
 
 ### Navigation
 
-Grupo radio nativo com Hoje, Calendário, Temas, Registrar e Ajustes. O rótulo do grupo fica visualmente recolhido. Seleção usa fundo azul suave, texto azul de foco e peso de label. Manter os destinos e o comportamento nativo de teclado; os snippets do sidecar demonstram somente as regras locais, sem reconstruir o runtime Streamlit.
+Grupo radio nativo com Hoje, Calendário, Evolução, Temas, Registrar e Ajustes. O rótulo do grupo fica visualmente recolhido. Seleção usa fundo azul suave, texto azul de foco e peso de label. Manter os destinos e o comportamento nativo de teclado; os snippets do sidecar demonstram somente as regras locais, sem reconstruir o runtime Streamlit.
 
 ### Cards / Containers
 
