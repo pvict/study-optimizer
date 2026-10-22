@@ -39,6 +39,8 @@ O CSS mantém alvos de44px, foco explícito, quebra de nomes longos, largura de 
 
 Baseline antes de modificar o checkout ativo:416testes passaram. Verificações direcionadas cobrem os fluxos alterados com AppTest em dados sintéticos; a validação com fontes importadas ocorre somente em cópia isolada por `OSLER_DATA_DIR`. Nenhum registro de teste é enviado ao banco ativo.
 
+Resultado final no checkout ativo:419testes passaram, sem skips, em89,97s. O único aviso vem do teste deliberado de entrada ZIP duplicada. A cópia com arquivos importados percorreu Hoje/registro, Calendário, Temas, Ajustes, Evolução, Flashcards e Arquivos; comparação posterior confirmou23tabelas e101arquivos originais inalterados. O servidor local foi reiniciado com o tema atualizado.
+
 Detector Impeccable executado uma vez. O aviso de borda em elemento arredondado atingiu o indicador inferior da aba, cujo raio é explicitamente0; os avisos de escala tipográfica foram reconciliados com os tamanhos reais no sistema documentado. A regra antiga de métrica1,55rem de Hoje permanece inócua porque esse componente não é emitido; ela não foi promovida a regra do sistema novo.
 
 Revisão independente do diff e testes funcionais sem problema importante encontrado no escopo examinado. Os serviços, cálculos de revisão, distribuição, importação e armazenamento não foram alterados.
