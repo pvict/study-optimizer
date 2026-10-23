@@ -70,9 +70,12 @@ def test_long_theme_and_user_markup_are_preserved_as_text():
 
 def test_archived_topic_with_contact_and_no_scheduled_review_is_not_mislabeled():
     from osler.study_statistics import topic_statistics
+    from osler.confidence_presentation import confidence_presentation
     from test_adaptive_planning import session
-    rows=topic_statistics([],[session('Tema arquivado',day='2026-10-15')],'Todo o período','2026-10-20')
+    events=[session('Tema arquivado',day='2026-10-15')]
+    rows=topic_statistics([],events,'Todo o período','2026-10-20')
     assert rows[0]['Último contato']=='2026-10-15' and rows[0]['Próxima revisão'] is None
+    rows=confidence_presentation(rows,events,'Todo o período','2026-10-20')
     app=AppTest.from_string('from osler.study_tables_ui import _topic_list\n_topic_list('+repr(rows)+',"history",lambda *args:None)').run()
     assert not app.exception
     assert any(c.value=='Próxima revisão: Não programada' for c in app.caption)
@@ -80,11 +83,13 @@ def test_archived_topic_with_contact_and_no_scheduled_review_is_not_mislabeled()
 
 def test_initial_topic_card_shows_queue_action_instead_of_false_review_date():
     from osler.study_statistics import topic_statistics
+    from osler.confidence_presentation import confidence_presentation
     from osler.adaptive_planning import topic_states
     from osler.study_models import AdaptiveProfile
     from test_initial_review_policy import imported
     state=topic_states([imported()],[],[],{},'2026-10-15',AdaptiveProfile())[0]
     rows=topic_statistics([state],[],'Todo o período','2026-10-15')
+    rows=confidence_presentation(rows,[],'Todo o período','2026-10-15',include_snapshot=True)
     app=AppTest.from_string('from osler.study_tables_ui import _topic_list\n_topic_list('+repr(rows)+',"initial",lambda *args:None,True)').run()
     assert not app.exception
     assert any(c.value=='Próxima ação: Priorizar agora' for c in app.caption)

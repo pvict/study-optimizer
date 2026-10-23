@@ -1,4 +1,5 @@
 from copy import deepcopy
+import pandas as pd
 
 from streamlit.testing.v1 import AppTest
 
@@ -30,7 +31,8 @@ def test_imported_view_also_shows_recent_app_counts_without_adding_denominators(
     row=frame.loc[frame['Tema']=='A'].iloc[0]
     assert row['Questões no app']==17 and row['Questões no histórico']==0
     assert abs(row['Acerto no app (%)']-100*11/17)<.01
-    assert row['Convicção no app (%)']==0
+    assert row['Convicção (%)']==0
+    assert len([c for c in frame.columns if c.startswith('Convicção') and c.endswith('(%)')])==1
     assert service.store.active('2026-10-15')==before
     app.radio(key='statistics_source').set_value('Blocos registrados no app').run()
     frame=next(d.value for d in app.dataframe if 'Questões' in d.value)
@@ -43,4 +45,6 @@ def test_history_list_shows_app_results_and_unknown_imported_confidence_separate
     app.radio(key='statistics_layout').set_value('Lista').run()
     assert not app.exception
     assert any('17' in m.value and 'no app' in m.value and '64.7%' in m.value for m in app.markdown)
-    assert any('histórico' in c.value and 'Não informada' in c.value for c in app.caption)
+    originals=next(d.value for d in app.dataframe if 'Convicção na Osler (%)' in d.value)
+    row=originals.loc[originals['Tema']=='A'].iloc[0]
+    assert row['Convicção no app (%)']==0 and pd.isna(row['Convicção na Osler (%)'])
