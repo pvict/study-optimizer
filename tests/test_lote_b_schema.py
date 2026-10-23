@@ -11,12 +11,12 @@ def test_schema11_is_additive_and_stores_do_not_downgrade(tmp_path):
     repo=Repository(tmp_path)
     StudyStore(repo)
     with repo._connection() as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==11
+        assert db.execute('PRAGMA user_version').fetchone()[0]==12
         for name in ('study_errors','mock_exams','mock_exam_areas','mock_exam_topics'):
             assert db.execute("SELECT name FROM sqlite_master WHERE name=?",(name,)).fetchone()
-    assert check_database(repo.db_path)[0]==11
+    assert check_database(repo.db_path)[0]==12
     StudyStore(repo)
-    assert check_database(repo.db_path)[0]==11
+    assert check_database(repo.db_path)[0]==12
 
 
 def test_schema11_backup_roundtrip_keeps_new_events_and_children(tmp_path):
@@ -27,7 +27,7 @@ def test_schema11_backup_roundtrip_keeps_new_events_and_children(tmp_path):
     mocks.save(MockExam('2026-10-15',20,15,areas=[{'area':'Clínica','questions':10,'correct':8}],
                         topics=[{'path':['Área','Tema'],'questions':5,'correct':4}]))
     backup=create_backup(repo)
-    assert inspect_backup(backup.read_bytes())['schema_version']==11
+    assert inspect_backup(backup.read_bytes())['schema_version']==12
     restored=Repository(restore_backup(backup.read_bytes(),tmp_path/'restored'))
     assert ErrorStore(restored).events()==ErrorStore(repo).events()
     assert MockExamStore(restored).events()==mocks.events()

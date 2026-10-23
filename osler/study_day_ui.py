@@ -13,6 +13,7 @@ from .study_feedback import day_activity
 from .study_swap_ui import render_swap_controls,render_swap_history
 from .study_errors_ui import render_error_context
 from .final_review_ui import render_approach
+from .weekly_review_ui import render_absence_notice,render_weekly_review
 
 
 def _change_extra(service,day,topic_id,questions,revision,remove=False):
@@ -69,6 +70,7 @@ def render_study_day(service,go_record,go_review,go_edit=None):
     service.remember_day(view)
     plan=view['plan']
     render_approach(service)
+    render_absence_notice(service,day)
     routine=plan.get('routine_override',{})
     if routine.get('mode')=='mock_day':
         st.success(f"Dia feito por simulado · {routine['mock_questions']} questões. O resultado fica separado dos blocos.")
@@ -175,6 +177,7 @@ def render_study_day(service,go_record,go_review,go_edit=None):
         small=sum(t['small_bank'] for t in view['planning_states'])
         if small: st.caption(f'{small} temas têm menos questões conhecidas que o mínimo por bloco. Veja os temas e o complemento necessário no plano de revisões em Temas e estatísticas.')
         st.caption('A meta de 90% orienta a preparação. Não é uma previsão de aprovação; intervalos de revisão são regras iniciais de planejamento.')
+    render_weekly_review(service,day)
     if plan['items']:
         if st.button('Preparar plano para download'):
             st.session_state['study_download_path']=str(service.export(view))

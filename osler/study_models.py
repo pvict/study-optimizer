@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass, field
 
 from .planning import _date, _number
 from .models import normalize_path
+from .algorithm_parameters import V1
 
 
 @dataclass(frozen=True)
@@ -67,8 +68,8 @@ class AdaptiveProfile:
     institution_weights: dict[str,float] = field(default_factory=dict)
     uncertainty_weight: float = .5
     recent_days: int = 90
-    min_block: int = 10
-    max_contact_gap: int = 30
+    min_block: int = V1.minimum_block
+    max_contact_gap: int = V1.max_contact_gap
     area_targets: dict[str,float] = field(default_factory=dict)
     primary_exam_id: str | None = None
     start_date: str | None = None
@@ -76,8 +77,15 @@ class AdaptiveProfile:
     mock_cadence_days: int = 0
     approach_days: int = 30
     exam_weights: dict[str,float] = field(default_factory=dict)
+    parameter_values: dict = field(default_factory=dict)
+
+    @property
+    def parameters(self):
+        from .algorithm_parameters import AlgorithmParameters
+        return AlgorithmParameters(**self.parameter_values).validate()
 
     def validate(self):
+        self.parameters
         _number(self.mock_cadence_days,'Intervalo entre simulados',integer=True,maximum=365)
         _number(self.approach_days,'Aviso de aproximação',integer=True,maximum=90)
         if not isinstance(self.exam_weights,dict) or any(not isinstance(k,str) or not k.strip() for k in self.exam_weights):

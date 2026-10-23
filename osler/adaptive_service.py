@@ -33,9 +33,11 @@ from .capacity_service import CapacityServiceMixin
 from .evolution_service import EvolutionServiceMixin
 from .swap_service import DailySwapServiceMixin
 from .final_review import FinalReviewServiceMixin,special_config,final_reservations
+from .triage_service import TriageServiceMixin
+from .study_triage_policy import apply_triage
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
@@ -197,11 +199,24 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
         planning_topics=planning_frontier(all_topics,effective.min_block)
         planning_states=topic_states(planning_topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
+        opened=ErrorStore(self.repository).active(as_of)
+        booked={r['topic_id'] for r in agenda['rows']}
+        booked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]))
+        for swap in agenda.get('swaps',[]):
+            booked.add(swap.get('to_topic_id',swap.get('topic_id','')))
+        for cfg in agenda['overrides'].values():
+            if cfg.get('mode')=='final_review': booked.update(r['topic_id'] for r in cfg.get('rows',[]))
+        for t in states+planning_states:
+            key=tuple(normalize_path(t['path']))
+            t['open_error_count']=sum(tuple(e['path'])==key for e in opened)
+            t['reserved']=t['topic_id'] in booked
+        states=apply_triage(states,agenda.get('triage_policies',[]),as_of,booked)
+        planning_states=apply_triage(planning_states,agenda.get('triage_policies',[]),as_of,booked)
         scheduled={r['topic_id']:r for r in agenda['rows']}
         for t in states+planning_states:
             if t['topic_id'] in scheduled: t['reschedule_date']=scheduled[t['topic_id']]['date']
             t.update(preventive_state(t,as_of,agenda.get('policies',[])))
-        incidence=incidence_weights(topics,self.guide.datasets(),effective.institution_weights,as_of)
+        incidence=incidence_weights(topics,self.guide.datasets(),effective.institution_weights,as_of,effective.parameters)
         extras=[]
         by_id={t['topic_id']:t for t in planning_states}
         missing={e['topic_id'] for e in day_settings.extra_topics}-set(by_id)
@@ -227,7 +242,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         if any(t['bank_balance_uncertain'] for t in states): warnings.append('O saldo de questões inéditas é uma estimativa: os arquivos e os blocos podem incluir as mesmas questões ou mostrar totais diferentes.')
         if as_of>profile.exam_date: warnings.append('A data da meta já passou. Ajuste a data para continuar a preparação.')
         if profile.start_date and profile.start_date>profile.exam_date: warnings.append('O início do cronograma está depois da prova de referência. Confira as datas em Ajustes.')
-        plan.update({'algorithm_version':POLICY_VERSION,'sources':sources,'profile_id':record['id'],'day_revision':day['revision'],'routine_override':agenda['overrides'].get(as_of,{}),
+        plan.update({'algorithm_version':POLICY_VERSION,'parameter_version':effective.parameters.version,'sources':sources,'profile_id':record['id'],'day_revision':day['revision'],'routine_override':agenda['overrides'].get(as_of,{}),
                      'effective_profile':effective.to_dict(),
                      'session_versions':[(s['session_id'],s['version']) for s in sessions],
                      'incidence_contexts':incidence['contexts']})

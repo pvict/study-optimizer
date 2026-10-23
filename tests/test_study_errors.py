@@ -111,10 +111,10 @@ def test_error_store_never_decreases_newer_schema(tmp_path):
     repo = Repository(tmp_path)
     ErrorStore(repo)
     with repo._connection() as db:
-        db.execute('PRAGMA user_version=12')
+        db.execute('PRAGMA user_version=13')
     ErrorStore(repo)
     with repo._connection() as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 12
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 13
 
 
 def test_read_only_adverse_helper_does_not_initialize_or_migrate(tmp_path):

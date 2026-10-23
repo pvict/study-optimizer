@@ -65,7 +65,7 @@ def test_schema10_backup_restores_versions_and_invalidates_preview(tmp_path):
     store.save_profile(AdaptiveProfile(primary_exam_id=saved['target_id'],area_targets={'Pediatria':95}),0)
     exams.save(replace(target(),notes='corrigido'),target_id=saved['target_id'],expected_version=1)
     backup=create_backup(repo)
-    assert inspect_backup(backup.read_bytes())['schema_version']==11
+    assert inspect_backup(backup.read_bytes())['schema_version']==12
     restored=Repository(restore_backup(backup.read_bytes(),tmp_path/'restored'))
     assert ExamGoals(restored).events()==exams.events()
     assert StudyStore(restored).profile()==store.profile()
@@ -93,7 +93,7 @@ def test_schema9_backup_migrates_additively_and_keeps_old_profile(tmp_path):
     assert inspect_backup(backup.read_bytes())['schema_version']==9
     restored=Repository(restore_backup(backup.read_bytes(),tmp_path/'migrated'))
     StudyStore(restored)
-    assert check_database(restored.db_path)[0]==11
+    assert check_database(restored.db_path)[0]==12
     with restored._connection() as db:
         assert previous==[tuple(r) for r in db.execute('SELECT * FROM study_profiles')]
         assert db.execute('SELECT COUNT(*) FROM exam_targets').fetchone()[0]==0

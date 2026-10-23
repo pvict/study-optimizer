@@ -21,18 +21,22 @@ from .study_activity_ui import render_result_feedback
 from .study_errors_ui import render_quick_error,render_errors
 from .mock_exams_ui import render_mock_exams,render_mock_settings
 from .final_review_ui import render_exam_weights
+from .goal_risk_ui import render_goal_risk
+from .study_triage_ui import render_triage
+from .parameter_ui import render_parameter_settings
+from .consolidated_export import consolidated_csv
 
 VIEWS=['Meu dia','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Simulados','Ajustes']
 
 
-def _go_record(topic_id,questions,mode='novas'):
+def _go_record(topic_id,questions,mode=None):
     reset_picker('record')
     st.session_state.pop('study_saved',None)
     st.session_state['adaptive_view']='Registrar resultados'
     st.session_state['adaptive_topic']=topic_id
     st.session_state['study_n']=questions
     st.session_state['study_kind']='bloco'
-    st.session_state['study_mode']=mode
+    st.session_state['study_mode']=mode or st.session_state.get('last_study_mode','novas')
     st.session_state['study_method']='acertos'
     st.session_state.pop('study_correct',None)
     st.session_state.pop('study_edit',None)
@@ -56,6 +60,9 @@ def _back_to_plan():
 
 def render_adaptive(repo):
     service=AdaptiveService(repo)
+    if 'last_study_mode' not in st.session_state:
+        previous=[r for r in service.store.active(today_local().isoformat()) if r['entry']['kind']=='bloco']
+        st.session_state['last_study_mode']=max(previous,key=lambda r:r['id'])['entry']['mode'] if previous else 'novas'
     if st.session_state.get('adaptive_view') not in VIEWS: st.session_state['adaptive_view']='Meu dia'
     with st.container(key='study_navigation'):
         view=st.radio('Seu estudo',VIEWS,format_func=lambda v:{'Meu dia':'Hoje','Temas e estatísticas':'Temas','Registrar resultados':'Registrar'}.get(v,v),horizontal=True,key='adaptive_view',label_visibility='collapsed',width='stretch')
@@ -83,9 +90,14 @@ def render_adaptive(repo):
         elif view=='Registrar resultados':
             with st.container(key='study_registration'): _register(service)
         elif view=='Temas e estatísticas':
-            stats,errors=st.tabs(['Desempenho dos temas','Erros abertos'])
+            stats,errors,cut,goal=st.tabs(['Desempenho dos temas','Erros abertos','Plano de corte','Minha meta'])
             with stats: render_topic_table(service,_go_record)
             with errors: render_errors(service)
+            with cut: render_triage(service)
+            with goal: render_goal_risk(service)
+            with st.expander('Exportar histórico para análise externa'):
+                st.caption('Fontes e versões em linhas separadas. Não some os denominadores entre PDFs, acumulados, blocos e simulados.')
+                st.download_button('Baixar CSV consolidado',consolidated_csv(service,today_local().isoformat()),'historico-consolidado.csv','text/csv',key='consolidated_export')
         elif view=='Evolução': render_evolution(service)
         elif view=='Simulados': render_mock_exams(service)
         else:
@@ -95,6 +107,7 @@ def render_adaptive(repo):
                 with st.container(key='study_settings'):
                     _settings(service)
                     render_mock_settings(service)
+                    render_parameter_settings(service)
             elif settings=='Minhas provas':
                 render_exam_goals(service)
                 render_exam_weights(service)
@@ -104,6 +117,10 @@ def render_adaptive(repo):
 
 
 def _register(service):
+    if 'study_mode' not in st.session_state:
+        previous=[r for r in service.store.active(today_local().isoformat()) if r['entry']['kind']=='bloco']
+        st.session_state['study_mode']=max(previous,key=lambda r:r['id'])['entry']['mode'] if previous else 'novas'
+        st.session_state['last_study_mode']=st.session_state['study_mode']
     saved=st.session_state.get('study_saved')
     if saved:
         st.subheader('Registro concluído')
@@ -160,6 +177,7 @@ def _register(service):
                          confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'))
         sid=editing['session_id'] if editing else st.session_state.setdefault('study_entry_id',uuid.uuid4().hex)
         service.save_entry(entry,sid,editing['version'] if editing else 0)
+        st.session_state['last_study_mode']=entry.mode
         st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected,'session_id':sid}
         for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of']: st.session_state.pop(key,None)
         st.session_state['adaptive_notice']='Resultado salvo. O plano, os alertas e a evolução foram atualizados.'

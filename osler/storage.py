@@ -25,7 +25,7 @@ class Repository:
         self.db_path = self.root / "osler.sqlite3"
         with self._connection() as db:
             schema_version = db.execute("PRAGMA user_version").fetchone()[0]
-            if schema_version > 11:
+            if schema_version > 12:
                 raise ValueError("Banco de versão mais recente. Atualize o aplicativo antes de abrir estes dados.")
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS reports (

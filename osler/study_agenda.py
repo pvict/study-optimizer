@@ -10,7 +10,7 @@ from . import review_policy
 def planning_token(db):
     tables=['study_events','study_profiles','study_plan_runs','guide_settings','guide_days','incidence_datasets',
             'observations','observation_events','reduction_actions','audit_events','planner_events','exam_targets',
-            'study_errors','mock_exams','mock_exam_areas','mock_exam_topics']
+            'study_errors','mock_exams','mock_exam_areas','mock_exam_topics','algorithm_parameters','algorithm_selections']
     values=[(name,db.execute('SELECT COALESCE(MAX(rowid),0) FROM '+name).fetchone()[0]) for name in tables]
     values.append(('days',[tuple(r) for r in db.execute('SELECT day,revision FROM study_days ORDER BY day')]))
     values.append(('review_policy',review_policy.POLICY_VERSION))
@@ -64,9 +64,11 @@ class StudyAgenda:
         rows={}
         overrides={}
         policies=[]
+        triage_policies=[]
         for r in applies:
             overrides.update(r.get('overrides',{}))
             if r.get('scope')=='preventive': policies.append({**r['policy'],'plan_id':r['id']})
+            if r.get('scope')=='triage': triage_policies.append({**r['policy'],'plan_id':r['id']})
             selected=set(r.get('selected',[]))
             rows={key:item for key,item in rows.items() if item['topic_id'] not in selected}
             for item in r['rows']: rows[tuple(normalize_path(item['path']))]={**item,'plan_id':r['id'],'cutoff':r['cutoff'],'created_day':r['created_day']}
@@ -83,5 +85,5 @@ class StudyAgenda:
             used=sum(s['entry']['questions'] for s in sessions if s['entry']['kind']=='bloco' and
                      s.get('first_event_id',s.get('id',0))>item['cutoff'] and s['entry']['day']>=item['created_day'] and tuple(normalize_path(s['entry']['path']))==key)
             item['remaining']=max(0,item['questions']-used)
-        return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'swaps':swaps,
+        return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'triage_policies':triage_policies,'swaps':swaps,
                 'history':[r for r in records if r.get('kind','').startswith('reschedule.')]}

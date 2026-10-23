@@ -32,6 +32,8 @@ class StudyStore:
             migrate_exam_targets(db)
             from .lote_b_schema import migrate_lote_b
             migrate_lote_b(db)
+            from .lote_c_schema import migrate_lote_c
+            migrate_lote_c(db)
 
     def day(self,day,default_questions=60):
         _date(day)
@@ -107,10 +109,13 @@ class StudyStore:
         with self.repository._connection() as db:
             row = db.execute('SELECT * FROM study_profiles ORDER BY id DESC LIMIT 1').fetchone()
         configured=AdaptiveProfile(**json.loads(row['payload'])) if row else AdaptiveProfile()
+        from .algorithm_parameters import current_parameters
+        parameters=current_parameters(self.repository)['parameters']
         from .exam_goals import active_exams,principal_exam
         from .planner_service import today_local
         principal=principal_exam(configured,active_exams(self.repository),today_local().isoformat())
         effective=replace(configured,exam_date=principal['target']['exam_date']) if principal else configured
+        effective=replace(effective,parameter_values=parameters.to_dict())
         if configured.exam_weights:
             weights={}
             for e in active_exams(self.repository):

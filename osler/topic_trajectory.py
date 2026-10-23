@@ -8,6 +8,7 @@ from .planning import _date
 
 def question_dose(state,profile,entries=(),as_of=None):
     """Política inicial explícita: necessidade + incerteza + relevância, não dose clínica validada."""
+    params=profile.parameters
     p=state['confidence'] if state['confidence']['exact_n'] else state['performance']
     target=profile.target_accuracy/100
     rate=p['observed'] if p['observed'] is not None else p['mean']
@@ -44,7 +45,7 @@ def question_dose(state,profile,entries=(),as_of=None):
         elif not latest_complete:
             streak=0
             last_spaced=day
-        elif latest_complete and (last_spaced is None or (_date(day)-_date(last_spaced)).days>=3):
+        elif latest_complete and (last_spaced is None or (_date(day)-_date(last_spaced)).days>=params.spaced_min_days):
             streak+=1
             last_spaced=day
     # Blocos pequenos e lotes de erros não provam aprendizagem do tema,
@@ -61,9 +62,9 @@ def question_dose(state,profile,entries=(),as_of=None):
     gap=max(0,target-rate)/target
     uncertainty=min(1,p['sd']/.25)
     h=state.get('incidence_strength',0)
-    desired=max(profile.min_block,ceil(profile.min_block+10*gap+5*uncertainty+5*h))
-    reliable_initial=bool(initial and snapshot and snapshot['unique_questions']>=30 and rate>=target)
-    if not state['spacing']['block_days'] and not reliable_initial: desired=max(desired,20,profile.min_block)
+    desired=max(profile.min_block,ceil(profile.min_block+params.gap_dose*gap+params.uncertainty_dose*uncertainty+params.incidence_dose*h))
+    reliable_initial=bool(initial and snapshot and snapshot['unique_questions']>=params.sufficient_sample and rate>=target)
+    if not state['spacing']['block_days'] and not reliable_initial: desired=max(desired,params.diagnostic_dose,profile.min_block)
     stale=bool(as_of and latest_day and (_date(as_of)-_date(latest_day)).days>evidence_window)
     adverse=bool(state.get('manual_adverse') or state.get('registered_error') or state.get('alert_signal') or
                  latest_rate is not None and latest_rate<target or p['exact_n']>=5 and rate<target)
@@ -72,9 +73,9 @@ def question_dose(state,profile,entries=(),as_of=None):
     reason='Conferir retenção após bons resultados com convicção em dias espaçados.' if maintenance else 'Reforçar dificuldades nos resultados registrados ou nos sinais de erro informados.' if adverse else 'Conferir retenção após longo período sem uma medição suficiente.' if stale else 'Medir diferentes partes do tema antes de reduzir a prática.'
     if maintenance:
         # Piso de manutenção é uma regra do produto, não um ótimo científico.
-        desired=profile.min_block+ceil(3*h)
+        desired=profile.min_block+ceil(params.maintenance_incidence_dose*h)
     elif adverse or stale:
-        desired=max(desired,20,profile.min_block)
+        desired=max(desired,params.diagnostic_dose,profile.min_block)
     available=min(state['total'],desired)
     return {'recommended_questions':desired if state['total']<profile.min_block else available,
             'available_per_block':available,'complement_per_block':max(0,desired-state['total']) if state['total']<profile.min_block else 0,

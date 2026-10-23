@@ -26,6 +26,8 @@ SCHEMA = {
          "mock_exams": "id exam_key version action payload created_at",
          "mock_exam_areas": "id mock_exam_id area questions correct",
          "mock_exam_topics": "id mock_exam_id path questions correct"},
+    12: {"algorithm_parameters":"version payload created_at","algorithm_selections":"id parameter_version created_at",
+         "weekly_reviews":"id week_key version action payload created_at"},
 }
 
 
@@ -35,7 +37,7 @@ def check_database(path):
             if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
                 raise ValueError("Banco falhou na verificação de integridade.")
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if not 2 <= version <= 11:
+            if not 2 <= version <= 12:
                 raise ValueError("Versão do banco não suportada.")
             for required_version, tables in SCHEMA.items():
                 if required_version > version:
@@ -67,6 +69,14 @@ def check_database(path):
                     topics=[{'path':json.loads(r[0]),'questions':r[1],'correct':r[2]} for r in db.execute(
                         'SELECT path,questions,correct FROM mock_exam_topics WHERE mock_exam_id=? ORDER BY id',(event_id,))]
                     if areas!=mock.areas or topics!=mock.topics: raise ValueError('Detalhes de simulado incompatíveis no backup.')
+            if version>=12:
+                from .algorithm_parameters import AlgorithmParameters
+                for parameter_version,payload in db.execute('SELECT version,payload FROM algorithm_parameters'):
+                    p=AlgorithmParameters(**json.loads(payload)).validate()
+                    if p.version!=parameter_version: raise ValueError('Versão de parâmetros incompatível.')
+                from .weekly_review import validate_weekly
+                for week_key,payload in db.execute('SELECT week_key,payload FROM weekly_reviews'):
+                    validate_weekly(week_key,json.loads(payload))
             return version, [r[0] for r in reports]
     except (sqlite3.Error, KeyError, TypeError, AttributeError, json.JSONDecodeError) as exc:
         raise ValueError("Estrutura ou conteúdo do banco incompatível com o aplicativo.") from exc

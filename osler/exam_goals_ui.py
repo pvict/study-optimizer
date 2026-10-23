@@ -85,6 +85,9 @@ def render_exam_goals(service):
         maximum=right.number_input('Nota máxima da prova',min_value=.01,value=float(data.get('max_score',100)),key='exam_field_max')
         source=st.text_input('Fonte do corte (obrigatória)',value=data.get('cutoff_source',''),placeholder='Edital, documento ou link da edição consultada',key='exam_field_source')
         with st.expander('Edição, inscrição e observações (opcionais)'):
+            bases=['nao_informada','percentual_objetivo','pontuacao_ponderada']
+            score_basis=st.selectbox('Como a nota do corte é calculada?',bases,index=bases.index(data.get('score_basis','nao_informada')),
+                                     format_func={'nao_informada':'Ainda não confirmei a escala','percentual_objetivo':'Acertos objetivos, com questões de mesmo peso','pontuacao_ponderada':'Pontuação ponderada ou outras etapas'}.get,key='exam_field_score_basis')
             year=st.number_input('Ano da edição',min_value=1,max_value=9999,value=data.get('exam_year'),key='exam_field_year')
             deadline=st.date_input('Último dia de inscrição',value=date.fromisoformat(data['registration_deadline']) if data.get('registration_deadline') else None,key='exam_field_deadline',format='DD/MM/YYYY')
             choices=['informado','conferido','estimado']
@@ -93,7 +96,7 @@ def render_exam_goals(service):
         save=st.form_submit_button('Salvar prova',type='primary',key='save_exam')
     if save:
         if day is None: raise ValueError('Informe a data da prova antes de salvar.')
-        target=ExamTarget(institution,day.isoformat(),cutoff,maximum,source,year,deadline.isoformat() if deadline else None,confidence,notes)
+        target=ExamTarget(institution,day.isoformat(),cutoff,maximum,source,year,deadline.isoformat() if deadline else None,confidence,notes,score_basis)
         goals.save(target,target_id=editing['target_id'] if editing else None,expected_version=editing['version'] if editing else 0)
         st.session_state['exam_reset_pending']=True
         st.session_state.pop('adaptive_profile_snapshot',None)

@@ -1,0 +1,2678 @@
+{
+  "0-fixed": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.4076190476190476,
+        "importance": 0.7619047619047619,
+        "next_review": null,
+        "review_interval_days": 5,
+        "recommended_questions": 25,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 100
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 30,
+        "new_questions": 30,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 30,
+        "new_questions": 20,
+        "repeat_questions": 10
+      }
+    ],
+    "questions": 60,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 30,
+      "planned_reviews": 30,
+      "adjusted": false
+    }
+  },
+  "0-adaptive": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.4076190476190476,
+        "importance": 0.7619047619047619,
+        "next_review": null,
+        "review_interval_days": 5,
+        "recommended_questions": 25,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 100
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 25,
+        "new_questions": 25,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 46,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 25,
+      "planned_reviews": 21,
+      "adjusted": true
+    }
+  },
+  "1-fixed": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 30,
+          "exact_correct": 29,
+          "observed": 0.9666666666666667,
+          "mean": 0.9375,
+          "sd": 0.04213749140395263,
+          "interval": [
+            0.8332960900859082,
+            0.9940914096183875
+          ],
+          "reported_n": 30,
+          "approximate": false,
+          "reported_percent": 0.9666666666666667,
+          "confidence": {
+            "exact_n": 30,
+            "exact_correct": 29,
+            "observed": 0.9666666666666667,
+            "mean": 0.9375,
+            "sd": 0.04213749140395263,
+            "interval": [
+              0.8332960900859082,
+              0.9940914096183875
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 30,
+          "exact_correct": 29,
+          "observed": 0.9666666666666667,
+          "mean": 0.9375,
+          "sd": 0.04213749140395263,
+          "interval": [
+            0.8332960900859082,
+            0.9940914096183875
+          ]
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": "2026-10-06",
+          "base_interval": 7,
+          "ease": 2.6,
+          "streak": 1,
+          "last_evidence_day": "2026-10-01",
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "normal",
+        "score": 0.07101427589023157,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-06",
+        "review_interval_days": 5,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 70
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 39,
+        "new_questions": 39,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 60,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 60,
+      "adjusted": true
+    }
+  },
+  "1-adaptive": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 30,
+          "exact_correct": 29,
+          "observed": 0.9666666666666667,
+          "mean": 0.9375,
+          "sd": 0.04213749140395263,
+          "interval": [
+            0.8332960900859082,
+            0.9940914096183875
+          ],
+          "reported_n": 30,
+          "approximate": false,
+          "reported_percent": 0.9666666666666667,
+          "confidence": {
+            "exact_n": 30,
+            "exact_correct": 29,
+            "observed": 0.9666666666666667,
+            "mean": 0.9375,
+            "sd": 0.04213749140395263,
+            "interval": [
+              0.8332960900859082,
+              0.9940914096183875
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 30,
+          "exact_correct": 29,
+          "observed": 0.9666666666666667,
+          "mean": 0.9375,
+          "sd": 0.04213749140395263,
+          "interval": [
+            0.8332960900859082,
+            0.9940914096183875
+          ]
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": "2026-10-06",
+          "base_interval": 7,
+          "ease": 2.6,
+          "streak": 1,
+          "last_evidence_day": "2026-10-01",
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "normal",
+        "score": 0.07101427589023157,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-06",
+        "review_interval_days": 5,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 70
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 20,
+        "new_questions": 20,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 41,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 41,
+      "adjusted": true
+    }
+  },
+  "2-fixed": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 60,
+          "exact_correct": 58,
+          "observed": 0.9666666666666667,
+          "mean": 0.9516129032258065,
+          "sd": 0.02703489386604922,
+          "interval": [
+            0.8863622572569141,
+            0.9908106807438021
+          ],
+          "reported_n": 60,
+          "approximate": false,
+          "reported_percent": 0.9666666666666667,
+          "confidence": {
+            "exact_n": 60,
+            "exact_correct": 58,
+            "observed": 0.9666666666666667,
+            "mean": 0.9516129032258065,
+            "sd": 0.02703489386604922,
+            "interval": [
+              0.8863622572569141,
+              0.9908106807438021
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 60,
+          "exact_correct": 58,
+          "observed": 0.9666666666666667,
+          "mean": 0.9516129032258065,
+          "sd": 0.02703489386604922,
+          "interval": [
+            0.8863622572569141,
+            0.9908106807438021
+          ]
+        },
+        "spacing": {
+          "interval": 10,
+          "next_due": "2026-10-18",
+          "base_interval": 14,
+          "ease": 2.7,
+          "streak": 2,
+          "last_evidence_day": "2026-10-08",
+          "block_days": [
+            "2026-10-01",
+            "2026-10-08"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "normal",
+        "score": 0.030460693170393776,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-08",
+        "review_interval_days": 10,
+        "recommended_questions": 10,
+        "dose_kind": "practice",
+        "learning_state": "alerta",
+        "available_new": 40
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 30,
+        "new_questions": 30,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 30,
+        "new_questions": 20,
+        "repeat_questions": 10
+      }
+    ],
+    "questions": 60,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 60,
+      "adjusted": true
+    }
+  },
+  "2-adaptive": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 60,
+          "exact_correct": 58,
+          "observed": 0.9666666666666667,
+          "mean": 0.9516129032258065,
+          "sd": 0.02703489386604922,
+          "interval": [
+            0.8863622572569141,
+            0.9908106807438021
+          ],
+          "reported_n": 60,
+          "approximate": false,
+          "reported_percent": 0.9666666666666667,
+          "confidence": {
+            "exact_n": 60,
+            "exact_correct": 58,
+            "observed": 0.9666666666666667,
+            "mean": 0.9516129032258065,
+            "sd": 0.02703489386604922,
+            "interval": [
+              0.8863622572569141,
+              0.9908106807438021
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 60,
+          "exact_correct": 58,
+          "observed": 0.9666666666666667,
+          "mean": 0.9516129032258065,
+          "sd": 0.02703489386604922,
+          "interval": [
+            0.8863622572569141,
+            0.9908106807438021
+          ]
+        },
+        "spacing": {
+          "interval": 10,
+          "next_due": "2026-10-18",
+          "base_interval": 14,
+          "ease": 2.7,
+          "streak": 2,
+          "last_evidence_day": "2026-10-08",
+          "block_days": [
+            "2026-10-01",
+            "2026-10-08"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "normal",
+        "score": 0.030460693170393776,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-08",
+        "review_interval_days": 10,
+        "recommended_questions": 10,
+        "dose_kind": "practice",
+        "learning_state": "alerta",
+        "available_new": 40
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 10,
+        "new_questions": 10,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 31,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 31,
+      "adjusted": true
+    }
+  },
+  "3-fixed": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 30,
+          "exact_correct": 20,
+          "observed": 0.6666666666666666,
+          "mean": 0.65625,
+          "sd": 0.08267972847076846,
+          "interval": [
+            0.48780051644543854,
+            0.8076950191632387
+          ],
+          "reported_n": 30,
+          "approximate": false,
+          "reported_percent": 0.6666666666666666,
+          "confidence": {
+            "exact_n": 30,
+            "exact_correct": 10,
+            "observed": 0.3333333333333333,
+            "mean": 0.34375,
+            "sd": 0.08267972847076846,
+            "interval": [
+              0.19230498083676134,
+              0.5121994835545616
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 30,
+          "exact_correct": 10,
+          "observed": 0.3333333333333333,
+          "mean": 0.34375,
+          "sd": 0.08267972847076846,
+          "interval": [
+            0.19230498083676134,
+            0.5121994835545616
+          ]
+        },
+        "spacing": {
+          "interval": 2,
+          "next_due": "2026-10-03",
+          "base_interval": 3,
+          "ease": 1.96,
+          "streak": 0,
+          "last_evidence_day": "2026-10-01",
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "urgente",
+        "score": 0.6744911182523068,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-03",
+        "review_interval_days": 2,
+        "recommended_questions": 23,
+        "dose_kind": "reinforcement",
+        "learning_state": "alerta",
+        "available_new": 70
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 39,
+        "new_questions": 39,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 60,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 60,
+      "adjusted": true
+    }
+  },
+  "3-adaptive": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 30,
+          "exact_correct": 20,
+          "observed": 0.6666666666666666,
+          "mean": 0.65625,
+          "sd": 0.08267972847076846,
+          "interval": [
+            0.48780051644543854,
+            0.8076950191632387
+          ],
+          "reported_n": 30,
+          "approximate": false,
+          "reported_percent": 0.6666666666666666,
+          "confidence": {
+            "exact_n": 30,
+            "exact_correct": 10,
+            "observed": 0.3333333333333333,
+            "mean": 0.34375,
+            "sd": 0.08267972847076846,
+            "interval": [
+              0.19230498083676134,
+              0.5121994835545616
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 30,
+          "exact_correct": 10,
+          "observed": 0.3333333333333333,
+          "mean": 0.34375,
+          "sd": 0.08267972847076846,
+          "interval": [
+            0.19230498083676134,
+            0.5121994835545616
+          ]
+        },
+        "spacing": {
+          "interval": 2,
+          "next_due": "2026-10-03",
+          "base_interval": 3,
+          "ease": 1.96,
+          "streak": 0,
+          "last_evidence_day": "2026-10-01",
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "urgente",
+        "score": 0.6744911182523068,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-03",
+        "review_interval_days": 2,
+        "recommended_questions": 23,
+        "dose_kind": "reinforcement",
+        "learning_state": "alerta",
+        "available_new": 70
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 23,
+        "new_questions": 23,
+        "repeat_questions": 0
+      }
+    ],
+    "questions": 23,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 23,
+      "adjusted": true
+    }
+  },
+  "4-fixed": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 10,
+          "exact_correct": 9,
+          "observed": 0.9,
+          "mean": 0.8333333333333334,
+          "sd": 0.10336227882434038,
+          "interval": [
+            0.5958499732047615,
+            0.9821237869049271
+          ],
+          "reported_n": 10,
+          "approximate": false,
+          "reported_percent": 0.9,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "normal",
+        "score": 0.29336641389448415,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-06",
+        "review_interval_days": 5,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 90
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 39,
+        "new_questions": 39,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 60,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 60,
+      "adjusted": true
+    }
+  },
+  "4-adaptive": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 10,
+          "exact_correct": 9,
+          "observed": 0.9,
+          "mean": 0.8333333333333334,
+          "sd": 0.10336227882434038,
+          "interval": [
+            0.5958499732047615,
+            0.9821237869049271
+          ],
+          "reported_n": 10,
+          "approximate": false,
+          "reported_percent": 0.9,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "normal",
+        "score": 0.29336641389448415,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-06",
+        "review_interval_days": 5,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 90
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 20,
+        "new_questions": 20,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 41,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 41,
+      "adjusted": true
+    }
+  },
+  "5-fixed": {
+    "states": [
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 30,
+          "exact_correct": 30,
+          "observed": 1.0,
+          "mean": 0.96875,
+          "sd": 0.030288230287347492,
+          "interval": [
+            0.8864866068260312,
+            0.9999999999999999
+          ],
+          "reported_n": 30,
+          "approximate": false,
+          "reported_percent": 1.0,
+          "confidence": {
+            "exact_n": 30,
+            "exact_correct": 30,
+            "observed": 1.0,
+            "mean": 0.96875,
+            "sd": 0.030288230287347492,
+            "interval": [
+              0.8864866068260312,
+              0.9999999999999999
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 30,
+          "exact_correct": 30,
+          "observed": 1.0,
+          "mean": 0.96875,
+          "sd": 0.030288230287347492,
+          "interval": [
+            0.8864866068260312,
+            0.9999999999999999
+          ]
+        },
+        "spacing": {
+          "interval": 10,
+          "next_due": "2026-10-18",
+          "base_interval": 14,
+          "ease": 2.7,
+          "streak": 2,
+          "last_evidence_day": "2026-10-08",
+          "block_days": [
+            "2026-10-01",
+            "2026-10-08"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.03256761580513933,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-18",
+        "review_interval_days": 10,
+        "recommended_questions": 13,
+        "dose_kind": "maintenance",
+        "learning_state": "dominado",
+        "available_new": 70
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "B",
+        "questions": 30,
+        "new_questions": 20,
+        "repeat_questions": 10
+      }
+    ],
+    "questions": 30,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 30,
+      "adjusted": true
+    }
+  },
+  "5-adaptive": {
+    "states": [
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 30,
+          "exact_correct": 30,
+          "observed": 1.0,
+          "mean": 0.96875,
+          "sd": 0.030288230287347492,
+          "interval": [
+            0.8864866068260312,
+            0.9999999999999999
+          ],
+          "reported_n": 30,
+          "approximate": false,
+          "reported_percent": 1.0,
+          "confidence": {
+            "exact_n": 30,
+            "exact_correct": 30,
+            "observed": 1.0,
+            "mean": 0.96875,
+            "sd": 0.030288230287347492,
+            "interval": [
+              0.8864866068260312,
+              0.9999999999999999
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 30,
+          "exact_correct": 30,
+          "observed": 1.0,
+          "mean": 0.96875,
+          "sd": 0.030288230287347492,
+          "interval": [
+            0.8864866068260312,
+            0.9999999999999999
+          ]
+        },
+        "spacing": {
+          "interval": 10,
+          "next_due": "2026-10-18",
+          "base_interval": 14,
+          "ease": 2.7,
+          "streak": 2,
+          "last_evidence_day": "2026-10-08",
+          "block_days": [
+            "2026-10-01",
+            "2026-10-08"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.03256761580513933,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-18",
+        "review_interval_days": 10,
+        "recommended_questions": 13,
+        "dose_kind": "maintenance",
+        "learning_state": "dominado",
+        "available_new": 70
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 21,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 21,
+      "adjusted": true
+    }
+  },
+  "6-fixed": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 20,
+          "exact_correct": 15,
+          "observed": 0.75,
+          "mean": 0.7272727272727273,
+          "sd": 0.0928643488100453,
+          "interval": [
+            0.531299122381256,
+            0.8881382985923342
+          ],
+          "reported_n": 20,
+          "approximate": false,
+          "reported_percent": 0.75,
+          "confidence": {
+            "exact_n": 20,
+            "exact_correct": 12,
+            "observed": 0.6,
+            "mean": 0.5909090909090909,
+            "sd": 0.10251946521219714,
+            "interval": [
+              0.3865815007622531,
+              0.7811934676271829
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 20,
+          "exact_correct": 12,
+          "observed": 0.6,
+          "mean": 0.5909090909090909,
+          "sd": 0.10251946521219714,
+          "interval": [
+            0.3865815007622531,
+            0.7811934676271829
+          ]
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": "2026-10-06",
+          "base_interval": 7,
+          "ease": 2.3600000000000003,
+          "streak": 0,
+          "last_evidence_day": "2026-10-01",
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "alta",
+        "score": 0.5237930220166751,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-06",
+        "review_interval_days": 5,
+        "recommended_questions": 21,
+        "dose_kind": "reinforcement",
+        "learning_state": "alerta",
+        "available_new": 100
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 39,
+        "new_questions": 39,
+        "repeat_questions": 0
+      },
+      {
+        "topic_id": "B",
+        "questions": 21,
+        "new_questions": 20,
+        "repeat_questions": 1
+      }
+    ],
+    "questions": 60,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 60,
+      "adjusted": true
+    }
+  },
+  "6-adaptive": {
+    "states": [
+      {
+        "topic_id": "A",
+        "performance": {
+          "exact_n": 20,
+          "exact_correct": 15,
+          "observed": 0.75,
+          "mean": 0.7272727272727273,
+          "sd": 0.0928643488100453,
+          "interval": [
+            0.531299122381256,
+            0.8881382985923342
+          ],
+          "reported_n": 20,
+          "approximate": false,
+          "reported_percent": 0.75,
+          "confidence": {
+            "exact_n": 20,
+            "exact_correct": 12,
+            "observed": 0.6,
+            "mean": 0.5909090909090909,
+            "sd": 0.10251946521219714,
+            "interval": [
+              0.3865815007622531,
+              0.7811934676271829
+            ]
+          }
+        },
+        "confidence": {
+          "exact_n": 20,
+          "exact_correct": 12,
+          "observed": 0.6,
+          "mean": 0.5909090909090909,
+          "sd": 0.10251946521219714,
+          "interval": [
+            0.3865815007622531,
+            0.7811934676271829
+          ]
+        },
+        "spacing": {
+          "interval": 5,
+          "next_due": "2026-10-06",
+          "base_interval": 7,
+          "ease": 2.3600000000000003,
+          "streak": 0,
+          "last_evidence_day": "2026-10-01",
+          "block_days": [
+            "2026-10-01"
+          ],
+          "incidence_strength": 1.0,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "urgente",
+        "evidence_priority": "alta",
+        "score": 0.5237930220166751,
+        "importance": 0.7619047619047619,
+        "next_review": "2026-10-06",
+        "review_interval_days": 5,
+        "recommended_questions": 21,
+        "dose_kind": "reinforcement",
+        "learning_state": "alerta",
+        "available_new": 100
+      },
+      {
+        "topic_id": "B",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.25,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "alta",
+        "evidence_priority": "alta",
+        "score": 0.03523809523809525,
+        "importance": 0.19047619047619047,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 21,
+        "dose_kind": "diagnostic",
+        "learning_state": "aprendendo",
+        "available_new": 20
+      },
+      {
+        "topic_id": "C",
+        "performance": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null,
+          "reported_n": 0,
+          "approximate": false,
+          "reported_percent": null,
+          "confidence": {
+            "exact_n": 0,
+            "exact_correct": 0,
+            "observed": null,
+            "mean": 0.5,
+            "sd": 0.28867513459481287,
+            "interval": null
+          }
+        },
+        "confidence": {
+          "exact_n": 0,
+          "exact_correct": 0,
+          "observed": null,
+          "mean": 0.5,
+          "sd": 0.28867513459481287,
+          "interval": null
+        },
+        "spacing": {
+          "interval": 7,
+          "next_due": null,
+          "base_interval": 7,
+          "ease": 2.5,
+          "streak": 0,
+          "last_evidence_day": null,
+          "block_days": [],
+          "incidence_strength": 0.0625,
+          "method": "SM-2 adaptado a blocos, com prioridade por incidência; não calibrado"
+        },
+        "priority": "normal",
+        "evidence_priority": "normal",
+        "score": 0.025476190476190475,
+        "importance": 0.047619047619047616,
+        "next_review": null,
+        "review_interval_days": 7,
+        "recommended_questions": 20,
+        "dose_kind": "diagnostic",
+        "learning_state": "alerta",
+        "available_new": 5
+      }
+    ],
+    "items": [
+      {
+        "topic_id": "A",
+        "questions": 21,
+        "new_questions": 21,
+        "repeat_questions": 0
+      }
+    ],
+    "questions": 21,
+    "target_questions": 60,
+    "distribution": {
+      "requested_share": 0.5,
+      "target_new": 30,
+      "target_reviews": 30,
+      "done_new": 0,
+      "done_reviews": 0,
+      "done_unclassified": 0,
+      "planned_new": 0,
+      "planned_reviews": 21,
+      "adjusted": true
+    }
+  }
+}

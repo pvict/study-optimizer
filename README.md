@@ -7,7 +7,9 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.19.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.23.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+
+[Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 
 A interface usa navegação visível em abas, campos com contorno e separação por linhas e tons de azul-cinza entre conteúdo e apoio. Hoje tem resumo compacto; Calendário mostra a programação antes das ferramentas de recuperação; Temas reúne filtros secundários em “Mais filtros”. Após salvar um resultado, a confirmação oferece retorno ao plano ou um novo registro. [Decisões e limites da verificação do redesign](docs/design/redesign-ui.md).
 
@@ -21,6 +23,10 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 - **Temas:** resultados registrados no app ao lado do histórico importado, com fontes separadas; filtros de situação e período, tabela ou lista paginada e exportação. [Entenda as contagens](docs/research/temas-historico-e-blocos.md).
 - **Revisões por tema:** dose do próximo bloco ajustada aos resultados reais; manutenção menor após bons encontros espaçados, reforço após dificuldades e revisões seguintes a recalcular. [Critérios e limites](docs/research/dose-adaptativa-por-tema.md).
 - **Registro:** acertos, convicção, questões novas/repetidas/mistas, importação de CSV/TSV e histórico de correções.
+- **Plano de corte:** em Temas, diferença entre demanda condicional e capacidade, com propostas protegendo temas frágeis e opção de prévia, aplicar e desfazer.
+- **Minha meta:** em Temas, corte com fonte e faixas observadas de simulados e questões novas, mantendo denominadores separados. Não prevê aprovação.
+- **Revisão semanal:** opcional em Hoje, com mudanças por área, aderência, erros e simulados; sugestões de carga não são aplicadas automaticamente.
+- **Parâmetros e calibração:** versão 1 preserva os cálculos anteriores. Seleção só manual em Ajustes; análise somente leitura em `scripts/analise_calibracao.py`, após 6 a 8 semanas de uso diário.
 - **Ajustes:** meta diária, metas de acerto nos temas (global ou por área), Minhas provas e incidências por instituição.
 - **Erros:** anotação opcional após o bloco; consulta e resolução em Temas → Erros abertos, com histórico e exportação CSV. Erros críticos ou recorrentes acrescentam prioridade alta e bloqueiam redução de cartões.
 - **Simulados:** registro curto, resultados opcionais por área ou tema e evolução separada dos blocos. Inéditas por tema podem ser convertidas explicitamente, sem duplicação. Dia feito por simulado dispensa a meta normal mediante prévia, com opção de desfazer.
@@ -79,7 +85,7 @@ O `.gitignore` exclui banco, PDFs, backups, exports, relatórios de execução, 
 
 O servidor escuta somente em `127.0.0.1`: o endereço funciona no próprio computador. A adaptação da interface a telas estreitas não habilita acesso de outro aparelho pela rede.
 
-Esta versão migra aditivamente o banco para schema11, com histórico de provas, erros e simulados. Faça backup antes de atualizar. Para reverter ao código anterior, restaure também um backup anterior em outra pasta e preserve a pasta atual; código antigo não abre schema11. Nunca altere `user_version` manualmente para simular reversão.
+Esta versão migra aditivamente o banco para schema12, com parâmetros e revisões semanais além das tabelas anteriores. Faça backup antes de atualizar. Para reverter ao código anterior, restaure também um backup anterior em outra pasta e preserve a pasta atual; código antigo não abre schema12. Nunca altere `user_version` manualmente para simular reversão.
 
 ## Desenvolvimento e testes
 

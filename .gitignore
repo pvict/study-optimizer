@@ -49,3 +49,6 @@ dist/
 # Metadados locais do sistema
 .DS_Store
 Thumbs.db
+
+# Relatórios pessoais gerados pela análise de calibração
+/analises/

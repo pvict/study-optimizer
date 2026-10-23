@@ -17,8 +17,10 @@ class ExamTarget:
     registration_deadline: str | None = None
     cutoff_confidence: str = 'informado'
     notes: str = ''
+    score_basis: str = 'nao_informada'
 
     def validate(self):
+        if self.score_basis not in {'nao_informada','percentual_objetivo','pontuacao_ponderada'}: raise ValueError('Base da nota de corte inválida.')
         if not isinstance(self.institution,str) or not self.institution.strip(): raise ValueError('Informe a instituição da prova.')
         if not isinstance(self.cutoff_source,str) or not self.cutoff_source.strip(): raise ValueError('Informe a fonte do corte, como edital, documento ou link.')
         _date(self.exam_date)

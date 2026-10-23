@@ -25,7 +25,9 @@ def posterior(correct, n):
             'interval':[x/100 for x in wilson_interval(100*correct/n,n)] if n else None}
 
 
-def incidence_weights(topics,datasets,institution_weights,as_of):
+def incidence_weights(topics,datasets,institution_weights,as_of,parameters=None):
+    from .algorithm_parameters import V1
+    parameters=parameters or V1
     keys={t['topic_id']:tuple(normalize_path(t['path'])) for t in topics}
     if not topics: return {'weights':{},'warnings':[],'coverage':0,'contexts':[]}
     targets={normalize_path([k])[0]:v for k,v in institution_weights.items()}
@@ -81,14 +83,14 @@ def incidence_weights(topics,datasets,institution_weights,as_of):
         missing=[key for key,path in chosen.items() if path is None and key not in rolled]
         covered.update(key for key,path in chosen.items() if path is not None or key in rolled)
         if missing:
-            exploration=sum(raw.values())*.05/len(missing)
+            exploration=sum(raw.values())*parameters.exploration_reserve/len(missing)
             for key in missing: raw[key]=exploration
             warnings.append('Incidência parcial: temas sem linha receberam uma pequena reserva exploratória; contagens de pais foram repartidas entre folhas.')
         total=sum(raw.values())
         if not total: warnings.append('Consulta sem peso positivo utilizável: usei exploração uniforme, sem interpretar isso como ausência de cobrança futura.')
         for key in weights:
             weights[key]+=context_weight*(raw[key]/total if total else 1/len(topics))
-    return {'weights':weights,'warnings':list(dict.fromkeys(warnings)), 'coverage':len(covered)/len(topics),
+    return {'weights':weights,'warnings':list(dict.fromkeys(warnings)), 'coverage':len(covered)/len(topics),'known_topic_ids':sorted(covered),
             'contexts':[{'dataset_id':d['id'],'institutions':d['institutions'],'observed_date':d['observed_date'],'weight':w,'unit':d['unit']} for d,w in contexts]}
 
 
@@ -110,7 +112,8 @@ def _series(entries):
 
 def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None,error_paths=()):
     day=_date(as_of)
-    incidence=incidence_weights(topics,datasets,institution_weights,as_of)
+    params=profile.parameters
+    incidence=incidence_weights(topics,datasets,institution_weights,as_of,params)
     by_path=defaultdict(list)
     for event in sessions:
         e=event['entry']
@@ -170,14 +173,14 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                               not any(e['day']>snapshot['observed_date'] for e in fresh+mixed))
         safety_alert=bool(snapshot_current and safety_rate is not None and snapshot['unique_questions']>=5 and safety_rate<profile.target_accuracy/100)
         scheduling_observed=min(x for x in (observed,alert['percent'] if alert else None) if x is not None) if observed is not None or alert else None
-        interval=3 if observed is not None and observed<.7 else 14 if observed is not None and observed<profile.target_accuracy/100 else 30 if performance['exact_n']>=30 else 7
+        interval=params.failure_interval if observed is not None and observed<params.raw_low_threshold else params.second_interval if observed is not None and observed<profile.target_accuracy/100 else params.max_contact_gap if performance['exact_n']>=params.sufficient_sample else params.first_interval
         importance=incidence['weights'][topic['topic_id']]
         incidence_strength=importance/max(incidence['weights'].values()) if incidence['contexts'] and max(incidence['weights'].values()) else 0
         spacing=spacing_state(entries,profile,as_of,incidence_strength)
         if entries: interval=spacing['interval'] if spacing['last_evidence_day'] else min(interval,spacing['interval'])
         else: interval=max(1,math.ceil(interval/(1+.5*incidence_strength)))
         if not committed: interval=initial_interval(snapshot if snapshot_current else None,profile,incidence_strength)
-        if alert: interval=min(interval,3 if alert['percent']<.7 else 14)
+        if alert: interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
         days_left=max(1,(_date(profile.exam_date)-day).days)
         interval=min(interval,max(1,days_left//4))
         interval=min(interval,profile.max_contact_gap)
@@ -247,11 +250,11 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                                    any(e['kind']=='bloco' and e['mode']=='novas' and e['day']==snapshot['observed_date'] for e in entries))
         states.append({**topic,'performance':performance,'repeated':repeated,'baseline':baseline,'performance_source':source,'alert_signal':alert,
                        'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
-                       'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,
+                       'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,'minimum_block':profile.min_block,
                        'retention_due':retention_due,'theme_review_due':theme_due,
                        'review_committed':committed,'review_origin':'retorno de respostas' if pending else 'acompanhamento de cartões' if topic.get('cards_reduced_day') else 'blocos registrados' if committed else 'fila inicial',
                        'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse or registered_error),profile.target_accuracy),
-                       'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
+                       'importance':importance,'incidence_strength':incidence_strength,'incidence_known':topic['topic_id'] in incidence.get('known_topic_ids',[]),'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
                        'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,'registered_error':registered_error,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})

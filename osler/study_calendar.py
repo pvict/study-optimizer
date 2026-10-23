@@ -10,6 +10,7 @@ from .review_policy import review_order
 from .study_capacity import practice_state,capacity_limits
 from .study_swaps import swap_rows
 from .final_review import special_config,final_reservations
+from .study_triage_policy import apply_triage
 
 
 def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False):
@@ -24,6 +25,11 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
     agenda=deepcopy(agenda or {'rows':[],'overrides':{}})
     for offset in range(days):
         day=(_date(start)+timedelta(days=offset)).isoformat()
+        if agenda.get('triage_policies'):
+            for state in working:
+                state['pending_reviews']=[{**q,'questions':pending[q['session_id']]['remaining']}
+                    for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
+        working=apply_triage(working,agenda.get('triage_policies',[]),day)
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
         override=agenda['overrides'].get(day,{})
         config=special_config(config,override)

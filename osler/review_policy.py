@@ -5,14 +5,15 @@ POLICY_VERSION='3.1'
 
 
 def initial_interval(snapshot,profile,incidence_strength):
+    p=profile.parameters
     rate=snapshot.get('confident_accuracy_pct') if snapshot else None
     n=snapshot.get('unique_questions',0) if snapshot else 0
-    base=7
-    if rate is not None and n>=10:
-        base=7 if rate<60 else 14 if rate<80 else 21 if rate<profile.target_accuracy else 28
-        if n<30: base=min(base,14)
-    if snapshot and snapshot.get('pending_reviews'): base=min(base,7)
-    return min(profile.max_contact_gap,max(1,ceil(base/(1+.5*max(0,min(1,incidence_strength))))))
+    base=p.first_interval
+    if rate is not None and n>=p.initial_min_sample:
+        base=p.initial_low_interval if rate<100*p.failure_threshold else p.initial_mid_interval if rate<100*p.intermediate_threshold else p.initial_near_interval if rate<profile.target_accuracy else p.initial_good_interval
+        if n<p.sufficient_sample: base=min(base,p.second_interval)
+    if snapshot and snapshot.get('pending_reviews'): base=min(base,p.first_interval)
+    return min(profile.max_contact_gap,max(1,ceil(base/(1+p.incidence_factor*max(0,min(1,incidence_strength))))))
 
 
 def domain_evidence(seen,snapshot,confirmed_mastery,low_accuracy,target=90):

@@ -177,7 +177,7 @@ def test_agenda_roundtrip_backup_keeps_schedule_history_and_originals(tmp_path,s
     s.remember_day(s.overview('2026-10-15'))
     s.apply_replan(s.preview_replan('2026-10-17',7,'extra',extra_questions=30))
     backup=create_backup(repo)
-    assert inspect_backup(backup.read_bytes())['schema_version']==11
+    assert inspect_backup(backup.read_bytes())['schema_version']==12
     restored=AdaptiveService(Repository(restore_backup(backup.read_bytes(),tmp_path/'restored')))
     assert restored.replanning()['rows']==s.replanning()['rows']
     assert restored.replanning()['history']==s.replanning()['history']
