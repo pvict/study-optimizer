@@ -137,7 +137,7 @@ def _register(service):
             st.caption('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
         else: n,correct,percent,confident=0,None,None,None
         with st.expander('Data, modalidade e detalhes'):
-            day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date',format='DD/MM/YYYY')
+            day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date',format='DD/MM/YYYY',help='O dia de estudo vai das 04h até antes das 04h do dia seguinte, no horário de Brasília. Registros anteriores mantêm a data informada.')
             mode=st.selectbox('Essas questões eram',['novas','repetidas','mistas'],format_func={'novas':'Novas para mim','repetidas':'Questões que já fiz antes','mistas':'Mistura ou não sei separar'}.get,key='study_mode') if kind!='contato' else 'mistas'
             duration=st.number_input('Minutos gastos neste estudo',min_value=0.1,max_value=1440.,value=None,key='study_duration')
             last=st.text_input('Último contato conhecido no acumulado (AAAA-MM-DD)',key='study_last_contact') if kind=='acumulado' else None

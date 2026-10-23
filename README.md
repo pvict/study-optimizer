@@ -2,6 +2,11 @@
 
 Aplicativo local para organizar a preparação para residência médica: plano diário por quantidade de questões, acompanhamento de desempenho e revisões espaçadas por tema específico.
 
+O **dia de estudo vira às 04h, no horário de Brasília**: 22/10 inclui o período
+de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendário,
+estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
+de auditoria permanecem intactos.
+
 **Versão 0.19.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 A interface usa navegação visível em abas, campos com contorno e separação por linhas e tons de azul-cinza entre conteúdo e apoio. Hoje tem resumo compacto; Calendário mostra a programação antes das ferramentas de recuperação; Temas reúne filtros secundários em “Mais filtros”. Após salvar um resultado, a confirmação oferece retorno ao plano ou um novo registro. [Decisões e limites da verificação do redesign](docs/design/redesign-ui.md).

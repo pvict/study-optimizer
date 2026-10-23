@@ -1,8 +1,7 @@
 """Entrada manual e triagem A–D, com fontes e versões visíveis."""
-from datetime import date, datetime
+from datetime import date
 import json
 import sqlite3
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -11,6 +10,7 @@ from .assessment_service import AssessmentService, classification_csv, eligible,
 from .classification import ClassifierConfig, DEFAULT_WEIGHTS
 from .matching_service import load_matching
 from .matching_ui import _choose
+from .planner_service import today_local
 from .observations import COUNTS, ENUMS, FLAGS, OBSERVATION_FIELDS, parse_observation
 
 CATEGORY_LABELS = {"A": "A · candidato forte à suspensão", "B": "B · avaliar redução seletiva", "C": "C · manter revisão prioritária", "D": "D · dados insuficientes"}
@@ -169,7 +169,7 @@ def render_assessment(repo):
         q_id = _choose(q, "Qbank para classificar", "assessment_q_id")
     with c2:
         f_id = _choose(f, "Flashcards para classificar", "assessment_f_id")
-    as_of = c3.date_input("Data de análise", value=datetime.now(ZoneInfo("America/Sao_Paulo")).date(), key="assessment_asof",format='DD/MM/YYYY').isoformat()
+    as_of = c3.date_input("Data de análise", value=today_local(), key="assessment_asof",format='DD/MM/YYYY').isoformat()
     config = _policies(service)
     try:
         matching = load_matching(repo, q_id, f_id)

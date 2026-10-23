@@ -3,13 +3,13 @@ from collections import Counter
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from .extraction import ImportFailure
 from .service import import_bytes
 from .storage import Repository
 from .matching_service import load_matching, export_matching
 from .workspace import active_data_dir
+from .planner_service import today_local
 
 
 def _choose_report(repo, kind, supplied, scope):
@@ -70,7 +70,7 @@ def main(argv=None) -> int:
     assessment.add_argument("--qbank")
     assessment.add_argument("--flashcards")
     assessment.add_argument("--scope", choices=["todos", "iniciados"], default="todos")
-    assessment.add_argument("--as-of", default=datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat())
+    assessment.add_argument("--as-of", default=today_local().isoformat())
     assessment.add_argument("--indicators-csv", type=Path)
     assessment.add_argument("--policy-id", type=int)
     for command in [importer, crossing, assessment]:

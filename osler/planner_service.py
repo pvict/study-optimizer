@@ -1,6 +1,6 @@
 """Seleção, validação e checklist para ações realizadas exclusivamente pelo usuário."""
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import hashlib
 import json
 from pathlib import Path
@@ -15,7 +15,11 @@ from .planner_storage import PlannerStore, TRANSITIONS
 
 
 def today_local():
-    return datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    """Dia de estudo: das 04h até antes das 04h seguintes, em Brasília.
+
+    Datas declaradas/importadas e timestamps de auditoria não são deslocados.
+    """
+    return (datetime.now(ZoneInfo("America/Sao_Paulo"))-timedelta(hours=4)).date()
 
 
 def valid_date(value, *, past=False):

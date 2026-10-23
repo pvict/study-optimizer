@@ -1,6 +1,7 @@
 """Uma meta em questões, próximos blocos e revisões extras escolhidas pelo aluno."""
 import streamlit as st
 from dataclasses import replace
+from datetime import timedelta
 
 from .planner_service import today_local
 from .topic_picker_ui import pick_topic
@@ -59,7 +60,9 @@ def _day_settings(service,view,day):
 
 
 def render_study_day(service,go_record,go_review,go_edit=None):
-    day=today_local().isoformat()
+    study_today=today_local()
+    day=study_today.isoformat()
+    st.caption(f"Dia de estudo: {study_today:%d/%m/%Y} · encerra em {study_today+timedelta(days=1):%d/%m} às 04h (Brasília).")
     view=service.overview(day)
     service.remember_day(view)
     plan=view['plan']

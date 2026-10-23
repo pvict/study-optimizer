@@ -1,12 +1,11 @@
 """Visão geral local com a origem de cada indicador visível."""
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
 
 from .dashboard import build_dashboard
 from .matching_ui import _choose
+from .planner_service import today_local
 
 
 def render_dashboard(repo):
@@ -21,7 +20,7 @@ def render_dashboard(repo):
         q_id = _choose(q, "Qbank do painel", "dashboard_q_id")
     with c2:
         f_id = _choose(f, "Flashcards do painel", "dashboard_f_id")
-    day = datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat()
+    day = today_local().isoformat()
     try:
         data = build_dashboard(repo, q_id, f_id, day)
     except ValueError as exc:
