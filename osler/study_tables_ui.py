@@ -42,8 +42,8 @@ def _topic_list(rows,signature,go_record,cumulative=False):
             due=row['Próxima revisão'] or 'Não programada'
             if cumulative:
                 conviction=f"{row['Convicção (%)']:g}%" if row['Convicção (%)'] is not None else 'Não informada'
-                st.write((str(row['Questões realizadas']) if row['Questões realizadas'] is not None else 'Sem contagem')+' questões realizadas · Convicção: '+conviction)
-                st.caption(row['Fonte do histórico'])
+                st.write(f"{row['Questões']} respostas no app · Acerto: {accuracy} · Convicção: {confidence}")
+                st.caption((str(row['Questões realizadas']) if row['Questões realizadas'] is not None else 'Sem contagem')+' questões no histórico importado · Convicção: '+conviction+' · '+row['Fonte do histórico'])
             else:
                 st.html('<div class="study-list-summary"><span>'+escape(row['Estado'])+'</span><span><strong>'+str(row['Questões'])+
                         '</strong> questões no período</span><span>Acerto: <strong>'+escape(accuracy)+
@@ -77,7 +77,7 @@ def render_topic_table(service,go_record):
     cumulative=has_snapshot and st.radio('Histórico ou resultados registrados?',['Histórico da Osler','Blocos registrados no app'],horizontal=True,key='statistics_source')=='Histórico da Osler'
     if cumulative:
         period='Todo o período'; reference=today_local().isoformat()
-        st.caption('Histórico importado · questões distintas e convicção acumulada, incluindo recuperações. Não são questões feitas hoje.')
+        st.caption('Resultados no app e histórico importado, lado a lado. O retrato da Osler mantém a data da importação; seus novos registros aparecem nas colunas “no app”. As contagens não são somadas.')
     else:
         period=st.radio('Ver resultados de',PERIODS,horizontal=True,key='statistics_period')
     more_filters=st.expander('Mais filtros e definições')
@@ -115,9 +115,9 @@ def render_topic_table(service,go_record):
     with st.container(key='topic_summary'):
         a,b,c=st.columns(3)
     if cumulative:
-        a.metric('Temas com histórico Osler',sum(r['Retrato Osler'] is not None for r in rows))
-        b.metric('Temas em alerta',sum(r['Estado']=='Em alerta' for r in rows))
-        c.metric('Início do cronograma','/'.join(reversed(view['profile']['start_date'].split('-'))) if view['profile'].get('start_date') else 'Não definido')
+        a.metric('Questões no app',sum(r['Questões'] for r in rows))
+        b.metric('Acerto no app',f'{100*correct/n:.1f}%' if n else '—')
+        c.metric('Temas com histórico Osler',sum(r['Retrato Osler'] is not None for r in rows))
     else:
         a.metric('Questões no período',sum(r['Questões'] for r in rows))
         b.metric('Acerto no período',f'{100*correct/n:.1f}%' if n else '—')
@@ -127,7 +127,7 @@ def render_topic_table(service,go_record):
     def label(day): return '/'.join(reversed(day.split('-')))
     st.caption(f"{len(rows)} temas nos filtros · histórico importado mais recente por tema." if cumulative else f"{label(start) if start else 'Todo o histórico'} até {label(end)} · {len(rows)} temas nos filtros. Semana começa na segunda; mês segue o calendário.")
     st.button('Limpar filtros',key='statistics_clear',on_click=_clear_filters,disabled=not(search or area!='Todas' or focus!='Todos os temas' or mode!='Todas' or detail))
-    fields=['Tema','Estado','Questões realizadas','Convicção (%)','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Área','Estado','Questões','Acerto (%)','Com convicção (%)','Próxima revisão']
+    fields=['Tema','Estado','Questões','Acerto (%)','Com convicção (%)','Questões realizadas','Convicção (%)','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Área','Estado','Questões','Acerto (%)','Com convicção (%)','Próxima revisão']
     has_planner=any(r.get('Retrato Osler') for r in rows)
     if has_planner and not cumulative:
         fields.insert(-1,'Segurança acumulada Osler (%)')
@@ -137,6 +137,9 @@ def render_topic_table(service,go_record):
     fields=list(dict.fromkeys(fields))
     frame=pd.DataFrame(rows,columns=['topic_id',*fields])
     displayed=frame[fields]
+    if cumulative:
+        displayed=displayed.rename(columns={'Questões':'Questões no app','Acerto (%)':'Acerto no app (%)',
+            'Com convicção (%)':'Convicção no app (%)','Questões realizadas':'Questões no histórico','Convicção (%)':'Convicção no histórico (%)'})
     signature=hashlib.sha256(json.dumps([cumulative,period,reference,mode,[r['topic_id'] for r in rows]]).encode()).hexdigest()[:16]
     layout=st.radio('Como visualizar?',['Tabela','Lista'],horizontal=True,key='statistics_layout')
     selected=None
@@ -145,10 +148,13 @@ def render_topic_table(service,go_record):
         st.caption('Selecione uma linha para agir no tema. Deslize a tabela para ver mais colunas ou escolha Lista.')
         selected=st.dataframe(displayed,hide_index=True,width='stretch',height=510,key='study_topics_table_'+signature,on_select='rerun',selection_mode='single-row',
                           column_config={'Acerto (%)':st.column_config.NumberColumn(format='%.1f%%'),
+                                         'Acerto no app (%)':st.column_config.NumberColumn(format='%.1f%%'),
+                                         'Convicção no app (%)':st.column_config.NumberColumn(format='%.1f%%',help='Tentativas com convicção informada nos blocos registrados no app. Zero é diferente de não informado.'),
+                                         'Convicção no histórico (%)':st.column_config.NumberColumn(format='%.1f%%',help='Segurança acumulada no retrato importado; não incorpora automaticamente os blocos recentes.'),
                                          'Incidência relativa (%)':st.column_config.NumberColumn(format='%.2f%%'),
                                          'Acerto aproximado (%)':st.column_config.NumberColumn(format='%.1f%%')})
     with st.expander('Entender os números'):
-        st.caption('Nesta visão, convicção é o percentual de questões distintas já acertadas com segurança na Osler, incluindo revisões. Para temas sem retrato, o total do PDF aparece com sua fonte e a convicção fica desconhecida. O retrato não é somado aos blocos registrados.' if cumulative else 'Acerto e convicção medem tentativas do período. Lotes consolidados acompanha os lotes iniciados no período e incorpora revisões vinculadas sem aumentar seu denominador. São contagens de lotes, não IDs individuais de questões. Contexto de prioridade, contato, incidência e PDF é atual.')
+        st.caption('No app: tentativas e rendimento dos blocos registrados em todo o período. No histórico: questões distintas e segurança acumulada no retrato da Osler, incluindo recuperações. Para temas sem retrato, mostramos o PDF com sua fonte e convicção desconhecida. Não somamos essas bases: podem se sobrepor. Prioridade e último contato usam os registros atuais.' if cumulative else 'Acerto e convicção medem tentativas do período. Lotes consolidados acompanha os lotes iniciados no período e incorpora revisões vinculadas sem aumentar seu denominador. São contagens de lotes, não IDs individuais de questões. Contexto de prioridade, contato, incidência e PDF é atual.')
     if selected is not None and selected.selection.rows and selected.selection.rows[0]<len(rows):
         chosen=rows[selected.selection.rows[0]]
         st.write('**'+chosen['Caminho']+'**')

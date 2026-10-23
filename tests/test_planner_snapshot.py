@@ -102,9 +102,9 @@ def test_snapshot_in_catalog_and_ui_does_not_inflate_period_totals(tmp_path,monk
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
     assert not app.exception
-    frame=next(d.value for d in app.dataframe if 'Convicção (%)' in d.value.columns)
-    assert frame['Convicção (%)'].dropna().tolist()==[73.5]
-    assert frame.loc[frame['Convicção (%)'].notna(),'Questões realizadas'].tolist()==[34]
+    frame=next(d.value for d in app.dataframe if 'Convicção no histórico (%)' in d.value.columns)
+    assert frame['Convicção no histórico (%)'].dropna().tolist()==[73.5]
+    assert frame.loc[frame['Convicção no histórico (%)'].notna(),'Questões no histórico'].tolist()==[34]
     app.radio(key='statistics_source').set_value('Blocos registrados no app').run()
     frame=next(d.value for d in app.dataframe if 'Questões' in d.value.columns)
     assert frame['Questões'].sum()==0
