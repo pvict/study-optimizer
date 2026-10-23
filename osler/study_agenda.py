@@ -68,9 +68,18 @@ class StudyAgenda:
             selected=set(r.get('selected',[]))
             rows={key:item for key,item in rows.items() if item['topic_id'] not in selected}
             for item in r['rows']: rows[tuple(normalize_path(item['path']))]={**item,'plan_id':r['id'],'cutoff':r['cutoff'],'created_day':r['created_day']}
+        from .study_swaps import active_swaps
+        swaps=active_swaps(records,as_of)
+        for swap in swaps:
+            for item in swap.get('returns',[]):
+                key=tuple(normalize_path(item['path']))
+                booking=item.get('booking_id',swap['id'])
+                if key in rows and rows[key]['plan_id']>booking: continue
+                rows[key]={**item,'plan_id':booking,'cutoff':item.get('cutoff',swap['cutoff']),
+                                                         'created_day':swap['created_day'],'swap_return':swap['slot_id']}
         for key,item in rows.items():
             used=sum(s['entry']['questions'] for s in sessions if s['entry']['kind']=='bloco' and
                      s.get('first_event_id',s.get('id',0))>item['cutoff'] and s['entry']['day']>=item['created_day'] and tuple(normalize_path(s['entry']['path']))==key)
             item['remaining']=max(0,item['questions']-used)
-        return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,
+        return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'swaps':swaps,
                 'history':[r for r in records if r.get('kind','').startswith('reschedule.')]}

@@ -9,6 +9,7 @@ from .study_trajectory_ui import trajectory_detail
 from .study_components import block_heading,block_context
 from .study_activity_ui import render_day_activity
 from .study_feedback import day_activity
+from .study_swap_ui import render_swap_controls,render_swap_history
 
 
 def _change_extra(service,day,topic_id,questions,revision,remove=False):
@@ -101,7 +102,8 @@ def render_study_day(service,go_record,go_review,go_edit=None):
                     block_context(item)
                     if item.get('review_kind')=='lot_only': st.caption('Retorno de respostas sem convicção · a revisão completa do tema mantém sua própria data.')
                     if item.get('preventive_priority'): st.caption('Prioridade do plano preventivo')
-                    if item.get('rescheduled'): st.caption('Recuperação agendada · atraso original desde '+item['original_due'])
+                    if item.get('swap_return'): st.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
+                    elif item.get('rescheduled'): st.caption('Recuperação agendada · atraso original desde '+item['original_due'])
                     if item['added_by_user']: st.caption(f"Adicionado por você · {item['extra_pending']} questões extras neste bloco · só hoje")
                     elif item['priority']=='urgente': st.caption('Prioridade urgente · comece por aqui')
                     mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
@@ -121,12 +123,14 @@ def render_study_day(service,go_record,go_review,go_edit=None):
                     with st.expander('Ver próximas revisões'):
                         st.write(item['reason'])
                         trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)
+                    render_swap_controls(service,day,item)
                     if item['added_by_user']:
                         st.button('Retirar revisão extra',key=f"remove_extra_{item['topic_id']}",on_click=_change_extra,
                                   args=(service,day,item['topic_id'],0,view['day']['revision'],True))
             if plan['kind']!='descanso' and view['states'] and plan['questions']<max(0,plan['target_questions']-plan['done_questions']):
                 st.info('Parte da meta não pôde ser distribuída com os temas e limites atuais. Adicione outro tema ou ajuste o número de temas em Ajustes.')
     with extra,st.container(key='study_support'):
+        render_swap_history(service,view)
         due=[q for q in view['review_queue'] if q['due_date']<=day]
         if due and plan['kind']!='descanso':
             st.subheader('Respostas sem convicção')

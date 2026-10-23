@@ -271,14 +271,19 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     return sorted(states,key=lambda t:review_order(t,as_of))
 
 
-def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None):
+def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=()):
     profile.validate()
     not_started=bool(profile.start_date and as_of<profile.start_date)
     if not_started: kind='descanso'; extra_topics=None; reservations=None
+    swaps=[] if not_started else swaps
+    excluded={topic_id for row in swaps for topic_id in row['excluded_ids']}
+    swapped_ids={row['topic_id'] for row in swaps}
     if question_target is None: _number(minutes,'Tempo disponível',integer=True,positive=True,maximum=720)
     else: _number(question_target,'Meta de questões',integer=True,positive=True,maximum=1000)
     if kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
     today=[s['entry'] for s in sessions if s['entry']['day']==as_of and s['entry']['kind']!='acumulado']
+    from .study_swaps import quota_entries
+    allocation_today,quota_adjustments=quota_entries(sessions,swaps,as_of)
     done=sum(e['questions'] for e in today)
     spent=sum(e['minutes'] if e.get('minutes') else e['questions']*profile.minutes_per_question for e in today)
     extras=[]
@@ -297,8 +302,11 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         for event in sorted(dated,key=lambda s:s.get('first_event_id',s.get('id',0))):
             left=event['entry']['questions']
             for batch in batches:
-                if event.get('first_event_id',event.get('id',0))<=batch['after_event_id'] or normalize_path(event['entry']['path'])!=normalize_path(batch['path']): continue
-                used=min(left,batch['requested']-credits[batch['extra_id']])
+                if event.get('first_event_id',event.get('id',0))<=batch['after_event_id']: continue
+                direct=normalize_path(event['entry']['path'])==normalize_path(batch['path'])
+                exchanged=sum(c['questions'] for r in swaps if batch['extra_id'] in r.get('extra_ids',[]) for c in r.get('credits',[])+r.get('prior_credits',[]) if c['session_id']==event['session_id'])
+                if not direct and not exchanged: continue
+                used=min(left,batch['requested']-credits[batch['extra_id']],left if direct else exchanged)
                 credits[batch['extra_id']]+=used
                 left-=used
         grouped={}
@@ -308,6 +316,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         target=max(question_target+sum(t['requested'] for t in batches),done+sum(t['remaining'] for t in grouped.values())) if batches else question_target
         budget=max(0,target-done)
         for t in grouped.values():
+            if t['topic_id'] in excluded|swapped_ids: continue
             q=min(t['remaining'],t['total'],budget-sum(e['questions'] for e in extras))
             if q: extras.append({**t,'questions':q,'new_questions':min(q,t['available_new']),
                                   'repeat_questions':max(0,q-t['available_new']),'added_by_user':True,'reason':'Revisão que você adicionou para adiantar o estudo'})
@@ -315,25 +324,41 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     if kind=='descanso': budget=0; extras=[]
     recovered=[]
     by_id={t['topic_id']:t for t in states}
+    pinned=[]
+    for row in swaps:
+        t=by_id.get(row['topic_id'])
+        if not t or not row.get('extra_only') and sum(not p.get('is_extra_swap') for p in pinned)>=profile.max_topics: continue
+        q=min(row['remaining'],t['total'],max(0,budget-sum(p['questions'] for p in pinned)))
+        if q:
+            pinned.append({**t,'questions':q,'new_questions':min(q,t['available_new']),
+                           'repeat_questions':max(0,q-t['available_new']),'added_by_user':False,
+                           'day_swap_id':row['slot_id'],'swap_from_path':row['from_path'],
+                           'day_swap_origin_id':row.get('origin_id',row['topic_id']),
+                           'swap_quota_path':row.get('quota_path',row['from_path']),'is_extra_swap':row.get('extra_only',False),
+                           'swap_extra_ids':row.get('extra_ids',[]),
+                           'reason':'Tema escolhido para substituir '+row['from_path'][-1]+' apenas neste dia'})
+    budget-=sum(p['questions'] for p in pinned)
+    base_pins=[p for p in pinned if not p.get('is_extra_swap')]
     from .study_allocation import topic_is_new
     group_targets={'new':round((question_target if question_target is not None else target)*profile.new_share)}
     group_targets['reviews']=(question_target if question_target is not None else target)-group_targets['new']
-    for e in today:
+    for e in allocation_today+[{'path':p['swap_quota_path'],'questions':p['questions']} for p in base_pins]:
         t=next((t for t in states if normalize_path(t['path'])==normalize_path(e['path'])),None)
         if t:
             group='new' if topic_is_new(t) else 'reviews'
             group_targets[group]=max(0,group_targets[group]-e['questions'])
     for row in sorted(reservations or [],key=lambda r:r['date']):
         t=by_id.get(row['topic_id'])
-        if not t or row['date']>as_of or len(recovered)>=profile.max_topics: continue
+        if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
         remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
-        group_budget=remaining_budget if profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        group_budget=remaining_budget if row.get('swap_return') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
         q=min(row['remaining'],t['total'],group_budget,remaining_budget)
         if q:
             group_targets[group]=max(0,group_targets[group]-q)
             recovered.append({**t,'questions':q,'new_questions':min(q,t['available_new']),'repeat_questions':max(0,q-t['available_new']),
                               'added_by_user':False,'rescheduled':True,'reschedule_date':row['date'],'original_due':row['original_due'],
+                              'swap_return':row.get('swap_return'),
                               'reason':'Recuperação reagendada; atraso original preservado'})
     budget-=sum(r['questions'] for r in recovered)
     recovery_ids={r['topic_id'] for r in recovered}
@@ -341,28 +366,47 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     minimum=min(profile.min_block,budget)
     from .study_capacity import capacity_policy
     candidates,allocation_profile,capacity=capacity_policy(capacity_states if capacity_states is not None else states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits)
+    if swaps:
+        latest=max(swaps,key=lambda r:r.get('id',0))
+        if 'allowed_peers' in latest:
+            active_targets={r['origin_id']:r['topic_id'] for r in swaps if 'origin_id' in r}
+            peers={active_targets.get(origin,origin) for origin in latest['peer_origins']} if 'peer_origins' in latest else set(latest['allowed_peers'])
+            candidates=[t for t in states if t['topic_id'] in peers]
+            share=latest.get('allocation_share',profile.new_share) if profile.new_share==latest.get('reference_share') else profile.new_share
+            allocation_profile=replace(profile,new_share=share)
+            capacity.update(effective_share=share,user_swaps=True,deferred_admissions=0)
     candidate_ids={t['topic_id'] for t in candidates}
     candidates=[t for t in states if t['topic_id'] in candidate_ids]
     available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in candidates
-               if t['topic_id'] not in recovery_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
+               if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and
                t['total']>=profile.min_block and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,minimum)]
     if any(t.get('preventive_priority') for t in available):
         ranks={'urgente':0,'alta':1,'normal':2}
         available.sort(key=lambda t:(ranks[t['priority']],t.get('anticipated_days',0)>0,not t.get('preventive_priority',False),-t['score']))
-    from dataclasses import replace
-    virtual=[{'path':r['path'],'questions':r['questions']} for r in recovered]
-    selected,counts,distribution=category_allocation(available,states,replace(allocation_profile,max_topics=max(0,profile.max_topics-len(recovered))),budget,question_target if question_target is not None else target,today+virtual)
-    for row in recovered:
+    virtual=[{'path':r.get('swap_quota_path',r['path']),'questions':r['questions']} for r in recovered+base_pins]
+    selected,counts,distribution=category_allocation(available,states,replace(allocation_profile,max_topics=max(0,profile.max_topics-len(recovered)-len(base_pins))),budget,question_target if question_target is not None else target,allocation_today+virtual)
+    for adjustment in quota_adjustments:
+        source=next((t for t in states if t['path']==adjustment['source_path']),None)
+        actual=next((t for t in states if t['path']==adjustment['path']),None)
+        if source is None or actual is None: continue
+        old='new' if topic_is_new(source) else 'reviews'; new='new' if topic_is_new(actual) else 'reviews'
+        if old!=new:
+            distribution['done_'+old]-=adjustment['questions']; distribution['done_'+new]+=adjustment['questions']
+            distribution['adjusted']=True
+    for row in recovered+base_pins:
         group='new' if topic_is_new(row) else 'reviews'
-        distribution['done_'+group]-=row['questions']
+        source=next((s for s in states if s['path']==row.get('swap_quota_path',row['path'])),row)
+        source_group='new' if topic_is_new(source) else 'reviews'
+        distribution['done_'+source_group]-=row['questions']
         distribution['planned_'+group]+=row['questions']
+        if group!=source_group: distribution['adjusted']=True
     items=[{**t,'questions':counts[t['topic_id']], 'added_by_user':False,'new_questions':min(counts[t['topic_id']],t['available_new']),
             'repeat_questions':max(0,counts[t['topic_id']]-t['available_new'])} for t in selected if counts[t['topic_id']]]
     for item in items:
         if item.get('preventive_priority'):
             item['reason']=f"Revisão antecipada em {item['anticipated_days']}dia(s) para evitar acúmulo previsto" if item.get('anticipated_days') else 'Revisão priorizada pelo plano preventivo'
-    items+=recovered
+    items+=recovered+pinned
     combined={i['topic_id']:i for i in items}
     for extra in extras:
         if extra['topic_id'] in combined:

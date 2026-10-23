@@ -7,6 +7,7 @@ from .study_replanning import past_calendar
 from .study_replanning_ui import render_replanning
 from .study_prevention_ui import render_prevention,open_prevention
 from .study_capacity_ui import render_capacity_summary
+from .study_swap_ui import render_swap_controls
 
 
 def _select_day(day):
@@ -29,8 +30,10 @@ def _day_summary(day,plan,context,today):
     else: st.markdown('**'+('Descanso' if plan['kind']=='descanso' else f"{plan['questions']} questões")+'**')
     count=len(plan.get('delayed_topics',[])) if plan.get('historical') else len(context['backlog']) if day==today else 0
     if count: st.html(f'<div class="calendar-badge calendar-late">{count} atrasados</div>')
-    booked=sum(i.get('rescheduled',False) for i in plan['items'])
+    booked=sum(bool(i.get('rescheduled')) and not i.get('swap_return') for i in plan['items'])
     if booked: st.html(f'<div class="calendar-badge calendar-booked">{booked} recuperações</div>')
+    moved=sum(bool(i.get('swap_return')) for i in plan['items'])
+    if moved: st.html(f'<div class="calendar-badge calendar-booked">{moved} remanejamentos</div>')
     if day>today and plan.get('topic_backlog'):
         st.caption(f"{plan['topic_backlog']} revisões a encaixar")
         if plan.get('capacity',{}).get('mode')!='adaptive': st.button('Ver revisões',key='calendar_risks_'+day.isoformat(),on_click=open_prevention,args=(day.isoformat(),),width='stretch')
@@ -119,7 +122,8 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
             left.markdown('**'+item['path'][-1]+f" · {item['questions']} questões**")
             left.caption(item['stage'])
             if item.get('preventive_priority'): left.caption('Plano preventivo'+(f" · antecipada em {item['anticipated_days']}dia(s)" if item.get('anticipated_days') else ''))
-            if item.get('rescheduled'): left.caption('Recuperação · vencimento original '+item['original_due'])
+            if item.get('swap_return'): left.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
+            elif item.get('rescheduled'): left.caption('Recuperação · vencimento original '+item['original_due'])
             left.caption(' › '.join(item['path'][:-1]))
             if selected==today.isoformat():
                 mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
@@ -128,6 +132,7 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
                         if lot['due_date']<=selected: right.button('Revisar lote',key='calendar_lot_'+lot['session_id'],on_click=go_review,args=(lot,))
                     left.caption('O complemento do bloco pode ser registrado na tela Hoje.')
                 else: right.button('Registrar',key='calendar_record_'+item['topic_id'],on_click=go_record,args=(item['topic_id'],item['questions'],mode))
+                render_swap_controls(service,selected,item,'calendar')
     if not plan['items']: st.info('Dia sem blocos previstos. Pode ser descanso ou intervalo entre revisões.')
     snapshot=st.session_state.setdefault('calendar_snapshot_'+selected,service.store.day(selected,service.store.profile()['profile']['max_questions']))
     with st.expander('Programar quantidade ou descanso deste dia'):

@@ -74,7 +74,7 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         done=(usage or {}).get(day,{})
         capacity[day]={'new':max(0,round(q*p.new_share)-done.get('new',0)),
                        'reviews':max(0,q-round(q*p.new_share)-done.get('reviews',0)),
-                       'total':max(0,q-done.get('total',0)), 'slots':p.max_topics,'rest':config['kind']=='descanso'}
+                       'total':max(0,q-done.get('total',0)), 'slots':max(0,p.max_topics-done.get('slots',0)),'rest':config['kind']=='descanso'}
     for row in sorted(existing,key=lambda r:r['date']):
         left=row['remaining']
         group='new' if row.get('new_topic') else 'reviews'
