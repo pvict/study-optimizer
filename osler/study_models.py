@@ -77,6 +77,7 @@ class AdaptiveProfile:
     mock_cadence_days: int = 0
     approach_days: int = 30
     exam_weights: dict[str,float] = field(default_factory=dict)
+    exam_weight_basis: str = ''
     parameter_values: dict = field(default_factory=dict)
 
     @property
@@ -85,6 +86,8 @@ class AdaptiveProfile:
         return AlgorithmParameters(**self.parameter_values).validate()
 
     def validate(self):
+        if not isinstance(self.exam_weight_basis,str) or self.exam_weight_basis and (len(self.exam_weight_basis)!=64 or any(c not in '0123456789abcdef' for c in self.exam_weight_basis)):
+            raise ValueError('Confirmação de pesos inválida. Refaça a prévia em Minhas provas.')
         self.parameters
         _number(self.mock_cadence_days,'Intervalo entre simulados',integer=True,maximum=365)
         _number(self.approach_days,'Aviso de aproximação',integer=True,maximum=90)

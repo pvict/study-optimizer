@@ -84,23 +84,5 @@ def render_mock_days(service):
 
 
 def render_exam_weights(service):
-    exams=active_exams(service.repository)
-    record=service.store.profile()
-    p=AdaptiveProfile(**record['configured_profile'])
-    if not exams: return
-    with st.expander('Importância das provas e aviso de aproximação'):
-        st.caption('Os pesos ficam ligados às provas cadastradas. Instituições repetidas usam o maior peso; uma tabela conjunta não informa pesos individuais.')
-        with st.form('linked_exam_weights'):
-            selected={}
-            for e in exams:
-                key=e['target_id']; name=e['target']['institution']+' · '+e['target']['exam_date']
-                enabled=st.checkbox('Usar '+name,value=key in p.exam_weights,key='exam_weight_use_'+key)
-                weight=st.number_input('Importância · '+name,min_value=.1,value=float(p.exam_weights.get(key,1)),key='exam_weight_'+key)
-                if enabled: selected[key]=weight
-            days=st.number_input('Avisar quando faltarem quantos dias? (0 desliga)',0,90,p.approach_days,key='approach_days')
-            save=st.form_submit_button('Salvar importância e aviso')
-        if save:
-            service.store.save_profile(replace(p,exam_weights=selected,approach_days=int(days)),record['id'])
-            st.session_state.pop('adaptive_profile_snapshot',None)
-            st.success('Importância das provas atualizada.')
-            st.rerun()
+    from .exam_weights_ui import render_exam_weights as render
+    render(service)

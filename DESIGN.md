@@ -254,7 +254,9 @@ Estados são informativos, não controles. Dominado, Aprendendo e Em alerta usam
 
 ### Métricas, tabela e lista
 
-Resumo de Hoje mostra questões registradas sobre a meta e restantes em faixa compacta; progresso corresponde a questões registradas, sem três KPIs grandes. Temas oferece filtros acionáveis e alternância Tabela/Lista. A lista distingue acerto de convicção e mostra “Próxima revisão: Não programada” quando não há data. Não substituir esse vazio por uma data inferida.
+Resumo de Hoje mostra questões registradas sobre a meta e restantes em faixa compacta; progresso corresponde a questões registradas, sem três KPIs grandes. Temas oferece filtros acionáveis e alternância Tabela/Lista. Próxima revisão fica perto do tema e do estado, na tabela e na lista: é o próximo bloco previsto pelo calendário operacional, respeitando simulados, descanso e reservas. Para não vistos, representa o primeiro contato. Sem vaga, informar explicitamente o horizonte; sem catálogo, indicar a indisponibilidade. A data devida fica nos detalhes. Uma previsão de vaga não comprova estudo nem retenção.
+
+Em Minhas provas, pesos ficam indisponíveis com motivo e instrução de recuperação quando faltam tabelas individuais. A prévia apresenta pesos e blocos de hoje antes/depois; fontes, prioridades e datas futuras ficam em detalhes recolhidos. Aplicar é uma ação separada e é desabilitada quando os dados mudam. Nenhuma nova paleta, componente promocional ou progresso foi introduzido.
 
 ### Evidência e limites
 

@@ -60,6 +60,8 @@ def _back_to_plan():
 
 def render_adaptive(repo):
     service=AdaptiveService(repo)
+    weight_status=service.store.profile()['weight_policy']
+    if not weight_status['allowed']: st.warning(weight_status['reason']+' O conjunto original foi mantido sem esses pesos. Corrija em Ajustes → Minhas provas.')
     if 'last_study_mode' not in st.session_state:
         previous=[r for r in service.store.active(today_local().isoformat()) if r['entry']['kind']=='bloco']
         st.session_state['last_study_mode']=max(previous,key=lambda r:r['id'])['entry']['mode'] if previous else 'novas'
@@ -262,22 +264,15 @@ def _settings(service):
             st.caption('Ative só as áreas que quiser personalizar. As demais usam a meta global; não há configuração por subtema.')
         st.caption(f"{share_percent}% de questões em temas novos · {100-share_percent}% em revisões e diagnósticos. A proporção pode ser aproximada se faltarem temas elegíveis ou vagas por dia.")
         with st.expander('Instituições, distribuição e detalhes'):
-            weights=st.text_area('Instituições e importância (uma por linha: nome;peso)',value='\n'.join(f'{k};{v:g}' for k,v in p.institution_weights.items()),placeholder='USP;60\nPSU-MG;40')
-            st.caption('Use os nomes das tabelas importadas. Uma tabela conjunta não informa a incidência individual dos seus membros.')
+            st.caption('A importância das provas é ajustada em Minhas provas, com incidência individual e prévia antes de aplicar. As instituições do conjunto ficam em Instituições e incidências.')
             max_topics=st.number_input('Máximo de temas por dia',min_value=1,max_value=10,value=p.max_topics)
             recent=st.number_input('Janela recente em dias',min_value=1,max_value=730,value=p.recent_days)
             minimum=st.number_input('Mínimo de questões por bloco automático',min_value=1,max_value=100,value=p.min_block)
             gap=st.number_input('Máximo de dias entre contatos',min_value=1,max_value=90,value=p.max_contact_gap)
         save=st.form_submit_button('Salvar planejamento',type='primary')
     if save:
-        institutions={}
-        for line in weights.splitlines():
-            if not line.strip(): continue
-            parts=[s.strip() for s in line.split(';')]
-            if len(parts)!=2 or parts[0] in institutions: raise ValueError('Use instituição;peso, sem nomes repetidos.')
-            institutions[parts[0]]=float(parts[1].replace(',','.'))
         service.store.save_profile(replace(p,target_accuracy=target,exam_date=exam.isoformat(),start_date=start.isoformat() if start else None,max_questions=int(count),
-                                           institution_weights=institutions,new_share=share,workload_mode=workload_mode,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap),
+                                           new_share=share,workload_mode=workload_mode,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap),
                                            area_targets={r['Área']:float(r['Meta (%)']) for _,r in area_frame.iterrows() if r['Usar meta própria']}),record['id'])
         st.session_state.pop('adaptive_profile_snapshot',None)
         st.session_state['adaptive_notice']='Planejamento atualizado. As próximas quantidades já seguem esses ajustes.'

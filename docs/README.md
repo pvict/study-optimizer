@@ -6,6 +6,8 @@
 
 ## Modelos e funcionalidades existentes
 
+- [Pesos com incidência individual e próxima revisão na tabela — v0.24.1](research/pesos-e-proximas-revisoes.md)
+
 - [Evolução e jornada: cenários, rendimento e conquistas — v0.19](research/evolucao-v0.19.md)
 
 - [Rotina adaptativa: capacidade, lotes, cobertura e limites — v0.18](research/capacidade-adaptativa-v0.18.md)

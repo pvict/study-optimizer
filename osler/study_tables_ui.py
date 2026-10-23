@@ -11,6 +11,7 @@ from .planner_service import today_local
 from .study_statistics import topic_statistics, period_bounds, PERIODS, MODES
 from .study_trajectory_ui import render_trajectories
 from .confidence_presentation import confidence_presentation
+from .topic_contacts import forecast_topic_contacts,apply_next_contacts
 
 
 def _open_extra(topic_id):
@@ -51,7 +52,9 @@ def _topic_list(rows,signature,go_record,cumulative=False):
                         '</strong></span><span>Convicção: '+escape(confidence)+'</span></div>')
             st.caption(row['Base da convicção'])
             action=row.get('Próxima ação')
-            st.caption('Próxima ação: '+action if action in {'Priorizar agora','Distribuição gradual'} else 'Próxima revisão: '+due)
+            if action in {'Priorizar agora','Distribuição gradual'}: st.caption('Próxima ação: '+action)
+            if 'Revisão devida' in row or action not in {'Priorizar agora','Distribuição gradual'}:
+                st.caption('Próxima revisão: '+due+(' · '+row['Tipo do próximo bloco'] if row.get('Tipo do próximo bloco') else ''))
             if cumulative and row.get('Domínio / evidência'): st.caption(row['Domínio / evidência'])
             if row.get('Meta do tema (%)') is not None: st.caption(f"Meta do tema: {row['Meta do tema (%)']:g}% · acerto com convicção em questões novas e amostra suficiente.")
             left,right=st.columns(2)
@@ -111,6 +114,21 @@ def render_topic_table(service,go_record):
         rows=[r for r in rows if by_id.get(r['topic_id'],{}).get('low_accuracy')]
     elif focus=='Com questões no período': rows=[r for r in rows if r['Questões']>0]
     rows=confidence_presentation(rows,view['sessions'],period,reference,mode,include_snapshot=cumulative)
+    if view['planning_token']!=service.agenda.token():
+        st.info('O plano mudou durante a consulta. Atualize a tabela para ver as próximas revisões.')
+        st.button('Atualizar tabela',on_click=st.rerun)
+        return
+    contact_key=[str(service.repository.root),view['date'],view['planning_token']]
+    cached=st.session_state.get('statistics_next_contacts',{})
+    if cached.get('key')!=contact_key:
+        with st.spinner('Consultando as próximas revisões no calendário...'):
+            try: cached={'key':contact_key,'forecast':forecast_topic_contacts(service,view)}
+            except ValueError as exc:
+                st.info(str(exc))
+                st.button('Atualizar tabela',on_click=st.rerun)
+                return
+        st.session_state['statistics_next_contacts']=cached
+    rows=apply_next_contacts(rows,cached['forecast'])
     n=sum(r['Questões com acertos exatos'] for r in rows)
     correct=sum(r['Acertos'] for r in rows)
     with st.container(key='topic_summary'):
@@ -128,9 +146,10 @@ def render_topic_table(service,go_record):
     def label(day): return '/'.join(reversed(day.split('-')))
     st.caption(f"{len(rows)} temas nos filtros · histórico importado mais recente por tema." if cumulative else f"{label(start) if start else 'Todo o histórico'} até {label(end)} · {len(rows)} temas nos filtros. Semana começa na segunda; mês segue o calendário.")
     st.button('Limpar filtros',key='statistics_clear',on_click=_clear_filters,disabled=not(search or area!='Todas' or focus!='Todos os temas' or mode!='Todas' or detail))
-    fields=['Tema','Estado','Questões','Acerto (%)','Convicção principal (%)','Base da convicção','Questões realizadas','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Área','Estado','Questões','Acerto (%)','Convicção principal (%)','Base da convicção','Próxima revisão']
+    fields=['Tema','Estado','Próxima revisão','Questões','Acerto (%)','Convicção principal (%)','Base da convicção','Questões realizadas','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Estado','Próxima revisão','Área','Questões','Acerto (%)','Convicção principal (%)','Base da convicção']
+    st.caption('Próxima revisão: vaga prevista no calendário atual, até '+cached['forecast']['end']+'. Para temas não vistos, é o primeiro contato. As datas serão recalculadas com seus resultados; o vencimento original fica nos detalhes.')
     has_planner=any(r.get('Retrato Osler') for r in rows)
-    if detail: fields+=['Meta do tema (%)','Lotes consolidados (%)','Questões com convicção informada','Prioridade','Último contato','Incidência relativa (%)','Respondidas no PDF','Acerto no PDF','Situação','Novas','Repetidas','Mistas','Questões com acertos exatos','Questões aproximadas','Acerto aproximado (%)','Caminho']
+    if detail: fields+=['Tipo do próximo bloco','Revisão devida','Meta do tema (%)','Lotes consolidados (%)','Questões com convicção informada','Prioridade','Último contato','Incidência relativa (%)','Respondidas no PDF','Acerto no PDF','Situação','Novas','Repetidas','Mistas','Questões com acertos exatos','Questões aproximadas','Acerto aproximado (%)','Caminho']
     if detail and has_planner: fields+=['Questões distintas Osler','Retrato Osler','Pendências no retrato Osler','Posição na fila inicial']
     fields=list(dict.fromkeys(fields))
     frame=pd.DataFrame(rows,columns=['topic_id',*fields])

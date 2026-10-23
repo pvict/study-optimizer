@@ -116,23 +116,32 @@ class StudyStore:
         principal=principal_exam(configured,active_exams(self.repository),today_local().isoformat())
         effective=replace(configured,exam_date=principal['target']['exam_date']) if principal else configured
         effective=replace(effective,parameter_values=parameters.to_dict())
-        if configured.exam_weights:
-            weights={}
-            for e in active_exams(self.repository):
-                weight=configured.exam_weights.get(e['target_id'])
-                if weight is not None:
-                    name=e['target']['institution']
-                    weights[name]=max(weights.get(name,0),weight)
-            # IDs vinculados substituem nomes livres apenas quando configurados.
-            effective=replace(effective,institution_weights=weights)
-        return {'id':row['id'] if row else 0,'profile':effective.to_dict(),'configured_profile':configured.to_dict()}
+        from .exam_weight_policy import policy_inputs,exam_weight_policy
+        policy={'allowed':True,'reason':''}
+        if configured.exam_weights or any(w!=1 for w in configured.institution_weights.values()):
+            with self.repository._connection() as db: inputs=policy_inputs(db)
+            policy=exam_weight_policy(configured,inputs,today_local().isoformat())
+            if policy['allowed'] and configured.exam_weight_basis!=policy['basis']:
+                policy={**policy,'allowed':False,'reason':'Confirme os pesos e o conjunto em uma nova prévia em Minhas provas.',
+                        'effective_weights':{name:1 for name in policy['base_weights']}}
+            effective=replace(effective,institution_weights=policy['effective_weights'])
+        return {'id':row['id'] if row else 0,'profile':effective.to_dict(),'configured_profile':configured.to_dict(),'weight_policy':policy}
 
-    def save_profile(self, profile, expected_id):
+    def save_profile(self, profile, expected_id,*,expected_planning_token=None):
         profile.validate()
         with self.repository._connection() as db:
             db.execute('BEGIN IMMEDIATE')
+            if expected_planning_token is not None:
+                from .study_agenda import planning_token
+                if planning_token(db)!=expected_planning_token: raise ValueError('Os dados mudaram. Recalcule a prévia antes de aplicar.')
             if db.execute('SELECT COALESCE(MAX(id),0) FROM study_profiles').fetchone()[0] != expected_id:
                 raise ValueError('O planejamento foi atualizado. Reabra antes de salvar.')
+            from .exam_weight_policy import policy_inputs,exam_weight_policy
+            from .planner_service import today_local
+            if profile.exam_weights or any(w!=1 for w in profile.institution_weights.values()):
+                policy=exam_weight_policy(profile,policy_inputs(db),today_local().isoformat())
+                if not policy['allowed']: raise ValueError(policy['reason'])
+                if profile.exam_weight_basis!=policy['basis']: raise ValueError('Confirme os pesos em uma prévia antes de salvar.')
             return db.execute('INSERT INTO study_profiles(payload,created_at) VALUES(?,?)',(_encoded(profile.to_dict()),utc_now())).lastrowid
 
     def save_plan(self, plan):

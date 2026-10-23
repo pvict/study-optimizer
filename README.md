@@ -7,7 +7,7 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.24.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.24.1.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 [Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 
@@ -22,7 +22,7 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 - **Calendário:** Agenda, Semana e Mês; próximos contatos por tema, retornos conhecidos e revisões seguintes a recalcular após seus resultados. Recuperação e prevenção de pendências com comparação antes/depois e opção de desfazer. [Como interpretar a previsão](docs/research/calendario-proximos-contatos.md).
 - **Rotina adaptativa:** referência de novos/revisões com ajuste à demanda e à capacidade de repetir nos próximos14dias; comparação com divisão fixa, custo em cobertura e riscos residuais visíveis. Doses não são infladas para preencher a meta. O modo fixo continua disponível.
 - **Evolução:** jornada por semanas, meses e fim da preparação, com respostas, cobertura e pontos de atenção. Compare intervalos atuais com avanço condicional das revisões ao atingir a meta; cada cenário respeita a carga e fica separado dos resultados reais. [Hipóteses e limites](docs/research/evolucao-espacamento-condicional.md).
-- **Temas:** resultados registrados no app ao lado do histórico importado, com fontes separadas; filtros de situação e período, tabela ou lista paginada e exportação. [Entenda as contagens](docs/research/temas-historico-e-blocos.md).
+- **Temas:** resultados registrados no app ao lado do histórico importado, com fontes separadas; filtros de situação e período, tabela ou lista paginada e exportação. A coluna Próxima revisão mostra a vaga prevista no calendário para o tema pesquisado, separada da data devida. [Entenda as contagens](docs/research/temas-historico-e-blocos.md).
 - **Revisões por tema:** dose do próximo bloco ajustada aos resultados reais; manutenção menor após bons encontros espaçados, reforço após dificuldades e revisões seguintes a recalcular. [Critérios e limites](docs/research/dose-adaptativa-por-tema.md).
 - **Registro:** acertos, convicção, questões novas/repetidas/mistas, importação de CSV/TSV e histórico de correções.
 - **Plano de corte:** em Temas, diferença entre demanda condicional e capacidade, com propostas protegendo temas frágeis e opção de prévia, aplicar e desfazer.
@@ -30,6 +30,7 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 - **Revisão semanal:** opcional em Hoje, com mudanças por área, aderência, erros e simulados; sugestões de carga não são aplicadas automaticamente.
 - **Parâmetros e calibração:** versão 1 preserva os cálculos anteriores. Seleção só manual em Ajustes; análise somente leitura em `scripts/analise_calibracao.py`, após 6 a 8 semanas de uso diário.
 - **Ajustes:** meta diária, metas de acerto nos temas (global ou por área), Minhas provas e incidências por instituição.
+- **Importância das provas:** pesos exigem incidências individuais aplicáveis para todo o conjunto, mantendo as instituições selecionadas. A prévia mostra fontes, pesos, prioridades e mudanças no plano antes de aplicar. Uma tabela conjunta não permite inferir incidências individuais. [Regras e limites](docs/research/pesos-e-proximas-revisoes.md).
 - **Erros:** anotação opcional após o bloco; consulta e resolução em Temas → Erros abertos, com histórico e exportação CSV. Erros críticos ou recorrentes acrescentam prioridade alta e bloqueiam redução de cartões.
 - **Simulados:** registro curto, resultados opcionais por área ou tema e evolução separada dos blocos. Inéditas por tema podem ser convertidas explicitamente, sem duplicação. Dia feito por simulado dispensa a meta normal mediante prévia, com opção de desfazer.
 - **Revisão final:** datas de prova e inscrição no calendário, importância vinculada às provas e programação temporária com descanso na véspera. Prévia → aplicar → desfazer. [Regras e limites do lote B](docs/research/lote-b-entrega.md).

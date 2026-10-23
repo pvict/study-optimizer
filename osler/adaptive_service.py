@@ -36,9 +36,10 @@ from .final_review import FinalReviewServiceMixin,special_config,final_reservati
 from .triage_service import TriageServiceMixin
 from .study_triage_policy import apply_triage
 from .mock_schedule_service import MockScheduleServiceMixin
+from .exam_weight_service import ExamWeightServiceMixin
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin,ExamWeightServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
@@ -167,10 +168,11 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         settings=StudyDay(**current['settings'])
         return self.store.save_day(day,replace(settings,extra_topics=[e for e in settings.extra_topics if e['topic_id']!=topic_id]),expected_revision)
 
-    def overview(self,as_of,minutes=None,kind=None,questions=None,_agenda_override=None):
+    def overview(self,as_of,minutes=None,kind=None,questions=None,_agenda_override=None,_profile_override=None):
         valid_date(as_of)
+        snapshot_token=self.agenda.token()
         record=self.store.profile()
-        profile=AdaptiveProfile(**record['profile']).validate()
+        profile=AdaptiveProfile(**(_profile_override or record['profile'])).validate()
         day=self.store.day(as_of,profile.max_questions)
         day_settings=StudyDay(**day['settings']).validate()
         kind=kind or day_settings.kind
@@ -259,7 +261,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         other_parents=[t for t in all_topics if t['topic_id'] not in known_ids and tuple(normalize_path(t['path'])) in recorded_paths]
         if other_parents:
             states+=[{**t,'historical_aggregate':True} for t in topic_states(other_parents,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)]
-        return {'date':as_of,'plan':plan,'states':states,'profile':profile.to_dict(),'profile_id':record['id'],'day':day,
+        return {'date':as_of,'planning_token':snapshot_token,'plan':plan,'states':states,'profile':profile.to_dict(),'profile_id':record['id'],'day':day,
                 'sessions':sessions,'sources':sources,'warnings':warnings,'portfolio':portfolio,'planning_states':planning_states,'review_queue':review_queue(sessions),
                 'time_source':'Mediana de blocos registrados' if measured else 'Estimativa inicial ajustável',
                 'incidence':incidence,'agenda':agenda}

@@ -40,10 +40,14 @@ def test_exam_weights_link_ids_and_preserve_joint_incidence_rule(tmp_path,sample
     service,topic,event=configured(tmp_path,sample_pdf)
     record=service.store.profile()
     p=AdaptiveProfile(**record['configured_profile'])
-    service.store.save_profile(replace(p,exam_weights={event['target_id']:3}),record['id'])
+    with pytest.raises(ValueError): service.store.save_profile(replace(p,exam_weights={event['target_id']:3}),record['id'])
+    service.guide.store.save_dataset({'institutions':['Banca A'],'observed_date':'2026-10-15','unit':'questoes',
+                                    'rows':[{'path':topic['path'],'value':100,'band':'alta'}]})
+    service.apply_exam_weights(service.preview_exam_weights({event['target_id']:3},30))
     assert service.store.profile()['profile']['institution_weights']=={'Banca A':3}
     ExamGoals(service.repository).save(ExamTarget('Banca B','2026-10-29',70,100,'Edital'),target_id=event['target_id'],expected_version=1)
-    assert service.store.profile()['profile']['institution_weights']=={'Banca B':3}
+    assert service.store.profile()['profile']['institution_weights']=={}
+    assert not service.store.profile()['weight_policy']['allowed']
 
 
 def test_final_review_is_not_carried_as_a_missed_daily_plan(tmp_path,sample_pdf):
