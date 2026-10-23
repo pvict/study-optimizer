@@ -11,6 +11,8 @@ from .study_components import block_heading,block_context
 from .study_activity_ui import render_day_activity
 from .study_feedback import day_activity
 from .study_swap_ui import render_swap_controls,render_swap_history
+from .study_errors_ui import render_error_context
+from .final_review_ui import render_approach
 
 
 def _change_extra(service,day,topic_id,questions,revision,remove=False):
@@ -66,6 +68,12 @@ def render_study_day(service,go_record,go_review,go_edit=None):
     view=service.overview(day)
     service.remember_day(view)
     plan=view['plan']
+    render_approach(service)
+    routine=plan.get('routine_override',{})
+    if routine.get('mode')=='mock_day':
+        st.success(f"Dia feito por simulado · {routine['mock_questions']} questões. O resultado fica separado dos blocos.")
+    elif routine.get('mode')=='final_rest': st.info('Véspera da prova · descanso reservado pela revisão final.')
+    elif routine.get('mode')=='final_review': st.info('Revisão final · priorize os conceitos dos erros abertos. A programação temporária pode ser desfeita no Calendário.')
     if plan.get('not_started'):
         st.info('Seu cronograma começa em '+ '/'.join(reversed(plan['start_date'].split('-')))+'. Até lá, não há meta diária nem faltas no aplicativo.')
         st.caption('Seu histórico da Osler já está disponível em Temas. O Calendário mostra os blocos a partir do início; os contatos anteriores continuam orientando as prioridades.')
@@ -93,7 +101,8 @@ def render_study_day(service,go_record,go_review,go_edit=None):
         remaining,completed=st.tabs(['Para fazer',f"Feito hoje ({activity['questions']})"])
         with completed: render_day_activity(view,go_edit)
         with remaining:
-            if plan['kind']=='descanso': st.info('Descanse hoje. O plano recomeça sem dívida de questões. Para retomar agora, abra Ajustar meu dia.')
+            if plan['kind']=='descanso':
+                st.info('A meta normal foi dispensada neste dia. Para retomar, desfaça a programação no Calendário ou em Simulados.' if routine.get('mode') in {'mock_day','final_rest'} else 'Descanse hoje. O plano recomeça sem dívida de questões. Para retomar agora, abra Ajustar meu dia.')
             elif not view['states']: st.info('Comece importando seu relatório de questões em Arquivos e ferramentas → Dados e classificação → Importar relatórios.')
             elif not plan['items']:
                 if plan['done_questions']>=plan['target_questions']: st.success('Meta registrada. Se quiser continuar, abra Adiantar revisões.')
@@ -103,6 +112,7 @@ def render_study_day(service,go_record,go_review,go_edit=None):
                     block_heading(item)
                     st.caption(' › '.join(item['path'][:-1]))
                     block_context(item)
+                    render_error_context(service,item['path'],day)
                     if item.get('review_kind')=='lot_only': st.caption('Retorno de respostas sem convicção · a revisão completa do tema mantém sua própria data.')
                     if item.get('preventive_priority'): st.caption('Prioridade do plano preventivo')
                     if item.get('swap_return'): st.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))

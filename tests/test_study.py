@@ -56,6 +56,6 @@ def test_schema10_backup_roundtrip_preserves_new_and_old_data(tmp_path):
     store = StudyStore(repo)
     store.save_batch([('one', entry(), 0)])
     backup = create_backup(repo)
-    assert inspect_backup(backup.read_bytes())['schema_version'] == 10
+    assert inspect_backup(backup.read_bytes())['schema_version'] == 11
     other = StudyStore(Repository(restore_backup(backup.read_bytes(), tmp_path/'restored')))
     assert other.events() == store.events()

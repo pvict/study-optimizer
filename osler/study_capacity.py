@@ -13,6 +13,8 @@ def capacity_limits(profile,day,settings,agenda):
     for offset in range(HORIZON):
         key=(_date(day)+timedelta(days=offset)).isoformat()
         config=settings.get(key,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
+        from .final_review import special_config
+        config=special_config(config,agenda.get('overrides',{}).get(key,{}))
         _,q=effective_routine(profile,config,agenda.get('overrides',{}).get(key,{}))
         rest=config['kind']=='descanso' or key>profile.exam_date
         result.append((0,0) if rest else (q,profile.max_topics))

@@ -18,8 +18,11 @@ from .exam_goals_ui import render_exam_goals
 from .exam_goals import ExamGoals
 from .study_evolution_ui import render_evolution
 from .study_activity_ui import render_result_feedback
+from .study_errors_ui import render_quick_error,render_errors
+from .mock_exams_ui import render_mock_exams,render_mock_settings
+from .final_review_ui import render_exam_weights
 
-VIEWS=['Meu dia','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Ajustes']
+VIEWS=['Meu dia','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Simulados','Ajustes']
 
 
 def _go_record(topic_id,questions,mode='novas'):
@@ -58,12 +61,13 @@ def render_adaptive(repo):
         view=st.radio('Seu estudo',VIEWS,format_func=lambda v:{'Meu dia':'Hoje','Temas e estatísticas':'Temas','Registrar resultados':'Registrar'}.get(v,v),horizontal=True,key='adaptive_view',label_visibility='collapsed',width='stretch')
     current=st.session_state['adaptive_view']
     st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
-              'Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução'}[current])
+              'Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução','Simulados':'Seus simulados'}[current])
     st.caption({'Meu dia':'Faça os blocos abaixo e registre o resultado para atualizar o plano.',
                 'Calendário':'Consulte os próximos dias e abra espaço para suas revisões.',
                 'Temas e estatísticas':'Encontre o que precisa de atenção e acompanhe seu rendimento.',
                 'Registrar resultados':'Registre o que fez. O próximo plano acompanha seus resultados.',
-                'Ajustes':'Defina sua rotina uma vez. Ajuste quando precisar.','Evolução':'Enxergue o que já construiu e explore os próximos capítulos da preparação.'}[current])
+                'Ajustes':'Defina sua rotina uma vez. Ajuste quando precisar.','Evolução':'Enxergue o que já construiu e explore os próximos capítulos da preparação.',
+                'Simulados':'Acompanhe provas completas, com resultados separados dos blocos do dia.'}[current])
     if 'adaptive_notice' in st.session_state: st.success(st.session_state.pop('adaptive_notice'))
     if 'adaptive_error' in st.session_state: st.error(st.session_state.pop('adaptive_error'))
     if view!='Ajustes': st.session_state.pop('adaptive_profile_snapshot',None)
@@ -78,14 +82,22 @@ def render_adaptive(repo):
         elif view=='Calendário': render_calendar(service,_go_record,_go_review)
         elif view=='Registrar resultados':
             with st.container(key='study_registration'): _register(service)
-        elif view=='Temas e estatísticas': render_topic_table(service,_go_record)
+        elif view=='Temas e estatísticas':
+            stats,errors=st.tabs(['Desempenho dos temas','Erros abertos'])
+            with stats: render_topic_table(service,_go_record)
+            with errors: render_errors(service)
         elif view=='Evolução': render_evolution(service)
+        elif view=='Simulados': render_mock_exams(service)
         else:
             st.subheader('Seu plano, do seu jeito')
             settings=st.radio('O que ajustar?',['Meta e rotina','Minhas provas','Instituições e incidências'],horizontal=True,key='study_settings_section')
             if settings=='Meta e rotina':
-                with st.container(key='study_settings'): _settings(service)
-            elif settings=='Minhas provas': render_exam_goals(service)
+                with st.container(key='study_settings'):
+                    _settings(service)
+                    render_mock_settings(service)
+            elif settings=='Minhas provas':
+                render_exam_goals(service)
+                render_exam_weights(service)
             else: render_guide_settings(repo)
     except (ValueError,sqlite3.Error,OSError) as exc:
         st.error(str(exc))
@@ -97,6 +109,7 @@ def _register(service):
         st.subheader('Registro concluído')
         st.write(saved['topic'])
         render_result_feedback(service.overview(today_local().isoformat()),saved.get('session_id'))
+        render_quick_error(service,saved.get('session_id'))
         st.button('Voltar ao plano',key='study_back_to_plan',type='primary',on_click=_back_to_plan)
         st.button('Registrar outro estudo',key='study_another_entry',on_click=_go_record,args=(saved['topic_id'],20))
         return

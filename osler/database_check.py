@@ -22,6 +22,10 @@ SCHEMA = {
     8: {"study_events": "id session_id version action payload created_at", "study_profiles": "id payload created_at", "study_plan_runs": "id payload digest created_at"},
     9: {"study_days": "day revision payload updated_at"},
     10: {"exam_targets": "id target_id version action payload created_at"},
+    11: {"study_errors": "id error_key version action topic_path day source_session_id cause note critical flashcard_hint created_at",
+         "mock_exams": "id exam_key version action payload created_at",
+         "mock_exam_areas": "id mock_exam_id area questions correct",
+         "mock_exam_topics": "id mock_exam_id path questions correct"},
 }
 
 
@@ -31,7 +35,7 @@ def check_database(path):
             if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchall():
                 raise ValueError("Banco falhou na verificação de integridade.")
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if not 2 <= version <= 10:
+            if not 2 <= version <= 11:
                 raise ValueError("Versão do banco não suportada.")
             for required_version, tables in SCHEMA.items():
                 if required_version > version:
@@ -49,6 +53,20 @@ def check_database(path):
                 from .exam_goals import ExamTarget
                 for payload, in db.execute('SELECT payload FROM exam_targets'):
                     ExamTarget(**json.loads(payload)).validate()
+            if version>=11:
+                from .study_errors import StudyError
+                from .mock_exams import MockExam
+                for row in db.execute('SELECT topic_path,day,cause,note,source_session_id,critical,flashcard_hint FROM study_errors'):
+                    path,day,cause,note,source,critical,hint=row
+                    if critical not in (0,1): raise ValueError('Marcação de erro inválida no backup.')
+                    StudyError(json.loads(path),day,cause,note,source,bool(critical),hint).validate()
+                for event_id,payload in db.execute('SELECT id,payload FROM mock_exams'):
+                    mock=MockExam(**json.loads(payload)).validate()
+                    areas=[dict(zip(('area','questions','correct'),r)) for r in db.execute(
+                        'SELECT area,questions,correct FROM mock_exam_areas WHERE mock_exam_id=? ORDER BY id',(event_id,))]
+                    topics=[{'path':json.loads(r[0]),'questions':r[1],'correct':r[2]} for r in db.execute(
+                        'SELECT path,questions,correct FROM mock_exam_topics WHERE mock_exam_id=? ORDER BY id',(event_id,))]
+                    if areas!=mock.areas or topics!=mock.topics: raise ValueError('Detalhes de simulado incompatíveis no backup.')
             return version, [r[0] for r in reports]
     except (sqlite3.Error, KeyError, TypeError, AttributeError, json.JSONDecodeError) as exc:
         raise ValueError("Estrutura ou conteúdo do banco incompatível com o aplicativo.") from exc

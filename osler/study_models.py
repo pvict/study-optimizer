@@ -73,8 +73,16 @@ class AdaptiveProfile:
     primary_exam_id: str | None = None
     start_date: str | None = None
     workload_mode: str = 'fixed'
+    mock_cadence_days: int = 0
+    approach_days: int = 30
+    exam_weights: dict[str,float] = field(default_factory=dict)
 
     def validate(self):
+        _number(self.mock_cadence_days,'Intervalo entre simulados',integer=True,maximum=365)
+        _number(self.approach_days,'Aviso de aproximação',integer=True,maximum=90)
+        if not isinstance(self.exam_weights,dict) or any(not isinstance(k,str) or not k.strip() for k in self.exam_weights):
+            raise ValueError('Pesos das provas inválidos.')
+        for weight in self.exam_weights.values(): _number(weight,'Importância da prova',positive=True)
         if self.workload_mode not in {'fixed','adaptive'}: raise ValueError('Escolha divisão fixa ou adaptativa.')
         _number(self.target_accuracy, 'Meta de acerto', positive=True, maximum=100)
         _date(self.exam_date)

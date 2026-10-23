@@ -49,11 +49,13 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None):
 
 
 def effective_routine(profile,config,override):
+    from .final_review import special_config
+    config=special_config(config,override)
     q=config['questions']
     if override.get('mode')=='extra':
         total=min(1000,q+override['extra_questions'])
         return replace(profile,new_share=q*profile.new_share/total),total
-    return (replace(profile,new_share=0) if override.get('mode')=='reviews' else profile),q
+    return (replace(profile,new_share=0) if override.get('mode') in {'reviews','final_review'} else profile),q
 
 
 def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None):
@@ -68,13 +70,15 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         day=(_date(start)+timedelta(days=n)).isoformat()
         if day>profile.exam_date: break
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
-        over={'mode':mode,'extra_questions':extra_questions} if mode in {'reviews','extra'} else (previous_overrides or {}).get(day,{})
-        if config['kind']!='descanso' and mode in {'reviews','extra'}: overrides[day]=over
+        prior=(previous_overrides or {}).get(day,{})
+        protected=prior.get('mode') in {'final_review','final_rest','mock_day'}
+        over=prior if protected else {'mode':mode,'extra_questions':extra_questions} if mode in {'reviews','extra'} else prior
+        if not protected and config['kind']!='descanso' and mode in {'reviews','extra'}: overrides[day]=over
         p,q=effective_routine(profile,config,over)
         done=(usage or {}).get(day,{})
         capacity[day]={'new':max(0,round(q*p.new_share)-done.get('new',0)),
                        'reviews':max(0,q-round(q*p.new_share)-done.get('reviews',0)),
-                       'total':max(0,q-done.get('total',0)), 'slots':max(0,p.max_topics-done.get('slots',0)),'rest':config['kind']=='descanso'}
+                       'total':max(0,q-done.get('total',0)), 'slots':max(0,p.max_topics-done.get('slots',0)),'rest':config['kind']=='descanso' or protected}
     for row in sorted(existing,key=lambda r:r['date']):
         left=row['remaining']
         group='new' if row.get('new_topic') else 'reviews'

@@ -8,6 +8,7 @@ from .study_replanning_ui import render_replanning
 from .study_prevention_ui import render_prevention,open_prevention
 from .study_capacity_ui import render_capacity_summary
 from .study_swap_ui import render_swap_controls
+from .final_review_ui import render_exam_dates,render_final_review,render_mock_days
 
 
 def _select_day(day):
@@ -19,6 +20,8 @@ def _reference_changed():
 
 
 def _day_summary(day,plan,context,today):
+    for e in context.get('exam_dates',[]):
+        if e['date']==day.isoformat(): st.caption(e['label']+' · '+e['institution'])
     if plan is None:
         st.caption('Fora do período disponível')
         return
@@ -58,6 +61,7 @@ def render_calendar(service,go_record,go_review=None):
     st.caption('Próximos encontros por tema. As revisões seguintes serão recalculadas com seus resultados; retornos de questões já registrados continuam na agenda.')
     service.remember_day(service.overview(today.isoformat()))
     context=service.replanning()
+    context['exam_dates']=service.exam_dates()
     if any(t.get('review_committed') is False for t in context['view']['planning_states']):
         st.caption('O histórico importado forma uma fila de prioridades. Os primeiros contatos são distribuídos dentro da sua carga; não são dívidas de estudo. Alertas abaixo se referem a revisões já previstas neste cenário.')
     top=st.columns([1,1])
@@ -69,8 +73,12 @@ def render_calendar(service,go_record,go_review=None):
     plans=service.calendar(max(1,(end-today).days+1))
     by_date={p['date']:p for p in plans}
     by_date.update(past_calendar(context['view']['planning_states'],context['view']['sessions'],service.agenda.daily_plans(),(today-timedelta(days=96)).isoformat(),today.isoformat(),context['backlog']))
+    for key,override in context['overrides'].items():
+        if key in by_date:
+            by_date[key]['routine_override']=override
     days=[reference-timedelta(days=reference.weekday())+timedelta(days=i) for i in range(7)] if mode!='Mês' else list(calendar.Calendar().itermonthdates(reference.year,reference.month))
     st.caption(reference.strftime('%m/%Y')+' · escolha um dia para ver os blocos')
+    render_exam_dates(service,days[0].isoformat(),days[-1].isoformat())
     selected=st.session_state.get('calendar_selected',reference.isoformat())
     if selected not in by_date: selected=reference.isoformat()
     if mode=='Agenda':
@@ -98,10 +106,16 @@ def render_calendar(service,go_record,go_review=None):
         render_replanning(service,context)
         render_prevention(service)
         render_capacity_summary(service,max(reference.isoformat(),today.isoformat(),start_date or today.isoformat()))
+        render_final_review(service)
+        render_mock_days(service)
 
 
 def _render_selected_day(service,go_record,go_review,today,start_date,selected,plan):
     st.subheader('Blocos de '+ '/'.join(reversed(selected.split('-'))))
+    override=plan.get('routine_override',{})
+    if override.get('mode')=='mock_day': st.success(f"Dia feito por simulado · {override['mock_questions']} questões, separadas dos blocos.")
+    elif override.get('mode')=='final_rest': st.info('Véspera da prova · descanso reservado.')
+    elif override.get('mode')=='final_review': st.caption('Programação temporária de revisão final.')
     if plan.get('not_started'):
         st.info('O cronograma ainda não começou neste dia. Escolha uma data a partir de '+ '/'.join(reversed(start_date.split('-')))+'.')
         return

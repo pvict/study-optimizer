@@ -9,6 +9,7 @@ from .study_prevention import preventive_state,projected_backlog
 from .review_policy import review_order
 from .study_capacity import practice_state,capacity_limits
 from .study_swaps import swap_rows
+from .final_review import special_config,final_reservations
 
 
 def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False):
@@ -24,6 +25,8 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
     for offset in range(days):
         day=(_date(start)+timedelta(days=offset)).isoformat()
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
+        override=agenda['overrides'].get(day,{})
+        config=special_config(config,override)
         daily_profile,daily_target=effective_routine(profile,config,agenda['overrides'].get(day,{}))
         if (profile.start_date and day<profile.start_date) or (spacing_scenario=='progressive' and day>profile.exam_date):
             plan=allocate_day([],daily_profile,None,config['kind'],sessions if offset==0 else [],day,question_target=daily_target)
@@ -55,6 +58,11 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         active.extend(by_id[r['topic_id']] for r in daily_swaps if r['remaining'] and r['topic_id'] in by_id and r['topic_id'] not in present)
         extras=[{**by_id[e['topic_id']],'extra_id':e['extra_id'],'requested':e['questions'],'after_event_id':e['after_event_id']} for e in config.get('extra_topics',[]) if e['topic_id'] in by_id]
         due_reservations=[r for r in agenda['rows'] if r['date']<=day and r['remaining']>0]
+        if override.get('mode')=='final_review':
+            due_reservations=final_reservations(override,day,sessions)
+            allowed={r['topic_id'] for r in due_reservations}
+            active=[t for t in working if t['topic_id'] in allowed]
+            daily_swaps=[]; extras=[]
         # Reservas também podem antecipar a fila normal; jamais duplicar o tema.
         active_ids={t['topic_id'] for t in active}
         active.extend(by_id[r['topic_id']] for r in due_reservations if r['topic_id'] in by_id and r['topic_id'] not in active_ids)

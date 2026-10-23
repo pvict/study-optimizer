@@ -1,5 +1,11 @@
 # Documentação
 
+## Em planejamento
+
+- [Organização integral da rotina: horários, plantão, academia e carga real](research/organizacao-de-rotina-proposta.md) — requisito incorporado em 21/10/2026, ainda sem implementação. Usa o planejamento e os dados locais existentes; não cria uma agenda paralela ou altera o aplicativo nesta etapa.
+
+## Modelos e funcionalidades existentes
+
 - [Evolução e jornada: cenários, rendimento e conquistas — v0.19](research/evolucao-v0.19.md)
 
 - [Rotina adaptativa: capacidade, lotes, cobertura e limites — v0.18](research/capacidade-adaptativa-v0.18.md)

@@ -62,8 +62,9 @@ def render_replanning(service,context):
                     st.session_state.pop('replan_preview',None)
                     st.session_state['adaptive_notice']='Recuperação agendada. Nenhum estudo foi marcado como feito.'
                     st.rerun()
-        if context['active']:
-            last=context['active'][-1]
+        recoveries=[r for r in context['active'] if r.get('scope') not in {'final_review','mock_day'}]
+        if recoveries:
+            last=recoveries[-1]
             st.divider()
             st.caption(f"Última redistribuição: {MODES[last['mode']]} · início {last['start']} · {last['days']}dias. Desfazer preserva todos os resultados registrados.")
             if st.button('Desfazer última redistribuição',key='undo_last_replan'):

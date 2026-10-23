@@ -32,9 +32,10 @@ from .review_policy import POLICY_VERSION
 from .capacity_service import CapacityServiceMixin
 from .evolution_service import EvolutionServiceMixin
 from .swap_service import DailySwapServiceMixin
+from .final_review import FinalReviewServiceMixin,special_config,final_reservations
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
@@ -186,11 +187,16 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
             for reservation in agenda['rows']:
                 reservation['date']=max(reservation['date'],profile.start_date)
                 reservation['original_due']=max(reservation['original_due'],profile.start_date)
-        effective,routine_questions=effective_routine(effective,day_settings.to_dict(),agenda['overrides'].get(as_of,{}))
+        override=agenda['overrides'].get(as_of,{})
+        config=special_config(day_settings.to_dict(),override)
+        if override.get('mode') in {'final_rest','mock_day'}: kind='descanso'
+        effective,routine_questions=effective_routine(effective,config,override)
         contacts=[(d['path'],d['day']) for d in self.guide.days() if d['status']!='descanso' and d['path']]
-        states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts)
+        from .study_errors import ErrorStore
+        error_paths=ErrorStore(self.repository).adverse_paths(as_of)
+        states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
         planning_topics=planning_frontier(all_topics,effective.min_block)
-        planning_states=topic_states(planning_topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts)
+        planning_states=topic_states(planning_topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
         scheduled={r['topic_id']:r for r in agenda['rows']}
         for t in states+planning_states:
             if t['topic_id'] in scheduled: t['reschedule_date']=scheduled[t['topic_id']]['date']
@@ -206,7 +212,15 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         disjoint=[t for t in planning_states if not any(tuple(normalize_path(t['path']))!=p and (tuple(normalize_path(t['path']))[:len(p)]==p or p[:len(t['path'])]==tuple(normalize_path(t['path']))) for p in extra_paths)]
         from .study_capacity import capacity_limits
         from .study_swaps import swap_rows
-        plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=agenda['rows'],capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swap_rows(agenda.get('swaps',[]),sessions,as_of))
+        reservations=agenda['rows']
+        swaps=swap_rows(agenda.get('swaps',[]),sessions,as_of)
+        if override.get('mode')=='final_review':
+            reservations=final_reservations(override,as_of,sessions)
+            allowed={r['topic_id'] for r in reservations}
+            disjoint=[t for t in disjoint if t['topic_id'] in allowed]
+            extras=[]; swaps=[]
+        elif override.get('mode') in {'final_rest','mock_day'}: extras=[]; swaps=[]
+        plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps)
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')
@@ -228,7 +242,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         recorded_paths={tuple(normalize_path(e['entry']['path'])) for e in sessions}
         other_parents=[t for t in all_topics if t['topic_id'] not in known_ids and tuple(normalize_path(t['path'])) in recorded_paths]
         if other_parents:
-            states+=[{**t,'historical_aggregate':True} for t in topic_states(other_parents,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts)]
+            states+=[{**t,'historical_aggregate':True} for t in topic_states(other_parents,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)]
         return {'date':as_of,'plan':plan,'states':states,'profile':profile.to_dict(),'profile_id':record['id'],'day':day,
                 'sessions':sessions,'sources':sources,'warnings':warnings,'portfolio':portfolio,'planning_states':planning_states,'review_queue':review_queue(sessions),
                 'time_source':'Mediana de blocos registrados' if measured else 'Estimativa inicial ajustável',
@@ -273,7 +287,8 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         as_of=as_of or today_local().isoformat()
         view=self.overview(as_of)
         start_date=view['profile'].get('start_date')
-        backlog=collect_backlog(view['planning_states'],view['sessions'],self.agenda.daily_plans(),as_of,start_date=start_date)
+        saved=[r for r in self.agenda.daily_plans() if view['agenda']['overrides'].get(r['plan']['date'],{}).get('mode') not in {'final_review','final_rest','mock_day'}]
+        backlog=collect_backlog(view['planning_states'],view['sessions'],saved,as_of,start_date=start_date)
         by_id={t['topic_id']:t for t in view['planning_states']}
         known={r['topic_id'] for r in backlog}
         for row in view['agenda']['rows']:

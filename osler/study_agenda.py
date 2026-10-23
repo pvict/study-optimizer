@@ -9,7 +9,8 @@ from . import review_policy
 
 def planning_token(db):
     tables=['study_events','study_profiles','study_plan_runs','guide_settings','guide_days','incidence_datasets',
-            'observations','observation_events','reduction_actions','audit_events','planner_events','exam_targets']
+            'observations','observation_events','reduction_actions','audit_events','planner_events','exam_targets',
+            'study_errors','mock_exams','mock_exam_areas','mock_exam_topics']
     values=[(name,db.execute('SELECT COALESCE(MAX(rowid),0) FROM '+name).fetchone()[0]) for name in tables]
     values.append(('days',[tuple(r) for r in db.execute('SELECT day,revision FROM study_days ORDER BY day')]))
     values.append(('review_policy',review_policy.POLICY_VERSION))
@@ -42,6 +43,7 @@ class StudyAgenda:
 
     def remember(self,view):
         if view['plan'].get('not_started'): return None
+        if view['plan'].get('routine_override',{}).get('mode') in {'final_review','final_rest','mock_day'}: return None
         actual={}
         for s in view['sessions']:
             e=s['entry']

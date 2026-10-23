@@ -108,7 +108,7 @@ def _series(entries):
     return stats
 
 
-def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None):
+def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None,error_paths=()):
     day=_date(as_of)
     incidence=incidence_weights(topics,datasets,institution_weights,as_of)
     by_path=defaultdict(list)
@@ -122,9 +122,11 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     states=[]
     queued=review_queue(sessions) if all('session_id' in s for s in sessions) else []
     base_profile=profile
+    error_keys={tuple(normalize_path(p)) for p in error_paths}
     for topic in topics:
         profile=replace(base_profile,target_accuracy=base_profile.target_for_area(topic['path'][0]))
         key=tuple(normalize_path(topic['path']))
+        registered_error=key in error_keys or bool(topic.get('rollup') and any(p[:len(key)]==key for p in error_keys))
         snapshot=topic.get('planner_snapshot')
         if snapshot and snapshot['observed_date']>as_of: snapshot=None
         safety_rate=snapshot['confident_accuracy_pct']/100 if snapshot and snapshot['confident_accuracy_pct'] is not None else None
@@ -234,7 +236,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                               'source':confidence_source,'overdue':overdue,'pending_due':pending_due,'raw_rate':raw_signal},profile)
         if safety_alert and safety_rate<.6: phase='alerta'
         if not committed and seen and not low_accuracy and not reduced_due: phase='aprendendo'
-        if manual_adverse: phase='alerta'
+        if manual_adverse or registered_error: phase='alerta'
         new_since_pdf=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['mode']=='novas' and (not topic['report_date'] or e['day']>topic['report_date']))
         available=max(0,topic['total']-topic['answered_pdf']-new_since_pdf)
         balance_uncertain=not bool(topic['report_date'])
@@ -248,9 +250,9 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                        'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,
                        'retention_due':retention_due,'theme_review_due':theme_due,
                        'review_committed':committed,'review_origin':'retorno de respostas' if pending else 'acompanhamento de cartões' if topic.get('cards_reduced_day') else 'blocos registrados' if committed else 'fila inicial',
-                       'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse),profile.target_accuracy),
+                       'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse or registered_error),profile.target_accuracy),
                        'importance':importance,'incidence_strength':incidence_strength,'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
-                       'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,
+                       'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,'registered_error':registered_error,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})
         states[-1].update(question_dose(states[-1],profile,entries,as_of))
@@ -268,6 +270,12 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         t.update(initial_rank=rank,initial_focus=rank<=weekly_slots,
                  priority='urgente' if t['manual_adverse'] else 'alta' if rank<=weekly_slots else 'normal',
                  evidence_priority='urgente' if t['manual_adverse'] else 'alta' if rank<=weekly_slots else 'normal')
+    for t in states:
+        if t['registered_error']:
+            t['priority']=min((t['priority'],'alta'),key={'urgente':0,'alta':1,'normal':2}.get)
+            t['evidence_priority']=min((t['evidence_priority'],'alta'),key={'urgente':0,'alta':1,'normal':2}.get)
+            t['reason']='Erros recorrentes registrados neste tema'
+            t['learning_state']='alerta'
     return sorted(states,key=lambda t:review_order(t,as_of))
 
 
@@ -352,7 +360,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
         remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
-        group_budget=remaining_budget if row.get('swap_return') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        group_budget=remaining_budget if row.get('swap_return') or row.get('final_review') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
         q=min(row['remaining'],t['total'],group_budget,remaining_budget)
         if q:
             group_targets[group]=max(0,group_targets[group]-q)

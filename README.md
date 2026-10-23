@@ -22,6 +22,9 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 - **Revisões por tema:** dose do próximo bloco ajustada aos resultados reais; manutenção menor após bons encontros espaçados, reforço após dificuldades e revisões seguintes a recalcular. [Critérios e limites](docs/research/dose-adaptativa-por-tema.md).
 - **Registro:** acertos, convicção, questões novas/repetidas/mistas, importação de CSV/TSV e histórico de correções.
 - **Ajustes:** meta diária, metas de acerto nos temas (global ou por área), Minhas provas e incidências por instituição.
+- **Erros:** anotação opcional após o bloco; consulta e resolução em Temas → Erros abertos, com histórico e exportação CSV. Erros críticos ou recorrentes acrescentam prioridade alta e bloqueiam redução de cartões.
+- **Simulados:** registro curto, resultados opcionais por área ou tema e evolução separada dos blocos. Inéditas por tema podem ser convertidas explicitamente, sem duplicação. Dia feito por simulado dispensa a meta normal mediante prévia, com opção de desfazer.
+- **Revisão final:** datas de prova e inscrição no calendário, importância vinculada às provas e programação temporária com descanso na véspera. Prévia → aplicar → desfazer. [Regras e limites do lote B](docs/research/lote-b-entrega.md).
 - **Flashcards:** lista prática de redução seletiva, com aplicação manual.
 - **Arquivos e ferramentas:** importação e backup; classificação A–D, planejador de suspensões, simulação, painel antigo e roteiro simples identificados como legado, separados do fluxo principal.
 
@@ -76,7 +79,7 @@ O `.gitignore` exclui banco, PDFs, backups, exports, relatórios de execução, 
 
 O servidor escuta somente em `127.0.0.1`: o endereço funciona no próprio computador. A adaptação da interface a telas estreitas não habilita acesso de outro aparelho pela rede.
 
-Esta versão migra aditivamente o banco para schema10, com histórico de provas em `exam_targets`. Faça backup antes de atualizar. Para reverter ao código0.14, restaure também um backup anterior (schema9) em outra pasta e preserve a pasta atual; código antigo não abre schema10. Nunca altere `user_version` manualmente para simular reversão.
+Esta versão migra aditivamente o banco para schema11, com histórico de provas, erros e simulados. Faça backup antes de atualizar. Para reverter ao código anterior, restaure também um backup anterior em outra pasta e preserve a pasta atual; código antigo não abre schema11. Nunca altere `user_version` manualmente para simular reversão.
 
 ## Desenvolvimento e testes
 

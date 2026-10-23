@@ -1,0 +1,15 @@
+# Provas e revisão final — lote B
+
+**Fonte.** A especificação do lote B e o [levantamento local das fontes públicas da FluidMed](fluidmed-fontes-publicas.md), que registra o guia de revisão final consultado. A faixa de 7–14 dias e a véspera de descanso são inspiração de produto. Não são uma fórmula de retenção ótima validada. Não há acesso à plataforma durante o uso do app.
+
+**Hipótese.** Na reta final, uma programação curta e explícita ajuda a retomar conceitos ainda frágeis sem criar centenas de novas obrigações. O usuário escolhe uma prova cadastrada, início e questões por dia. A janela aceita 2–14 dias antes da prova para permitir uma preparação curta de última hora; recomenda 7–14. A véspera é descanso.
+
+A seleção usa temas específicos: primeiro aqueles com erros abertos, depois maior incidência institucional, menor acerto observado disponível e o escore existente. Não infere favoritas nem reparte resultados agregados de área em subtemas. Cada tema aparece uma vez nesta proposta; não se presume o resultado do encontro para inventar repetições. A necessidade posterior continua sendo recalculada com resultados reais.
+
+As quantidades respeitam a dose atual, o banco conhecido, os temas por dia e a carga escolhida. Questões já feitas no dia reduzem o orçamento uma única vez. Dias de descanso já configurados e dias feitos por simulado são preservados. Carga não utilizada fica livre: não se aumenta a dose para preencher um número. Nenhum parâmetro da fórmula de espaçamento foi alterado.
+
+**Calendário auditável.** Prévia não escreve. Aplicar confere novamente a proposta e seu token e acrescenta `reschedule.apply` no StudyAgenda. Os compromissos de revisão final são datados; sugestões não feitas expiram, sem se transformarem em planos diários perdidos. Retornos realmente existentes continuam registrados. Recuperação e prevenção comuns não podem ocupar as datas protegidas: é necessário desfazer a programação especial. Cancelar acrescenta `reschedule.cancel`, restaurando a agenda anterior sem apagar os resultados feitos nesse intervalo.
+
+Datas de prova e inscrição aparecem no calendário, com dias restantes. O aviso de aproximação usa 30 dias por padrão, configurável entre 0 (desligado) e 90. Os pesos podem ser ligados ao ID da prova, acompanhando mudanças do nome da instituição. Duas provas da mesma instituição usam o maior peso informado, evitando duplicá-la. Sem vínculos novos, a configuração anterior é preservada. Uma tabela conjunta continua sem fornecer incidências individuais: não são fabricados pesos separados a partir dela.
+
+**Limites.** Incidência histórica, erros autorrelatados e acerto em blocos não estimam a composição da prova futura. A ordenação é uma regra operacional, não otimização causal ou probabilidade de aprovação. A revisão final não confirma domínio, não cria resultados e não promete 90%. Testes verificam capacidade, véspera, preservação de histórico, prévias antigas, alterações concorrentes e desfazer após reiniciar a interface.

@@ -29,3 +29,15 @@ Código e documentação dos modelos; PDFs e tabelas importados localmente. Sér
 - Mostrar próximos passos, deixando detalhes acessíveis.
 - Conquistas reconhecem realizações verificáveis.
 - Manter a mesma função acessível em computador e celular.
+
+## Planned Capabilities
+
+**Organização integral da rotina — planejada, ainda não implementada.** Integrar
+horários de sono, plantão variável, deslocamento, academia, refeições, descanso,
+flashcards, questões, correção e simulados ao fluxo existente de Hoje e Calendário.
+A carga deve partir dos dados locais e do planejador ativo, distinguir configurado,
+proposto e realizado, explicitar tempos estimados e respeitar a disponibilidade
+real. O modelo cobre 12 meses por cenários e se recalcula com dados novos, sem
+inventar melhora ou garantir 90% de acerto. Solicitação confirmada em 21/10/2026;
+nesta etapa, somente documentação e análise, sem mudanças no aplicativo ou banco.
+[Requisito, fontes e critérios de aceitação](docs/research/organizacao-de-rotina-proposta.md).

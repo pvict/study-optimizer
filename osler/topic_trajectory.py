@@ -65,7 +65,7 @@ def question_dose(state,profile,entries=(),as_of=None):
     reliable_initial=bool(initial and snapshot and snapshot['unique_questions']>=30 and rate>=target)
     if not state['spacing']['block_days'] and not reliable_initial: desired=max(desired,20,profile.min_block)
     stale=bool(as_of and latest_day and (_date(as_of)-_date(latest_day)).days>evidence_window)
-    adverse=bool(state.get('manual_adverse') or state.get('alert_signal') or
+    adverse=bool(state.get('manual_adverse') or state.get('registered_error') or state.get('alert_signal') or
                  latest_rate is not None and latest_rate<target or p['exact_n']>=5 and rate<target)
     maintenance=bool(streak>=2 and latest_complete and not stale and not adverse and not state.get('pending_due'))
     kind='maintenance' if maintenance else 'reinforcement' if adverse else 'diagnostic' if stale or not daily else 'practice'

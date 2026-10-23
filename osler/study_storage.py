@@ -30,6 +30,8 @@ class StudyStore:
                 db.execute('PRAGMA user_version=9')
             from .exam_goals import migrate_exam_targets
             migrate_exam_targets(db)
+            from .lote_b_schema import migrate_lote_b
+            migrate_lote_b(db)
 
     def day(self,day,default_questions=60):
         _date(day)
@@ -109,6 +111,15 @@ class StudyStore:
         from .planner_service import today_local
         principal=principal_exam(configured,active_exams(self.repository),today_local().isoformat())
         effective=replace(configured,exam_date=principal['target']['exam_date']) if principal else configured
+        if configured.exam_weights:
+            weights={}
+            for e in active_exams(self.repository):
+                weight=configured.exam_weights.get(e['target_id'])
+                if weight is not None:
+                    name=e['target']['institution']
+                    weights[name]=max(weights.get(name,0),weight)
+            # IDs vinculados substituem nomes livres apenas quando configurados.
+            effective=replace(effective,institution_weights=weights)
         return {'id':row['id'] if row else 0,'profile':effective.to_dict(),'configured_profile':configured.to_dict()}
 
     def save_profile(self, profile, expected_id):
