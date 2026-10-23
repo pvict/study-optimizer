@@ -15,7 +15,7 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 
 - **Hoje:** abas Para fazer e Feito hoje, com blocos priorizados, resultados do dia e acesso à correção dos lançamentos. Após salvar, veja seu desempenho e os próximos passos do tema. [Fluxo e critérios](docs/research/atividade-diaria-e-feedback.md).
 - **Trocar tema:** escolha manual ou sugestão do mesmo tipo e prioridade semelhante; a prévia mostra a data reservada para o tema retirado, com opção de desfazer. [Funcionamento](docs/research/troca-de-temas.md).
-- **Calendário:** Agenda, Semana e Mês; atrasos, recuperação e prevenção de pendências com comparação antes/depois e opção de desfazer.
+- **Calendário:** Agenda, Semana e Mês; próximos contatos por tema, retornos conhecidos e revisões seguintes a recalcular após seus resultados. Recuperação e prevenção de pendências com comparação antes/depois e opção de desfazer. [Como interpretar a previsão](docs/research/calendario-proximos-contatos.md).
 - **Rotina adaptativa:** referência de novos/revisões com ajuste à demanda e à capacidade de repetir nos próximos14dias; comparação com divisão fixa, custo em cobertura e riscos residuais visíveis. Doses não são infladas para preencher a meta. O modo fixo continua disponível.
 - **Evolução:** jornada por semanas, meses e fim da preparação, com respostas, cobertura e pontos de atenção. Compare intervalos atuais com avanço condicional das revisões ao atingir a meta; cada cenário respeita a carga e fica separado dos resultados reais. [Hipóteses e limites](docs/research/evolucao-espacamento-condicional.md).
 - **Temas:** filtros de situação, períodos de análise, tabela ou lista paginada e exportação dos resultados filtrados.

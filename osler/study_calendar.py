@@ -1,4 +1,4 @@
-"""Contatos operacionais; cenário de aprendizado opcional apenas para Evolução."""
+"""Próximos contatos e cenários condicionais, sem criar resultados futuros."""
 from copy import deepcopy
 from datetime import timedelta
 
@@ -11,9 +11,10 @@ from .study_capacity import practice_state,capacity_limits
 from .study_swaps import swap_rows
 
 
-def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged'):
+def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False):
     from .evolution_spacing import SCENARIOS,advance_projected_spacing
     if spacing_scenario not in SCENARIOS: raise ValueError('Escolha um cenário de espaçamento válido.')
+    if next_contact_only and spacing_scenario!='unchanged': raise ValueError('Próximos contatos não presumem sucesso futuro.')
     if type(days) is not int or not 1<=days<=548: raise ValueError('O calendário prevê até18meses.')
     working=deepcopy(states)
     contact_counts={t['topic_id']:len([d for d in t.get('spacing',{}).get('block_days',[]) if d<=start]) for t in working}
@@ -31,6 +32,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         active=[]
         for state in working:
             returns=[q['due_date'] for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
+            if next_contact_only and state.get('awaiting_result') and not any(d<=day for d in returns): continue
             decorated=preventive_state(state,day,agenda.get('policies',[]),returns)
             decorated['pending_reviews']=[{**q,'questions':pending[q['session_id']]['remaining']} for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
             decorated.update(practice_state(decorated,day,daily_profile))
@@ -71,6 +73,10 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             number=contact_counts[t['topic_id']]-(1 if already_recorded else 0)
             item['review_number']=number
             item['stage']='Revisão '+str(number) if number else 'Primeiro contato' if t['status']=='sem_registro' else 'Diagnóstico'
+            if next_contact_only:
+                item['forecast_basis']='known_return' if item.get('review_kind')=='lot_only' else 'next_contact'
+                item['conditional']=offset>0
+                if item.get('review_kind')=='lot_only': item['stage']='Retorno de questões'
             if item['questions']>=profile.min_block and not already_recorded: contact_counts[t['topic_id']]+=1
             free=item['questions']
             for q in t.get('pending_reviews',[]):
@@ -83,7 +89,9 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             if spacing_scenario=='progressive':
                 advance_projected_spacing(t,profile,day,item['questions'],lot_only=item.get('review_kind')=='lot_only')
                 item['assumed_interval_after']=t.get('review_interval_days',7)
-            if item.get('review_kind')!='lot_only': t['theme_review_due']=(_date(day)+timedelta(days=t.get('review_interval_days',7))).isoformat()
+            if item.get('review_kind')!='lot_only':
+                t['theme_review_due']=None if next_contact_only else (_date(day)+timedelta(days=t.get('review_interval_days',7))).isoformat()
+                if next_contact_only: t['awaiting_result']=True
             future_returns=[q['due_date'] for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
             t['next_review']=min(future_returns+([t.get('theme_review_due')] if t.get('theme_review_due') else []),default=None)
             t['last_contact']=day
@@ -94,7 +102,9 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             t['review_committed']=True
             # Só projeção: evidência observada, posteriors e sessões não são alterados.
         backlog=projected_backlog(working,pending,day,start_date=profile.start_date)
-        output.append({**plan,'projection':offset>0,'pending_planned':scheduled_pending,
+        output.append({**plan,'projection':offset>0,'forecast_mode':'next_contact' if next_contact_only else spacing_scenario,
+                       'awaiting_results':sum(bool(t.get('awaiting_result')) for t in working),
+                       'pending_planned':scheduled_pending,
                        'pending_backlog':sum(q['remaining'] for q in pending.values() if q['due_date']<=day),
                        'topic_backlog':len(backlog),'backlog_items':backlog,
                        'initial_topics_waiting':sum(not t.get('review_committed',True) and t['status']!='sem_registro' for t in working)})

@@ -251,7 +251,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         from .study_calendar import forecast_calendar
         current=today_local().isoformat()
         view=self.overview(current)
-        return forecast_calendar(view['planning_states'],AdaptiveProfile(**view['profile']),current,days,view['sessions'],self.store.days(),view['plan'],view['agenda'])
+        return forecast_calendar(view['planning_states'],AdaptiveProfile(**view['profile']),current,days,view['sessions'],self.store.days(),view['plan'],view['agenda'],next_contact_only=True)
 
     def trajectories(self,as_of):
         from .study_calendar import forecast_calendar

@@ -27,7 +27,10 @@ def _day_summary(day,plan,context,today):
         return
     if plan.get('historical'):
         st.caption(f"{plan['done_questions']} feitas" if plan['done_questions'] else 'Sem estudo registrado')
-    else: st.markdown('**'+('Descanso' if plan['kind']=='descanso' else f"{plan['questions']} questões")+'**')
+    elif plan['kind']=='descanso': st.markdown('**Descanso**')
+    elif day>today and plan.get('forecast_mode')=='next_contact':
+        st.markdown(f"**{plan['questions']} questões previstas**" if plan['questions'] else '**A recalcular**')
+    else: st.markdown(f"**{plan['questions']} questões**")
     count=len(plan.get('delayed_topics',[])) if plan.get('historical') else len(context['backlog']) if day==today else 0
     if count: st.html(f'<div class="calendar-badge calendar-late">{count} atrasados</div>')
     booked=sum(bool(i.get('rescheduled')) and not i.get('swap_return') for i in plan['items'])
@@ -52,7 +55,7 @@ def render_calendar(service,go_record,go_review=None):
     today=today_local()
     start_date=service.store.profile()['profile'].get('start_date')
     if start_date: st.caption('Início do cronograma: '+ '/'.join(reversed(start_date.split('-'))))
-    st.caption('Previsão dinâmica · depende dos blocos realizados. Agendar não registra estudo nem acertos.')
+    st.caption('Próximos encontros por tema. As revisões seguintes serão recalculadas com seus resultados; retornos de questões já registrados continuam na agenda.')
     service.remember_day(service.overview(today.isoformat()))
     context=service.replanning()
     if any(t.get('review_committed') is False for t in context['view']['planning_states']):
@@ -107,6 +110,9 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         st.caption(f"{plan['done_questions']} questões realmente registradas nesse dia.")
         for row in plan.get('delayed_topics',[]): st.warning(row['path'][-1]+f" · {row['days_late']}dias de atraso · reorganize pela seção de atrasos abaixo.")
         return
+    if selected>today.isoformat() and plan.get('forecast_mode')=='next_contact':
+        st.caption('Datas e quantidades previstas para o próximo bloco de cada tema. Os encontros seguintes dependem do resultado; não são compromissos repetidos automaticamente.')
+        st.caption(f"Meta deste dia: {plan['target_questions']} questões. A previsão parcial não reduz sua meta; o plano será recalculado após os próximos resultados.")
     if selected>today.isoformat() and plan.get('backlog_items'):
         import pandas as pd
         st.markdown('**Revisões já previstas que podem ficar sem vaga neste cenário**')
@@ -121,6 +127,7 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
             left,right=st.columns([3,1])
             left.markdown('**'+item['path'][-1]+f" · {item['questions']} questões**")
             left.caption(item['stage'])
+            if item.get('forecast_basis')=='next_contact' and selected>today.isoformat(): left.caption('Depois deste bloco, data e quantidade da próxima revisão serão recalculadas.')
             if item.get('preventive_priority'): left.caption('Plano preventivo'+(f" · antecipada em {item['anticipated_days']}dia(s)" if item.get('anticipated_days') else ''))
             if item.get('swap_return'): left.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
             elif item.get('rescheduled'): left.caption('Recuperação · vencimento original '+item['original_due'])
@@ -133,7 +140,8 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
                     left.caption('O complemento do bloco pode ser registrado na tela Hoje.')
                 else: right.button('Registrar',key='calendar_record_'+item['topic_id'],on_click=go_record,args=(item['topic_id'],item['questions'],mode))
                 render_swap_controls(service,selected,item,'calendar')
-    if not plan['items']: st.info('Dia sem blocos previstos. Pode ser descanso ou intervalo entre revisões.')
+    if not plan['items']:
+        st.info('Descanso programado.' if plan['kind']=='descanso' else 'Os blocos deste dia serão recalculados após os próximos resultados. A ausência de uma previsão não significa que o dia esteja livre.' if plan.get('forecast_mode')=='next_contact' and selected>today.isoformat() else 'Dia sem blocos previstos. Pode ser descanso ou intervalo entre revisões.')
     snapshot=st.session_state.setdefault('calendar_snapshot_'+selected,service.store.day(selected,service.store.profile()['profile']['max_questions']))
     with st.expander('Programar quantidade ou descanso deste dia'):
         with st.form('calendar_day_'+selected):

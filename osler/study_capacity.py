@@ -25,6 +25,7 @@ def practice_state(state,day,profile):
     theme_due=state.get('theme_review_due',state.get('next_review'))
     only_lot=bool(due and (not theme_due or theme_due>day))
     if only_lot: q=min(state['total'],max(profile.min_block,due))
+    elif due: q=max(q,min(state['total'],due))
     return {'recommended_questions':q,'review_kind':'lot_only' if only_lot else 'theme'}
 
 
