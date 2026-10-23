@@ -62,7 +62,7 @@ def render_replanning(service,context):
                     st.session_state.pop('replan_preview',None)
                     st.session_state['adaptive_notice']='Recuperação agendada. Nenhum estudo foi marcado como feito.'
                     st.rerun()
-        recoveries=[r for r in context['active'] if r.get('scope') not in {'final_review','mock_day','triage'}]
+        recoveries=[r for r in context['active'] if r.get('scope') not in {'final_review','mock_day','mock_schedule','triage'}]
         if recoveries:
             last=recoveries[-1]
             st.divider()

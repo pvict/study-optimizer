@@ -238,6 +238,8 @@ Grupo radio nativo com Hoje, Calendário, Evolução, Temas, Registrar e Ajustes
 
 O lote B acrescentou Simulados aos destinos existentes. O lote C preserva essa navegação: Plano de corte e Minha meta são abas dentro de Temas, junto de Desempenho e Erros abertos. A revisão semanal fica recolhida em Hoje; parâmetros ficam em um expander de Ajustes. Nenhum campo obrigatório novo no registro rápido.
 
+Simulados oferece abas Programação e Resultados. Programação usa data inicial e intervalo apenas na criação; depois há seleção da ocorrência, data própria, prévia do remanejamento e retirada individual. O Calendário apresenta “Simulado programado” no dia reservado, distinguindo de “Simulado realizado” quando há resultado, e oferece os mesmos controles em um expander. Tabelas da prévia mantêm datas antes/depois e ausência de vaga explícitas. Mudar uma ocorrência mantém as demais; nenhuma reserva preenche barras de desempenho ou cria resultado.
+
 Plano de corte mantém demanda, carga e diferença visíveis. A proposta destaca alterações; temas protegidos e seus motivos ficam recolhidos. Minha meta mostra fonte, tamanho da amostra e faixa de 95%, com estados textuais e aviso fixo de que não prevê aprovação. Tabelas são roláveis localmente; controles e colunas mantêm o empilhamento responsivo existente. Ausência de dados é explícita; não preencher com demonstrações.
 
 ### Cards / Containers

@@ -9,6 +9,7 @@ from .study_prevention_ui import render_prevention,open_prevention
 from .study_capacity_ui import render_capacity_summary
 from .study_swap_ui import render_swap_controls
 from .final_review_ui import render_exam_dates,render_final_review,render_mock_days
+from .mock_schedule_ui import render_mock_schedule
 
 
 def _select_day(day):
@@ -25,6 +26,13 @@ def _day_summary(day,plan,context,today):
     if plan is None:
         st.caption('Fora do período disponível')
         return
+    if plan.get('routine_override',{}).get('mode')=='mock_reserved':
+        done=day.isoformat() in context.get('mock_result_days',set())
+        st.markdown('**Simulado realizado**' if done else '**Simulado programado**')
+        st.caption('Resultado registrado em Simulados' if done else 'Meta normal dispensada · resultado ainda não registrado')
+        return
+    if plan.get('routine_override',{}).get('mode')=='mock_day':
+        st.markdown('**Simulado realizado**'); return
     if plan.get('not_started'):
         st.caption('Antes do início · sem meta')
         return
@@ -61,6 +69,7 @@ def render_calendar(service,go_record,go_review=None):
     st.caption('Próximos encontros por tema. As revisões seguintes serão recalculadas com seus resultados; retornos de questões já registrados continuam na agenda.')
     service.remember_day(service.overview(today.isoformat()))
     context=service.replanning()
+    context['mock_result_days']=service.recorded_mock_days()
     context['exam_dates']=service.exam_dates()
     if any(t.get('review_committed') is False for t in context['view']['planning_states']):
         st.caption('O histórico importado forma uma fila de prioridades. Os primeiros contatos são distribuídos dentro da sua carga; não são dívidas de estudo. Alertas abaixo se referem a revisões já previstas neste cenário.')
@@ -100,6 +109,8 @@ def render_calendar(service,go_record,go_review=None):
                         _day_summary(day,plan,context,today)
     with st.container(key='calendar_selected_detail'):
         _render_selected_day(service,go_record,go_review,today,start_date,selected,by_date[selected])
+    with st.expander('Programar ou mudar datas dos simulados'):
+        render_mock_schedule(service)
     with st.container(key='calendar_management'):
         st.subheader('Organizar as próximas revisões')
         st.caption(f"{len(context['backlog'])} temas com atraso confirmado · opções de recuperação e prevenção abaixo.")
@@ -114,6 +125,16 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
     st.subheader('Blocos de '+ '/'.join(reversed(selected.split('-'))))
     override=plan.get('routine_override',{})
     if override.get('mode')=='mock_day': st.success(f"Dia feito por simulado · {override['mock_questions']} questões, separadas dos blocos.")
+    elif override.get('mode')=='mock_reserved':
+        recorded=selected in service.recorded_mock_days()
+        st.info('Resultado do simulado registrado. Consulte os detalhes em Simulados → Resultados.' if recorded else 'Simulado programado. Os blocos normais foram dispensados; veja ou altere a data em Programar ou mudar datas dos simulados.')
+        series=service.mock_schedule()
+        moved=[r for r in (series or {}).get('topic_changes',[]) if r['before_date']==selected]
+        if moved:
+            import pandas as pd
+            st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Nova data prevista':r['after_date'] or 'Sem vaga no horizonte da prévia'} for r in moved]),hide_index=True,width='stretch')
+            st.caption('Fotografia da prévia aplicada. As datas atuais dos próximos blocos acompanham seus resultados e ajustes de rotina.')
+        return
     elif override.get('mode')=='final_rest': st.info('Véspera da prova · descanso reservado.')
     elif override.get('mode')=='final_review': st.caption('Programação temporária de revisão final.')
     if plan.get('not_started'):

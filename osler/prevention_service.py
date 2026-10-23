@@ -42,7 +42,7 @@ class PreventiveServiceMixin:
             day=_date(start)
             while day<=_date(context['end']):
                 key=day.isoformat()
-                if agenda['overrides'].get(key,{}).get('mode') not in {'final_review','final_rest','mock_day'}:
+                if agenda['overrides'].get(key,{}).get('mode') not in {'final_review','final_rest','mock_day','mock_reserved'}:
                     overrides[key]={'mode':mode,'extra_questions':extra_questions}
                 day+=timedelta(days=1)
             agenda['overrides'].update(overrides)

@@ -74,6 +74,8 @@ def render_study_day(service,go_record,go_review,go_edit=None):
     routine=plan.get('routine_override',{})
     if routine.get('mode')=='mock_day':
         st.success(f"Dia feito por simulado · {routine['mock_questions']} questões. O resultado fica separado dos blocos.")
+    elif routine.get('mode')=='mock_reserved':
+        st.info('Resultado do simulado registrado em Simulados. A meta de blocos normais foi dispensada.' if day in service.recorded_mock_days() else 'Hoje é dia de simulado programado. A meta de blocos normais foi dispensada; registre seu resultado em Simulados → Resultados. Para mover a data, abra Simulados → Programação.')
     elif routine.get('mode')=='final_rest': st.info('Véspera da prova · descanso reservado pela revisão final.')
     elif routine.get('mode')=='final_review': st.info('Revisão final · priorize os conceitos dos erros abertos. A programação temporária pode ser desfeita no Calendário.')
     if plan.get('not_started'):
@@ -104,7 +106,7 @@ def render_study_day(service,go_record,go_review,go_edit=None):
         with completed: render_day_activity(view,go_edit)
         with remaining:
             if plan['kind']=='descanso':
-                st.info('A meta normal foi dispensada neste dia. Para retomar, desfaça a programação no Calendário ou em Simulados.' if routine.get('mode') in {'mock_day','final_rest'} else 'Descanse hoje. O plano recomeça sem dívida de questões. Para retomar agora, abra Ajustar meu dia.')
+                st.info('A meta normal foi dispensada neste dia. Para retomar, ajuste a programação no Calendário ou em Simulados.' if routine.get('mode') in {'mock_day','mock_reserved','final_rest'} else 'Descanse hoje. O plano recomeça sem dívida de questões. Para retomar agora, abra Ajustar meu dia.')
             elif not view['states']: st.info('Comece importando seu relatório de questões em Arquivos e ferramentas → Dados e classificação → Importar relatórios.')
             elif not plan['items']:
                 if plan['done_questions']>=plan['target_questions']: st.success('Meta registrada. Se quiser continuar, abra Adiantar revisões.')

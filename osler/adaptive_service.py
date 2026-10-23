@@ -35,9 +35,10 @@ from .swap_service import DailySwapServiceMixin
 from .final_review import FinalReviewServiceMixin,special_config,final_reservations
 from .triage_service import TriageServiceMixin
 from .study_triage_policy import apply_triage
+from .mock_schedule_service import MockScheduleServiceMixin
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
@@ -191,7 +192,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                 reservation['original_due']=max(reservation['original_due'],profile.start_date)
         override=agenda['overrides'].get(as_of,{})
         config=special_config(day_settings.to_dict(),override)
-        if override.get('mode') in {'final_rest','mock_day'}: kind='descanso'
+        if override.get('mode') in {'final_rest','mock_day','mock_reserved'}: kind='descanso'
         effective,routine_questions=effective_routine(effective,config,override)
         contacts=[(d['path'],d['day']) for d in self.guide.days() if d['status']!='descanso' and d['path']]
         from .study_errors import ErrorStore
@@ -234,7 +235,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
             allowed={r['topic_id'] for r in reservations}
             disjoint=[t for t in disjoint if t['topic_id'] in allowed]
             extras=[]; swaps=[]
-        elif override.get('mode') in {'final_rest','mock_day'}: extras=[]; swaps=[]
+        elif override.get('mode') in {'final_rest','mock_day','mock_reserved'}: extras=[]; swaps=[]
         plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps)
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
@@ -302,7 +303,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         as_of=as_of or today_local().isoformat()
         view=self.overview(as_of)
         start_date=view['profile'].get('start_date')
-        saved=[r for r in self.agenda.daily_plans() if view['agenda']['overrides'].get(r['plan']['date'],{}).get('mode') not in {'final_review','final_rest','mock_day'}]
+        saved=[r for r in self.agenda.daily_plans() if view['agenda']['overrides'].get(r['plan']['date'],{}).get('mode') not in {'final_review','final_rest','mock_day','mock_reserved'}]
         backlog=collect_backlog(view['planning_states'],view['sessions'],saved,as_of,start_date=start_date)
         by_id={t['topic_id']:t for t in view['planning_states']}
         known={r['topic_id'] for r in backlog}
@@ -348,4 +349,8 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
     def cancel_replan(self,plan_id,expected_token=None):
         context=self.replanning()
         if plan_id not in {r['id'] for r in context['active']}: raise ValueError('Essa redistribuição já foi desfeita ou não existe.')
+        chosen=next(r for r in context['active'] if r['id']==plan_id)
+        if chosen.get('scope')=='mock_schedule':
+            reason=self.mock_schedule_undo_reason(plan_id)
+            if reason: raise ValueError(reason)
         return self.agenda.append({'kind':'reschedule.cancel','plan_id':plan_id,'created_day':today_local().isoformat()},expected_token or context['token'])

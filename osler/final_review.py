@@ -8,9 +8,9 @@ from .exam_goals import active_exams
 
 
 def special_config(config,override):
-    if override.get('mode') not in {'final_review','final_rest','mock_day'}: return config
+    if override.get('mode') not in {'final_review','final_rest','mock_day','mock_reserved'}: return config
     return {**config,'questions':override.get('questions',config['questions']),
-            'kind':'descanso' if override['mode'] in {'final_rest','mock_day'} else config['kind'],
+            'kind':'descanso' if override['mode'] in {'final_rest','mock_day','mock_reserved'} else config['kind'],
             'extra_topics':[]}
 
 
@@ -64,8 +64,9 @@ class FinalReviewServiceMixin:
             config=settings.get(key,{'kind':'normal','questions':view['profile']['max_questions']})
             old=view['agenda']['overrides'].get(key,{})
             if key==rest:
+                if old.get('mode') in {'mock_day','mock_reserved'}: raise ValueError('Há um simulado na véspera da prova. Mova esse simulado antes de reservar o descanso final.')
                 overrides[key]={'mode':'final_rest','questions':questions,'exam_id':target_id}
-            elif config['kind']!='descanso' and old.get('mode') not in {'mock_day','final_rest'}:
+            elif config['kind']!='descanso' and old.get('mode') not in {'mock_day','mock_reserved','final_rest'}:
                 used=sum(s['entry']['questions'] for s in view['sessions'] if s['entry']['kind']=='bloco' and s['entry']['day']==key)
                 budget=max(0,questions-used)
                 planned=[]

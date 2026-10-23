@@ -71,7 +71,7 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         if day>profile.exam_date: break
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
         prior=(previous_overrides or {}).get(day,{})
-        protected=prior.get('mode') in {'final_review','final_rest','mock_day'}
+        protected=prior.get('mode') in {'final_review','final_rest','mock_day','mock_reserved'}
         over=prior if protected else {'mode':mode,'extra_questions':extra_questions} if mode in {'reviews','extra'} else prior
         if not protected and config['kind']!='descanso' and mode in {'reviews','extra'}: overrides[day]=over
         p,q=effective_routine(profile,config,over)

@@ -20,10 +20,8 @@ def latest_active(rows,key):
 
 
 def waived_days(plans,as_of):
-    canceled={r['data']['plan_id'] for r in plans if r['data'].get('kind')=='reschedule.cancel'}
+    from .study_agenda import effective_applies
     overrides={}
-    for r in plans:
-        p=r['data']
-        if p.get('kind')=='reschedule.apply' and r['id'] not in canceled and p.get('created_day','0001-01-01')<=as_of:
-            overrides.update(p.get('overrides',{}))
-    return {d for d,p in overrides.items() if p.get('mode') in {'mock_day','final_rest','final_review'}}
+    for p in effective_applies([{'id':r['id'],**r['data']} for r in plans],as_of):
+        overrides.update(p.get('overrides',{}))
+    return {d for d,p in overrides.items() if p.get('mode') in {'mock_day','mock_reserved','final_rest','final_review'}}

@@ -7,6 +7,22 @@ from .models import normalize_path
 from . import review_policy
 
 
+def effective_applies(records,as_of):
+    eligible=[r for r in records if r.get('created_day','0001-01-01')<=as_of]
+    canceled={r['plan_id'] for r in eligible if r.get('kind')=='reschedule.cancel'}
+    all_applies={r['id']:r for r in eligible if r.get('kind')=='reschedule.apply'}
+    candidates=[r for r in all_applies.values() if r['id'] not in canceled]
+    replaced=set()
+    def suppress(previous):
+        if previous in replaced: return
+        replaced.add(previous)
+        ancestor=all_applies.get(previous,{})
+        if ancestor.get('replaces_plan_id'): suppress(ancestor['replaces_plan_id'])
+    for row in candidates:
+        if row.get('replaces_plan_id'): suppress(row['replaces_plan_id'])
+    return [r for r in candidates if r['id'] not in replaced]
+
+
 def planning_token(db):
     tables=['study_events','study_profiles','study_plan_runs','guide_settings','guide_days','incidence_datasets',
             'observations','observation_events','reduction_actions','audit_events','planner_events','exam_targets',
@@ -43,7 +59,7 @@ class StudyAgenda:
 
     def remember(self,view):
         if view['plan'].get('not_started'): return None
-        if view['plan'].get('routine_override',{}).get('mode') in {'final_review','final_rest','mock_day'}: return None
+        if view['plan'].get('routine_override',{}).get('mode') in {'final_review','final_rest','mock_day','mock_reserved'}: return None
         actual={}
         for s in view['sessions']:
             e=s['entry']
@@ -57,10 +73,9 @@ class StudyAgenda:
         payload['previous_daily_id']=previous['id'] if previous else 0
         return self.store.save_plan(payload)
 
-    def active(self,sessions,as_of):
+    def active(self,sessions,as_of,excluded_plan_ids=()):
         records=self.records()
-        canceled={r['plan_id'] for r in records if r.get('kind')=='reschedule.cancel'}
-        applies=[r for r in records if r.get('kind')=='reschedule.apply' and r['id'] not in canceled and r['created_day']<=as_of]
+        applies=[r for r in effective_applies(records,as_of) if r['id'] not in excluded_plan_ids]
         rows={}
         overrides={}
         policies=[]

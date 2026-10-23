@@ -64,6 +64,13 @@ def _history(mocks):
 
 
 def render_mock_exams(service):
+    from .mock_schedule_ui import render_mock_schedule
+    programming,results=st.tabs(['Programação','Resultados'])
+    with programming: render_mock_schedule(service)
+    with results: _render_mock_results(service)
+
+
+def _render_mock_results(service):
     mocks = MockExams(service.repository)
     rows = mocks.active()
     targets = ExamGoals(service.repository).active()
@@ -195,7 +202,7 @@ def render_mock_exams(service):
 
 def render_mock_settings(service):
     st.subheader('Frequência de simulados')
-    st.caption('Sugestão opcional de intervalo. Use 0 para desativar; nenhuma dívida é criada.')
+    st.caption('Intervalo sugerido para novas programações. Reserve ou mova datas em Simulados → Programação ou no Calendário. Alterar este valor não muda uma série já programada; 0 desliga apenas o lembrete.')
     snapshot = st.session_state.setdefault('mock_profile_snapshot', service.store.profile())
     profile = AdaptiveProfile(**snapshot['configured_profile'])
     with st.form('mock_settings'):
