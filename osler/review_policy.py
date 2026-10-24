@@ -1,7 +1,7 @@
 """Triagem inicial descritiva: exposição e segurança não são estabilidade calibrada."""
 from math import ceil
 
-POLICY_VERSION='4.0'
+POLICY_VERSION='4.1'
 
 
 def initial_interval(snapshot,profile,incidence_strength):

@@ -260,6 +260,8 @@ Em Minhas provas, pesos ficam indisponíveis com motivo e instrução de recuper
 
 Revisões equilibradas usam a mesma hierarquia: escolha e comparação em “Como o app calcula as revisões”, nos ajustes avançados. O feedback distingue meta de acerto e informação de convicção. Quando há bloco combinado, o total fica explícito e as ações de lote vinculado e complemento têm quantidades no rótulo. Um retorno pequeno é identificado como lote, sem sugerir domínio do tema. O histórico da última mudança permite conferir o impacto sem ocupar a tela principal.
 
+O resumo diário mantém total realizado e meta reais. Quando houver questões além de um bloco proposto, uma frase junto ao progresso identifica o excedente e explica que os demais temas continuam previstos. Excedente realizado e revisão extra adicionada manualmente têm textos separados, pois são ações diferentes.
+
 ### Evidência e limites
 
 Esta captura é estática. O detector estático anterior à atualização documental sinalizou o traço inferior da aba como borda de cartão arredondado, embora o seletor fixe raio zero; esse diagnóstico não foi convertido em regra do sistema. Seus advisories de tamanho foram conciliados com as funções tipográficas observadas; a regra sem uso do resumo permanece fora dos tokens.

@@ -239,7 +239,15 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
             disjoint=[t for t in disjoint if t['topic_id'] in allowed]
             extras=[]; swaps=[]
         elif override.get('mode') in {'final_rest','mock_day','mock_reserved'}: extras=[]; swaps=[]
-        plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps)
+        completion=None
+        if question_target is not None and as_of==today_local().isoformat() and kind!='descanso' and override.get('mode') not in {'final_review','final_rest','mock_day','mock_reserved'}:
+            from .daily_excess import daily_completion_context
+            completion=daily_completion_context(self.repository,as_of,sessions,record['id'],day['revision'],sorted(r['id'] for r in agenda.get('active',[])))
+            if _profile_override is None and _agenda_override is None:
+                unavailable={r['topic_id'] for r in reservations}|{e['topic_id'] for e in extras}|{r['topic_id'] for r in swaps}
+                unavailable.update(key for r in swaps for key in r['excluded_ids'])
+                reservations=[*reservations,*[{**i,'date':as_of,'original_due':as_of,'daily_proposal':True} for i in completion['preserve'] if i['topic_id'] not in unavailable]]
+        plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None)
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')

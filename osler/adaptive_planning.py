@@ -305,7 +305,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     return sorted(states,key=lambda t:review_order(t,as_of))
 
 
-def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=()):
+def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=(),allocation_credits=None):
     profile.validate()
     not_started=bool(profile.start_date and as_of<profile.start_date)
     if not_started: kind='descanso'; extra_topics=None; reservations=None
@@ -317,8 +317,10 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     if kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
     today=[s['entry'] for s in sessions if s['entry']['day']==as_of and s['entry']['kind']!='acumulado']
     from .study_swaps import quota_entries
-    allocation_today,quota_adjustments=quota_entries(sessions,swaps,as_of)
+    allocation_sessions=[{**s,'entry':{**s['entry'],'questions':allocation_credits.get(s.get('session_id'),s['entry']['questions'])}} for s in sessions] if allocation_credits else sessions
+    allocation_today,quota_adjustments=quota_entries(allocation_sessions,swaps,as_of)
     done=sum(e['questions'] for e in today)
+    credited_done=sum(e['questions'] for e in allocation_today)
     spent=sum(e['minutes'] if e.get('minutes') else e['questions']*profile.minutes_per_question for e in today)
     extras=[]
     if question_target is None:
@@ -347,8 +349,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         for t in batches:
             if t['topic_id'] not in grouped: grouped[t['topic_id']]={**t,'remaining':0}
             grouped[t['topic_id']]['remaining']+=t['requested']-credits[t['extra_id']]
-        target=max(question_target+sum(t['requested'] for t in batches),done+sum(t['remaining'] for t in grouped.values())) if batches else question_target
-        budget=max(0,target-done)
+        target=max(question_target+sum(t['requested'] for t in batches),credited_done+sum(t['remaining'] for t in grouped.values())) if batches else question_target
+        budget=max(0,target-credited_done)
         for t in grouped.values():
             if t['topic_id'] in excluded|swapped_ids: continue
             q=min(t['remaining'],t['total'],budget-sum(e['questions'] for e in extras))
@@ -386,14 +388,14 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
         remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
-        group_budget=remaining_budget if row.get('swap_return') or row.get('final_review') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        group_budget=remaining_budget if row.get('daily_proposal') or row.get('swap_return') or row.get('final_review') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
         q=min(row['remaining'],t['total'],group_budget,remaining_budget)
         if q:
             group_targets[group]=max(0,group_targets[group]-q)
             recovered.append({**t,'questions':q,'new_questions':min(q,t['available_new']),'repeat_questions':max(0,q-t['available_new']),
-                              'added_by_user':False,'rescheduled':True,'reschedule_date':row['date'],'original_due':row['original_due'],
+                              'added_by_user':False,'rescheduled':not row.get('daily_proposal',False),'daily_proposal_preserved':bool(row.get('daily_proposal')),'reschedule_date':row['date'],'original_due':row['original_due'],
                               'swap_return':row.get('swap_return'),
-                              'reason':'Recuperação reagendada; atraso original preservado'})
+                              'reason':'Bloco já previsto para hoje; as questões excedentes não o substituem' if row.get('daily_proposal') else 'Recuperação reagendada; atraso original preservado'})
     budget-=sum(r['questions'] for r in recovered)
     recovery_ids={r['topic_id'] for r in recovered}
     extra_counts={t['topic_id']:t['questions'] for t in extras}
@@ -462,4 +464,6 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             'target_questions':0 if kind=='descanso' else target,'base_questions':question_target if question_target is not None else target,
             'extra_questions':sum(t['requested'] for t in extra_topics or []),
             'overrun_questions':max(0,target-(question_target or target)-sum(t['requested'] for t in extra_topics or [])),
+            'excess_done_questions':max(0,done-credited_done),'credited_done_questions':credited_done,
+            'allocation_credits':dict(allocation_credits or {}),
             'mode':'questions' if question_target is not None else 'time','distribution':distribution}

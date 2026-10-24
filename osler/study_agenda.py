@@ -60,18 +60,24 @@ class StudyAgenda:
     def remember(self,view):
         if view['plan'].get('not_started'): return None
         if view['plan'].get('routine_override',{}).get('mode') in {'final_review','final_rest','mock_day','mock_reserved'}: return None
-        actual={}
+        actual={}; credited={}
         for s in view['sessions']:
             e=s['entry']
             if e['day']==view['date'] and e['kind']=='bloco':
                 key=tuple(normalize_path(e['path']))
                 actual[key]=actual.get(key,0)+e['questions']
+                credited[key]=credited.get(key,0)+view['plan'].get('allocation_credits',{}).get(s['session_id'],e['questions'])
         payload={'kind':'daily_schedule','plan':{'date':view['date'],'items':[
             {'topic_id':i['topic_id'],'path':i['path'],'questions':i['questions']+actual.get(tuple(normalize_path(i['path'])),0)} for i in view['plan']['items']]}}
+        payload.update(event_cutoff=max((s['id'] for s in view['sessions']),default=0),
+            actual_at_capture={i['topic_id']:actual.get(tuple(normalize_path(i['path'])),0) for i in view['plan']['items']},
+            planned_totals={i['topic_id']:i['questions']+credited.get(tuple(normalize_path(i['path'])),0) for i in view['plan']['items']},
+            agenda_revision=sorted(r['id'] for r in view.get('agenda',{}).get('active',[])),
+            profile_id=view.get('profile_id',0),day_revision=view.get('day',{}).get('revision',0))
         previous=next((r for r in reversed(self.records()) if r.get('kind')=='daily_schedule' and r['plan']['date']==view['date']),None)
-        if previous and previous['plan']==payload['plan']: return previous['id']
+        if previous and all(previous.get(k)==payload.get(k) for k in ['plan','event_cutoff','actual_at_capture','planned_totals','profile_id','day_revision','agenda_revision']): return previous['id']
         payload['previous_daily_id']=previous['id'] if previous else 0
-        return self.store.save_plan(payload)
+        return self.store.save_plan(payload,expected_planning_token=view.get('planning_token'))
 
     def active(self,sessions,as_of,excluded_plan_ids=()):
         records=self.records()

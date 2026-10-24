@@ -7,7 +7,7 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.25.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.25.1.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 [Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 
@@ -18,6 +18,7 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 - **Simulados com datas flexíveis:** programe a primeira data e um intervalo; depois mova ou retire cada ocorrência separadamente. Calendário distingue programação e resultado; o dia reservado substitui os blocos normais, e a prévia mostra o remanejamento dentro da carga. [Regras, limites e histórico](docs/research/simulados-flexiveis.md).
 
 - **Hoje:** abas Para fazer e Feito hoje, com blocos priorizados, resultados do dia e acesso à correção dos lançamentos. Após salvar, veja seu desempenho e os próximos passos do tema. [Fluxo e critérios](docs/research/atividade-diaria-e-feedback.md).
+- **Questões além do bloco:** excedentes contam no total e no desempenho sem substituir os outros temas já propostos para hoje. A meta fica preservada e o resumo identifica o excedente. [Regras e limites](docs/research/excedentes-no-plano-diario.md).
 - **Trocar tema:** escolha manual ou sugestão do mesmo tipo e prioridade semelhante; a prévia mostra a data reservada para o tema retirado, com opção de desfazer. [Funcionamento](docs/research/troca-de-temas.md).
 - **Calendário:** Agenda, Semana e Mês; próximos contatos por tema, retornos conhecidos e revisões seguintes a recalcular após seus resultados. Recuperação e prevenção de pendências com comparação antes/depois e opção de desfazer. [Como interpretar a previsão](docs/research/calendario-proximos-contatos.md).
 - **Rotina adaptativa:** referência de novos/revisões com ajuste à demanda e à capacidade de repetir nos próximos14dias; comparação com divisão fixa, custo em cobertura e riscos residuais visíveis. Doses não são infladas para preencher a meta. O modo fixo continua disponível.

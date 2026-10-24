@@ -149,9 +149,13 @@ class StudyStore:
                     (payload,hashlib.sha256(payload.encode()).hexdigest(),utc_now()))
             return profile_id
 
-    def save_plan(self, plan):
+    def save_plan(self, plan,*,expected_planning_token=None):
         payload = _encoded(plan)
         digest = hashlib.sha256(payload.encode()).hexdigest()
         with self.repository._connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if expected_planning_token is not None:
+                from .study_agenda import planning_token
+                if planning_token(db)!=expected_planning_token: raise ValueError('O plano mudou. Atualize a página antes de guardar a proposta diária.')
             db.execute('INSERT OR IGNORE INTO study_plan_runs(payload,digest,created_at) VALUES(?,?,?)',(payload,digest,utc_now()))
             return db.execute('SELECT id FROM study_plan_runs WHERE digest=?',(digest,)).fetchone()[0]

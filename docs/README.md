@@ -6,6 +6,8 @@
 
 ## Modelos e funcionalidades existentes
 
+- [Questões excedentes sem remover os outros temas do dia — v0.25.1](research/excedentes-no-plano-diario.md)
+
 - [Revisões equilibradas: acerto, amostra e retornos coordenados — v0.25](research/revisoes-equilibradas.md)
 
 - [Pesos com incidência individual e próxima revisão na tabela — v0.24.1](research/pesos-e-proximas-revisoes.md)

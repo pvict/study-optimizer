@@ -92,6 +92,7 @@ def render_study_day(service,go_record,go_review,go_edit=None):
         st.caption(f"Plano restante: {dist['planned_new']} questões em temas novos · {dist['planned_reviews']} em revisões e diagnósticos.")
         if plan['extra_questions']: st.caption(f"{plan['base_questions']} da meta + {plan['extra_questions']} que você adicionou para adiantar.")
         if plan['overrun_questions']: st.caption(f"{plan['overrun_questions']} questões já feitas acima da meta anterior foram preservadas nas revisões extras.")
+        if plan.get('excess_done_questions'): st.write(f"{plan['excess_done_questions']} questões além dos blocos previstos. Elas contam no seu total e no desempenho, sem substituir os outros temas de hoje.")
     override=plan.get('routine_override',{})
     capacity=plan.get('capacity',{})
     if capacity.get('mode')=='adaptive':
