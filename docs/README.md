@@ -6,6 +6,8 @@
 
 ## Modelos e funcionalidades existentes
 
+- [Cards de erros acumulados: primeira passagem, prioridades e limites — v0.26](research/cards-erros-recuperacao.md)
+
 - [Questões excedentes sem remover os outros temas do dia — v0.25.1](research/excedentes-no-plano-diario.md)
 
 - [Revisões equilibradas: acerto, amostra e retornos coordenados — v0.25](research/revisoes-equilibradas.md)

@@ -7,13 +7,15 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.25.1.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.26.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 [Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 
 A interface usa navegação visível em abas, campos com contorno e separação por linhas e tons de azul-cinza entre conteúdo e apoio. Hoje tem resumo compacto; Calendário mostra a programação antes das ferramentas de recuperação; Temas reúne filtros secundários em “Mais filtros”. Após salvar um resultado, a confirmação oferece retorno ao plano ou um novo registro. [Decisões e limites da verificação do redesign](docs/design/redesign-ui.md).
 
 ## O que o aplicativo oferece
+
+- **Cards de erros acumulados:** importe a árvore HTML manual, sem duplicar pais e filhos; planeje uma primeira passagem com carga própria, prioridade por tema específico, registros separados de cards diferentes e repetições, cenário dos próximos dias e atualização por novos retratos. Descansos e simulados são respeitados. [Funcionamento e limites](docs/research/cards-erros-recuperacao.md).
 
 - **Simulados com datas flexíveis:** programe a primeira data e um intervalo; depois mova ou retire cada ocorrência separadamente. Calendário distingue programação e resultado; o dia reservado substitui os blocos normais, e a prévia mostra o remanejamento dentro da carga. [Regras, limites e histórico](docs/research/simulados-flexiveis.md).
 

@@ -102,6 +102,8 @@ def render_study_day(service,go_record,go_review,go_edit=None):
     elif override.get('mode')=='extra': st.info(f"Plano temporário: até {override['extra_questions']} questões adicionais de revisão hoje. Seu padrão está preservado.")
     work,extra=st.columns([1.85,1],gap='large')
     with work,st.container(key='study_work'):
+        from .error_cards_ui import render_cards_summary
+        render_cards_summary(service.repository,view)
         st.subheader('Blocos de questões')
         activity=day_activity(view)
         remaining,completed=st.tabs(['Para fazer',f"Feito hoje ({activity['questions']})"])

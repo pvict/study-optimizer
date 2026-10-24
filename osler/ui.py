@@ -193,7 +193,8 @@ def run():
         render_adaptive(repo)
         return
     if view == "Diminuir revisões":
-        render_reduction(repo)
+        from .error_cards_ui import render_flashcards
+        render_flashcards(repo)
         return
     _advanced_tools(repo, project_root)
 

@@ -78,6 +78,7 @@ def test_main_screen_exposes_reduction_without_per_topic_forms(tmp_path, monkeyp
     assessment.save_observation(matching, row.row_id, known(), 0)
     monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
     app = reduction_app(project_root)
+    app.radio(key='ec_mode').set_value('Reduzir outras revisões').run()
     assert not app.exception
     assert app.radio(key='main_view').value == 'Diminuir revisões'
     assert len(app.text_input) == 0

@@ -175,6 +175,7 @@ def test_practical_ui_has_ready_list_and_single_optional_declaration(tmp_path, m
     monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
     app = AppTest.from_file(str(project_root/'app.py'), default_timeout=30).run()
     app.radio(key='main_view').set_value('Diminuir revisões').run()
+    app.radio(key='ec_mode').set_value('Reduzir outras revisões').run()
     assert not app.exception
     assert len(app.dataframe) >= 1
     assert any(b.label == 'Já fiz uma redução seletiva nesses temas' for b in app.button)

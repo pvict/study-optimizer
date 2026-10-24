@@ -32,6 +32,8 @@ Código e documentação dos modelos; PDFs e tabelas importados localmente. Sér
 
 ## Planned Capabilities
 
+Recuperação dos cards pessoais de erros implementada na v0.26: lote HTML hierárquico local, meta própria, primeira passagem por temas específicos, repetições registradas separadamente e cenário dos próximos dias. Isso não implementa a organização integral de horários descrita abaixo nem substitui o espaçamento individual da Osler. [Escopo e limites](docs/research/cards-erros-recuperacao.md).
+
 **Organização integral da rotina — planejada, ainda não implementada.** Integrar
 horários de sono, plantão variável, deslocamento, academia, refeições, descanso,
 flashcards, questões, correção e simulados ao fluxo existente de Hoje e Calendário.

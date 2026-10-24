@@ -203,6 +203,11 @@
 [class*="st-key-study_block_"] { padding-block: .1rem; }
 [class*="st-key-study_block_"] [data-testid="stVerticalBlock"] { gap: .4rem; }
 .st-key-study_block_1 { border-color: var(--study-primary); }
+.st-key-error_cards_summary, [class*="st-key-error_cards_block_"] { background: var(--study-surface); }
+.st-key-ec_mode [role="radiogroup"] { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.st-key-ec_mode label { min-width: 0; margin: 0; justify-content: center; padding: .4rem .3rem; border-bottom: 3px solid transparent; }
+.st-key-ec_mode label:has(input:checked) { background: var(--study-surface); color: var(--study-primary-deep); border-bottom-color: var(--study-primary); }
+.st-key-ec_mode label > div:first-child, .st-key-ec_mode [data-testid="stRadioOption"] > div > div:first-child { display: none; }
 .study-block-meta { margin-block: .15rem .3rem; }
 .study-block-meta > span:last-child { font-size: .8rem; }
 .st-key-topic_filters { padding: .75rem 0; border-top: 1px solid var(--study-line); }

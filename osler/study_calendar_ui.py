@@ -110,6 +110,8 @@ def render_calendar(service,go_record,go_review=None):
                         _day_summary(day,plan,context,today)
     with st.container(key='calendar_selected_detail'):
         _render_selected_day(service,go_record,go_review,today,start_date,selected,by_date[selected])
+        from .error_cards_ui import render_cards_summary
+        render_cards_summary(service.repository,context['view'],selected)
     with st.expander('Programar ou mudar datas dos simulados'):
         render_mock_schedule(service)
     with st.container(key='calendar_management'):

@@ -220,6 +220,10 @@ Foco próprio: contorno sólido (3px) em azul de foco, afastado (3px), para bot�
 
 ## Components
 
+### Cards pessoais de erros
+
+Flashcards abre em Erros acumulados; Reduzir outras revisões preserva o recurso anterior. Navegação superior usa a linguagem de abas existente, sem círculos, e a seção oferece Hoje, Temas, Próximos dias e Importar e ajustar. Superfícies dos blocos e do resumo reutilizam o azul-cinza existente. A primeira ação de registro recebe destaque; caminhos completos ficam em apoio e a lista é paginada. Resumo diferencia lote identificado e grupos recolhidos. A previsão é identificada como primeira passagem, sem prometer domínio ou fim dos retornos individuais. Meta de cards, saldo de cards diferentes e total de respostas repetidas têm nomes distintos e ficam separados das questões.
+
 Após salvar um resultado, a confirmação oferece “Voltar ao plano” e “Registrar outro estudo”; o formulário enviado deixa de ser mostrado até iniciar um novo registro. Erros de entrada conservam os campos para correção. Esse estado pertence à apresentação, sem mudar as regras de gravação.
 
 ### Buttons
