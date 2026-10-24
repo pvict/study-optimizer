@@ -1,5 +1,7 @@
 # Recuperação dos cards pessoais de erros — v0.26.0
 
+**Atualização0.26.1:** o plano agora usa decks inteiros, com referência diária e até10% de margem, substituindo as rodadas de50 abaixo. O print adicional de Psiquiatria completou os86 cards antes sem subtema: todos os8153 agora têm identificação entre268 temas. Veja [a atualização e suas verificações](decks-inteiros-psiquiatria.md). O restante deste documento registra a entrega original0.26.0.
+
 Em24/10/2026, o usuário confirmou200 cards/dia, separados das questões, e esclareceu por último que todos os cards do HTML recebido são não estudados ou pendentes. Essa correção substitui a resposta anterior de que haveria cards já revisados misturados. O arquivo é tratado como lote a realizar, sem alegar que todos venceram na mesma data.
 
 ## Arquivo recebido

@@ -1,5 +1,6 @@
 """Lotes e realizações de cards pessoais, separados das sessões de questões."""
 from collections import defaultdict
+from copy import deepcopy
 from datetime import date,timedelta
 import hashlib
 import json
@@ -10,6 +11,39 @@ from .files import write_immutable
 from .planner_service import today_local
 from .storage import utc_now
 from .study_storage import StudyStore,_encoded
+from .models import stable_topic_id
+
+
+def _expansion_parent(unresolved,path):
+    exact=[r for r in unresolved if r['path']==path]
+    matches=exact or [r for r in unresolved if stable_topic_id(r['path'])==stable_topic_id(path)]
+    if len(matches)!=1:raise ValueError('Grupo ausente ou ambíguo. Use o caminho original completo do grupo.')
+    return matches[0]
+
+
+def expanded_snapshot(events):
+    original=next((r for r in reversed(events) if r['kind']=='error_cards.snapshot'),None)
+    if not original:return None
+    snapshot=deepcopy(original);tree=snapshot['tree'];snapshot['supplements']=[]
+    for event in events:
+        if event['kind']!='error_cards.expand' or event['snapshot_id']!=snapshot['id']:continue
+        for resolution in event['resolutions']:
+            parent=_expansion_parent(tree['unresolved'],resolution['parent_path'])
+            if sum(c['count'] for c in resolution['children'])!=parent['count']:raise ValueError('As contagens do complemento não conferem com o grupo original.')
+            parent_node=next(n for n in tree['nodes'] if n['path']==parent['path'])
+            children=[]
+            for child in resolution['children']:
+                path=parent['path']+[child['name']]
+                children.append({'topic_id':stable_topic_id(path),'path':path,'label':child['name'],'count':child['count'],
+                                 'indent':parent_node['indent']+20,'branch':False,'has_children':False,'specific':True,'source_paths':[path]})
+            tree['topics'].extend(children)
+            pos=tree['nodes'].index(parent_node)+1;tree['nodes'][pos:pos]=deepcopy(children)
+            parent_node['has_children']=True
+            tree['unresolved'].remove(parent)
+        snapshot['supplements'].append({'source':event['source'],'filename':event['filename'],'sha256':event['sha256']})
+    tree['schedulable']=sum(t['count'] for t in tree['topics']);tree['unallocated']=sum(r['count'] for r in tree['unresolved'])
+    if tree['total']!=tree['schedulable']+tree['unallocated']:raise ValueError('As contagens do lote não conferem após o complemento.')
+    return snapshot
 
 
 class ErrorCardsService:
@@ -36,7 +70,40 @@ class ErrorCardsService:
             return db.execute('INSERT INTO study_plan_runs(payload,digest,created_at) VALUES(?,?,?)',(encoded,digest,utc_now())).lastrowid
 
     def latest_snapshot(self):
-        return next((r for r in reversed(self._events()) if r['kind']=='error_cards.snapshot'),None)
+        return expanded_snapshot(self._events())
+
+    def expand_groups(self,resolutions,evidence,filename,token):
+        if not isinstance(resolutions,list) or not resolutions or len(resolutions)>100:raise ValueError('Informe os grupos e seus subtemas específicos.')
+        if not isinstance(evidence,bytes) or not evidence.startswith(b'\x89PNG\r\n\x1a\n') or len(evidence)>20*1024*1024:raise ValueError('Preserve o print original em PNG, de até20 MB.')
+        for r in resolutions:
+            if not isinstance(r,dict) or not isinstance(r.get('parent_path'),list) or not r['parent_path'] or any(not isinstance(p,str) or not p.strip() for p in r['parent_path']):raise ValueError('Caminho do grupo inválido.')
+            if not isinstance(r.get('children'),list) or not r['children']:raise ValueError('Informe os filhos do grupo.')
+            for child in r['children']:
+                if not isinstance(child,dict) or not isinstance(child.get('name'),str) or not child['name'].strip() or len(child['name'])>300 or type(child.get('count')) is not int or child['count']<0:raise ValueError('Subtema ou contagem inválidos.')
+        snapshot=self.latest_snapshot()
+        if not snapshot:raise ValueError('Importe a árvore original antes de completar os grupos.')
+        digest=hashlib.sha256(evidence).hexdigest()
+        payload={'kind':'error_cards.expand','snapshot_id':snapshot['id'],'resolutions':resolutions,'sha256':digest,
+                 'filename':str(filename)[:200],'source':'exports/error-cards/'+digest+'.png'}
+        def validate(events):
+            current=expanded_snapshot(events)
+            if current['id']!=snapshot['id']:raise ValueError('O retrato mudou. Confira novamente os grupos antes de completar.')
+            seen=set()
+            existing={t['topic_id'] for t in current['tree']['topics']}
+            for r in resolutions:
+                parent=_expansion_parent(current['tree']['unresolved'],r['parent_path']);key=tuple(parent['path'])
+                if key in seen:raise ValueError('Esse grupo já foi completado ou não consta entre os grupos sem subtema.')
+                seen.add(key)
+                if sum(c['count'] for c in r['children'])!=parent['count']:raise ValueError('A soma dos subtemas deve ser igual à contagem que faltava no grupo.')
+                for child in r['children']:
+                    child_id=stable_topic_id(parent['path']+[child['name']])
+                    if child_id in existing:raise ValueError('Subtema repetido. Nenhuma contagem foi acrescentada.')
+                    existing.add(child_id)
+        for event in self._events():
+            if {k:v for k,v in event.items() if k!='id'}==payload:return event['id']
+        validate(self._events())
+        folder=self.repo.exports/'error-cards';folder.mkdir(exist_ok=True);write_immutable(folder/(digest+'.png'),evidence)
+        return self._append(payload,token,validate)
 
     def import_html(self,data,filename,day,scope,token):
         if scope not in {'inventory','pending','pass'}:raise ValueError('Informe se o arquivo é inventário ou lote a estudar.')
@@ -111,7 +178,7 @@ class ErrorCardsService:
 
     def overview(self,day=None,question_view=None,routine=None):
         day=day or today_local().isoformat();events=self._events()
-        snapshot=next((r for r in reversed(events) if r['kind']=='error_cards.snapshot'),None)
+        snapshot=expanded_snapshot(events)
         settings=next((r for r in reversed(events) if r['kind']=='error_cards.settings'),{'daily':200,'days':{}})
         if question_view is None:
             from .adaptive_service import AdaptiveService
@@ -128,7 +195,7 @@ class ErrorCardsService:
                 p=progress[r['topic_id']];p['covered']+=r['covered'];p['last_day']=max(p['last_day'] or '',r['day']);covered+=r['covered']
         active=bool(snapshot and snapshot['scope']!='inventory' and day>=snapshot['observed_day'])
         ranked=plan_error_cards(snapshot['tree']['topics'],progress,question_view.get('states',[]),day,max(0,budget-done),
-            [i['topic_id'] for i in qp.get('items',[])],snapshot['observed_day']) if active else []
+            [i['topic_id'] for i in qp.get('items',[])],snapshot['observed_day'],reference_budget=budget,completed_today=done) if active else []
         remaining=max(0,snapshot['tree']['schedulable']-covered) if snapshot else 0
         return {'snapshot':snapshot,'settings':settings,'budget':budget,'budget_reason':reason,'done_today':done,'covered':covered,
                 'remaining':remaining,'unallocated':snapshot['tree']['unallocated'] if snapshot else 0,
@@ -140,9 +207,10 @@ class ErrorCardsService:
         snapshot=view['snapshot']; progress={k:dict(v) for k,v in view['progress'].items()}; rows=[]
         current=today_local(); end=min(current+timedelta(days=horizon-1),date.fromisoformat(view['routine']['profile']['exam_date']))
         while current<=end:
-            day=current.isoformat();capacity,reason=self.capacity(day,view['routine'],view['settings'])
+            day=current.isoformat();capacity,reason=self.capacity(day,view['routine'],view['settings']);reference=capacity
             if current==today_local():capacity=max(0,capacity-view['done_today'])
-            ranked=plan_error_cards(snapshot['tree']['topics'],progress,view['question_view'].get('states',[]),day,capacity,snapshot_day=snapshot['observed_day'])
+            question_ids=[i['topic_id'] for i in view['question_view'].get('plan',{}).get('items',[])] if current==today_local() else []
+            ranked=plan_error_cards(snapshot['tree']['topics'],progress,view['question_view'].get('states',[]),day,capacity,question_ids=question_ids,snapshot_day=snapshot['observed_day'],reference_budget=reference,completed_today=view['done_today'] if current==today_local() else 0)
             items=[t for t in ranked if t['planned']]
             for t in items:
                 p=progress.setdefault(t['topic_id'],{'covered':0,'last_day':None});p['covered']+=t['planned'];p['last_day']=day

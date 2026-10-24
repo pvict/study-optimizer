@@ -6,6 +6,8 @@
 
 ## Modelos e funcionalidades existentes
 
+- [Decks inteiros e complemento de Psiquiatria — v0.26.1](research/decks-inteiros-psiquiatria.md)
+
 - [Cards de erros acumulados: primeira passagem, prioridades e limites — v0.26](research/cards-erros-recuperacao.md)
 
 - [Questões excedentes sem remover os outros temas do dia — v0.25.1](research/excedentes-no-plano-diario.md)

@@ -80,9 +80,13 @@ def parse_error_cards(text):
     return {'nodes':nodes,'topics':topics,'unresolved':unresolved,'total':total,'schedulable':schedulable,'unallocated':total-schedulable}
 
 
-def plan_error_cards(topics,progress,states,day,budget,question_ids=(),snapshot_day=None):
+def plan_error_cards(topics,progress,states,day,budget,question_ids=(),snapshot_day=None,reference_budget=None,completed_today=None):
     """Política de triagem explícita; não estima retenção ou probabilidade de aprovação."""
     if type(budget) is not int or not 0<=budget<=2000: raise ValueError('A carga deve estar entre0 e2000 cards.')
+    reference_budget=budget if reference_budget is None else reference_budget
+    if type(reference_budget) is not int or not 0<=reference_budget<=2000: raise ValueError('Referência diária inválida.')
+    completed_today=max(0,reference_budget-budget) if completed_today is None else completed_today
+    if type(completed_today) is not int or completed_today<0:raise ValueError('Quantidade realizada inválida.')
     asof=date.fromisoformat(day); state_by_path={tuple(normalize_path(s['path'])):s for s in states if s.get('path')}
     state_by_id={s['topic_id']:s for s in states}; ranked=[]
     for t in topics:
@@ -103,14 +107,13 @@ def plan_error_cards(topics,progress,states,day,budget,question_ids=(),snapshot_
         if age>=7:reasons.append(f'{age} dias sem registro de cards neste lote')
         ranked.append({**t,'remaining':remaining,'accuracy':accuracy,'sample':n,'incidence_known':known,'score':score,
                        'priority':'Alta' if known and incidence>=.75 or n>=10 and correct/n<.6 else 'Regular',
+                       'in_progress_today':p.get('last_day')==day and p.get('covered',0)>0,
+                       'oversized':remaining>reference_budget+reference_budget//10,
                        'reason':' · '.join(reasons) or 'Avançar na primeira passagem pelo lote','planned':0})
-    ranked.sort(key=lambda t:(-t['score'],-t['remaining'],tuple(normalize_path(t['path']))))
-    left=budget
-    while left:
-        allocated=0
-        for t in ranked:
-            add=min(50,t['remaining']-t['planned'],left)
-            t['planned']+=add;left-=add;allocated+=add
-        if not allocated:break
-    for t in ranked:t['blocks']=[min(50,t['planned']-i) for i in range(0,t['planned'],50)]
+    ranked.sort(key=lambda t:(not t['in_progress_today'],-t['score'],-t['remaining'],tuple(normalize_path(t['path']))))
+    total=0; ceiling=max(0,budget+reference_budget//10-max(0,completed_today-reference_budget))
+    for t in ranked:
+        if (total<budget or t['in_progress_today']) and total+t['remaining']<=ceiling:
+            t['planned']=t['remaining'];total+=t['planned']
+        t['blocks']=[t['planned']] if t['planned'] else []
     return ranked

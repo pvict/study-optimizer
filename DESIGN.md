@@ -222,6 +222,8 @@ Foco próprio: contorno sólido (3px) em azul de foco, afastado (3px), para bot�
 
 ### Cards pessoais de erros
 
+Desde0.26.1, cada proposta corresponde ao saldo inteiro de um deck específico. A carga é apresentada como referência, com até10% de margem, e o total proposto aparece junto do número de decks. Não há orientação de dividir em lotes de50 para preencher a meta. Deck iniciado hoje tem preferência para conclusão; quando o deck ultrapassa a referência e a margem, explicar como escolher uma carga maior para um dia ou iniciá-lo manualmente. Complementos de imagem conciliam grupos antes recolhidos, sem reiniciar o progresso nem aumentar o total do lote.
+
 Flashcards abre em Erros acumulados; Reduzir outras revisões preserva o recurso anterior. Navegação superior usa a linguagem de abas existente, sem círculos, e a seção oferece Hoje, Temas, Próximos dias e Importar e ajustar. Superfícies dos blocos e do resumo reutilizam o azul-cinza existente. A primeira ação de registro recebe destaque; caminhos completos ficam em apoio e a lista é paginada. Resumo diferencia lote identificado e grupos recolhidos. A previsão é identificada como primeira passagem, sem prometer domínio ou fim dos retornos individuais. Meta de cards, saldo de cards diferentes e total de respostas repetidas têm nomes distintos e ficam separados das questões.
 
 Após salvar um resultado, a confirmação oferece “Voltar ao plano” e “Registrar outro estudo”; o formulário enviado deixa de ser mostrado até iniciar um novo registro. Erros de entrada conservam os campos para correção. Esse estado pertence à apresentação, sem mudar as regras de gravação.

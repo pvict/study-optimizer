@@ -25,7 +25,7 @@ def render_cards_summary(repo,question_view,day=None):
     view=service.overview(today,question_view=question_view)
     with st.container(border=True):
         if day==today:
-            st.markdown(f"**Cards de erros · {view['done_today']} de {view['budget']} respostas hoje**")
+            st.markdown(f"**Cards de erros · {view['done_today']} respostas hoje · referência {view['budget']}/dia**")
             st.caption(f"{sum(t['planned'] for t in view['items'])} cards na próxima passagem · separados das questões.")
         elif day<today:
             done=sum(r['covered']+r['repeats'] for r in view['history'] if r['day']==day)
@@ -86,6 +86,11 @@ def _today(service,view):
         st.info('Seu arquivo está guardado como inventário. Importe somente os pendentes ou escolha Nova passagem por todos em Importar e ajustar. Não presumimos atraso no acervo inteiro.');return
     if not view['budget']:st.info(view['budget_reason']+'. Nenhuma carga automática de cards hoje; você pode ajustar apenas este dia.')
     items=view['items']
+    if items:
+        st.markdown(f"**{sum(t['planned'] for t in items)} cards em {len(items)} decks inteiros para fazer**")
+        st.caption(f"Referência de {view['budget']} cards/dia, com até10% de margem para completar um deck. A meta não é preenchida com fragmentos de outros decks.")
+    oversized=[t for t in view['ranked'] if t.get('oversized')]
+    if view['budget'] and oversized:st.info('Decks acima da referência e da margem: '+', '.join(t['path'][-1]+f" ({t['remaining']})" for t in oversized[:3])+'. Para fazê-los inteiros, aumente a referência de um dia em Importar e ajustar ou escolha o deck em Temas.')
     if not items and view['budget']:st.info('Nenhum novo bloco de primeira passagem hoje. Os registros abaixo e os retornos da Osler continuam disponíveis.')
     if len(items)>12:
         page=st.number_input('Página dos blocos de cards',1,math.ceil(len(items)/12),1,key='ec_today_page')
@@ -94,7 +99,7 @@ def _today(service,view):
         with st.container(border=True,key='error_cards_block_'+item['topic_id']):
             st.subheader(item['path'][-1]);st.caption(' › '.join(item['path'][:-1]))
             st.markdown(f"**{item['planned']} {'card' if item['planned']==1 else 'cards'}** · Prioridade {item['priority'].lower()} · Saldo do lote: {item['remaining']}")
-            if len(item.get('blocks',[]))>1:st.caption(f"Divida em {len(item['blocks'])} blocos de até50 cards, com pausas.")
+            st.caption('Concluir o deck iniciado hoje.' if item.get('in_progress_today') else 'Deck inteiro deste tema; faça pausas se precisar.')
             st.write(item['reason'])
             st.button('Registrar cards deste tema',key='ec_start_'+item['topic_id'],type='primary' if i==0 else 'secondary',on_click=_start_record,args=(item,view['token']))
     st.subheader('Feito neste dia de estudo')
@@ -125,7 +130,7 @@ def _topics(view):
         for t in topics[(page-1)*12:page*12]:
             st.markdown('**'+t['path'][-1]+'**');st.caption(' › '.join(t['path'][:-1]))
             st.write(f"{t['remaining']} cards · {t['priority']}")
-            if view['active']:st.button('Estudar este tema de cards',key='ec_manual_'+t['topic_id'],on_click=_start_record,args=({**t,'planned':min(50,t['remaining'])},view['token']))
+            if view['active']:st.button('Estudar este tema de cards',key='ec_manual_'+t['topic_id'],on_click=_start_record,args=({**t,'planned':t['remaining']},view['token']))
     if view['unallocated']:
         with st.expander(f"{view['unallocated']} cards ainda sem subtema visível"):
             for r in view['snapshot']['tree']['unresolved']:st.write(' › '.join(r['path'])+f" · {r['count']} cards · {r['reason']}")
@@ -167,7 +172,7 @@ def _import_and_settings(service,view):
     st.subheader('Carga que cabe na sua rotina')
     with st.form('ec_settings'):
         daily=st.number_input('Cards de erros por dia',0,2000,view['settings']['daily'],step=10)
-        st.caption('Carga separada das questões. Descansos e simulados ficam sem carga automática; os retornos individuais continuam na Osler.')
+        st.caption('Referência separada das questões, com até10% de margem para fechar decks inteiros. Descansos e simulados ficam sem carga automática; os retornos individuais continuam na Osler.')
         save=st.form_submit_button('Salvar carga de cards')
     if save:
         try:service.configure(int(daily),view['settings']['days'],view['token']);st.rerun()
@@ -175,7 +180,7 @@ def _import_and_settings(service,view):
     with st.expander('Ajustar somente um dia'):
         with st.form('ec_day_settings'):
             selected=st.date_input('Dia para ajustar os cards',value=today_local(),min_value=today_local(),key='ec_day_override')
-            amount=st.number_input('Limite de cards nesse dia (zero para pausar)',0,2000,view['settings']['daily'],key='ec_day_amount')
+            amount=st.number_input('Referência de cards nesse dia (zero para pausar)',0,2000,view['settings']['daily'],key='ec_day_amount')
             reset=st.checkbox('Voltar à carga automática nesse dia')
             save_day=st.form_submit_button('Atualizar esse dia de cards')
         if save_day:
@@ -185,6 +190,7 @@ def _import_and_settings(service,view):
     if view['snapshot']:
         with st.expander('Fonte, prioridades e limites do cálculo'):
             snapshot=view['snapshot'];st.write(f"{snapshot['filename']} · retrato de {_date(snapshot['observed_day'])} · total {_n(snapshot['tree']['total'])}")
+            for source in snapshot.get('supplements',[]):st.caption('Subtemas completados com o print preservado: '+source['filename'])
             for t in snapshot['tree']['topics']:
                 if len(t.get('source_paths',[]))>1:st.write('Grafias conciliadas: '+' / '.join(p[-1] for p in t['source_paths'])+f" · {t['count']} cards; contagens originais preservadas.")
             st.caption('A ordem combina incidência conhecida, acertos/erros com suavização estatística, tempo desde registro de cards e conexão com as questões de hoje. Dados ausentes recebem peso neutro. Convicção não é convertida em acerto. Pesos são uma política de triagem, sem validação como dose ótima.')
@@ -200,7 +206,7 @@ def render_error_cards(repo):
     if 'ec_notice' in st.session_state:st.success(st.session_state.pop('ec_notice'))
     if view['snapshot']:
         with st.container(border=True,key='error_cards_summary'):
-            st.markdown(f"**{view['done_today']} de {view['budget']} respostas em cards hoje** · {_n(view['remaining'])} cards identificados ainda sem passagem registrada")
+            st.markdown(f"**{view['done_today']} respostas em cards hoje · referência {view['budget']}/dia** · {_n(view['remaining'])} cards identificados ainda sem passagem registrada")
             if view['active']:st.progress(view['covered']/max(1,view['snapshot']['tree']['schedulable']))
             st.caption('Progresso deste lote; as revisões continuam na Osler. Repetições contam na carga diária e não reduzem novamente o saldo de cards diferentes.')
             if view['unallocated']:st.caption(f"Total importado: {_n(view['snapshot']['tree']['total'])} cards · {view['unallocated']} aguardam abertura dos grupos para revelar os subtemas.")
