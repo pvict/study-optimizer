@@ -7,7 +7,7 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.24.1.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.25.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 [Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 
@@ -24,6 +24,7 @@ A interface usa navegação visível em abas, campos com contorno e separação 
 - **Evolução:** jornada por semanas, meses e fim da preparação, com respostas, cobertura e pontos de atenção. Compare intervalos atuais com avanço condicional das revisões ao atingir a meta; cada cenário respeita a carga e fica separado dos resultados reais. [Hipóteses e limites](docs/research/evolucao-espacamento-condicional.md).
 - **Temas:** resultados registrados no app ao lado do histórico importado, com fontes separadas; filtros de situação e período, tabela ou lista paginada e exportação. A coluna Próxima revisão mostra a vaga prevista no calendário para o tema pesquisado, separada da data devida. [Entenda as contagens](docs/research/temas-historico-e-blocos.md).
 - **Revisões por tema:** dose do próximo bloco ajustada aos resultados reais; manutenção menor após bons encontros espaçados, reforço após dificuldades e revisões seguintes a recalcular. [Critérios e limites](docs/research/dose-adaptativa-por-tema.md).
+- **Revisões equilibradas:** acerto objetivo e tamanho da amostra orientam dose e intervalo; convicção continua nos retornos específicos. Sem piso automático de 20 a todo resultado abaixo da meta. Lotes e prática do tema compartilham o orçamento, com registros separados e crédito para complementos próximos. Mudança com prévia em Ajustes → Como o app calcula as revisões. [Método, evidência e limites](docs/research/revisoes-equilibradas.md).
 - **Registro:** acertos, convicção, questões novas/repetidas/mistas, importação de CSV/TSV e histórico de correções.
 - **Plano de corte:** em Temas, diferença entre demanda condicional e capacidade, com propostas protegendo temas frágeis e opção de prévia, aplicar e desfazer.
 - **Minha meta:** em Temas, corte com fonte e faixas observadas de simulados e questões novas, mantendo denominadores separados. Não prevê aprovação.

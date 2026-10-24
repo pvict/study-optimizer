@@ -6,6 +6,8 @@
 
 ## Modelos e funcionalidades existentes
 
+- [Revisões equilibradas: acerto, amostra e retornos coordenados — v0.25](research/revisoes-equilibradas.md)
+
 - [Pesos com incidência individual e próxima revisão na tabela — v0.24.1](research/pesos-e-proximas-revisoes.md)
 
 - [Evolução e jornada: cenários, rendimento e conquistas — v0.19](research/evolucao-v0.19.md)

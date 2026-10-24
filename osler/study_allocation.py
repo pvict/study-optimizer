@@ -33,15 +33,23 @@ def category_allocation(available,states,profile,budget,day_target,today):
         want_new+=round(spare*profile.new_share)
         want_reviews=budget-want_new
     pools=[[t for t in available if topic_is_new(t)],[t for t in available if not topic_is_new(t)]]
-    minimum=min(profile.min_block,budget)
+    balanced=profile.review_strategy=='balanced_v2'
+    minimum=profile.min_block if balanced else min(profile.min_block,budget)
+    def floor(t): return min(minimum,t.get('lot_questions',minimum),t.get('recommended_questions',minimum)) if t.get('allow_small_lot') else minimum
+    def sized(t,limit):
+        q=min(t.get('recommended_questions',minimum),t['allocation_capacity'],limit)
+        if balanced and t.get('review_kind')=='combined' and q<t['lot_questions']+t['representative_needed']:
+            q=min(q,t['lot_questions'])
+            t={**t,'review_kind':'lot_only','recommended_questions':q,'allocation_capacity':q}
+        return t,q
     def pick(pool,quota,slots):
         result=[]
         used=0
-        if quota<minimum or not slots: return result
+        if not slots: return result
         for t in pool:
             if len(result)>=slots: break
-            required=min(t.get('recommended_questions',minimum),t['allocation_capacity'],quota)
-            if required>=minimum and used+required<=quota and len(result)<slots:
+            t,required=sized(t,quota-used if balanced else quota)
+            if required>=floor(t) and required>0 and used+required<=quota and len(result)<slots:
                 result.append((t,required))
                 used+=required
         return result
@@ -56,16 +64,16 @@ def category_allocation(available,states,profile,budget,day_target,today):
     _,groups=best
     selected=[t for group in groups for t,q in group]
     counts={t['topic_id']:q for group in groups for t,q in group}
-    capped=profile.workload_mode=='adaptive'
+    capped=profile.workload_mode=='adaptive' or profile.review_strategy=='balanced_v2'
     for group,quota in zip(groups,[want_new,want_reviews]): _fill([t for t,q in group],counts,quota,capped)
     # Ceder sobra é explícito; uma preferência de 0%/100% permanece estrita.
     if 0<profile.new_share<1:
         for t in available:
             left=budget-sum(counts.values())
             if left<=0: break
-            if t in selected or len(selected)>=profile.max_topics: continue
-            required=min(t.get('recommended_questions',minimum),t['allocation_capacity'],left)
-            if required>=minimum:
+            if any(t['topic_id']==chosen['topic_id'] for chosen in selected) or len(selected)>=profile.max_topics: continue
+            t,required=sized(t,left)
+            if required>=floor(t) and required>0:
                 selected.append(t)
                 counts[t['topic_id']]=required
         _fill(selected,counts,budget,capped)

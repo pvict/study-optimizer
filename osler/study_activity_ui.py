@@ -72,7 +72,9 @@ def render_result_feedback(view,session_id):
         else: st.caption('Não há contato indicado dentro da preparação. Confira a data da prova em Ajustes.')
     pending=feedback['pending']
     if pending:
-        st.info(f"{pending['questions']} respostas deste registro ainda sem convicção · retorno em {_date_label(pending['due_date'])}. Esse lote fica separado da revisão completa do tema.")
+        if feedback.get('coordinated_return'):
+            st.info(f"Retorno coordenado em {_date_label(pending['due_date'])}: as {pending['questions']} respostas ainda sem convicção entram no mesmo bloco de {feedback['next_questions']} questões no total. Registre o lote vinculado e o complemento separadamente para preservar as contagens.")
+        else: st.info(f"{pending['questions']} respostas deste registro ainda sem convicção · retorno em {_date_label(pending['due_date'])}. Esse lote fica separado da revisão completa do tema.")
     elif e['kind']=='bloco' and feedback['conviction_pct'] is None:
         st.caption('Sem a contagem de convicção, não foi criado um lote de erros e chutes para este bloco.')
     st.caption('A quantidade é recalculada com seus registros; consulte as vagas no Calendário. Um único bloco não comprova domínio do tema.')

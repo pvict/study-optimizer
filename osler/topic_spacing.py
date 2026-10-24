@@ -6,6 +6,9 @@ from .planning import _date
 
 
 def spacing_state(entries,profile,as_of,incidence_strength=0):
+    if profile.review_strategy=='balanced_v2':
+        from .balanced_reviews import balanced_spacing
+        return balanced_spacing(entries,profile,as_of,incidence_strength)
     p=profile.parameters
     daily=defaultdict(list)
     for e in entries:

@@ -8,6 +8,9 @@ from .planning import _date
 
 def question_dose(state,profile,entries=(),as_of=None):
     """Política inicial explícita: necessidade + incerteza + relevância, não dose clínica validada."""
+    if profile.review_strategy=='balanced_v2':
+        from .balanced_reviews import balanced_dose
+        return balanced_dose(state,profile,entries,as_of)
     params=profile.parameters
     p=state['confidence'] if state['confidence']['exact_n'] else state['performance']
     target=profile.target_accuracy/100

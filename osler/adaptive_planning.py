@@ -14,6 +14,7 @@ from .review_queue import review_queue
 from .topic_trajectory import question_dose, next_stage
 from .study_allocation import category_allocation
 from .review_policy import initial_interval,domain_evidence,review_order
+from .balanced_reviews import confirmed_deficit,coordinate_due,unresolved_linked_failure
 
 
 def posterior(correct, n):
@@ -113,10 +114,12 @@ def _series(entries):
 def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None,error_paths=()):
     day=_date(as_of)
     params=profile.parameters
+    balanced=profile.review_strategy=='balanced_v2'
     incidence=incidence_weights(topics,datasets,institution_weights,as_of,params)
     by_path=defaultdict(list)
     for event in sessions:
         e=event['entry']
+        if balanced: e={**e,'_session_id':event.get('session_id')}
         if e['day']<=as_of: by_path[tuple(normalize_path(e['path']))].append(e)
     contact_paths={}
     for path,contact in contacts or []:
@@ -135,6 +138,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         safety_rate=snapshot['confident_accuracy_pct']/100 if snapshot and snapshot['confident_accuracy_pct'] is not None else None
         entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') else by_path[key]
         pending=[q for q in queued if tuple(normalize_path(q['path']))==key or topic.get('rollup') and tuple(normalize_path(q['path']))[:len(key)]==key]
+        linked_adverse=balanced and unresolved_linked_failure(entries,pending)
         committed=bool(pending or topic.get('cards_reduced_day') or any(e['kind']=='bloco' and (not profile.start_date or e['day']>=profile.start_date) for e in entries))
         recent=[e for e in entries if e['kind']=='bloco' and (day-_date(e['day'])).days<=profile.recent_days]
         fresh=[e for e in recent if e['mode']=='novas']
@@ -165,7 +169,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         signals=[]
         for mode in ('novas','mistas','repetidas'):
             series=_series([e for e in recent if e['mode']==mode and not e.get('review_of')])
-            if series['reported_n']>=5 and series['reported_percent'] is not None and series['reported_percent']<profile.target_accuracy/100:
+            below=series['reported_percent'] is not None and (series['reported_percent']<params.raw_low_threshold or confirmed_deficit(series,profile.target_accuracy/100,profile.min_block)) if balanced else series['reported_percent'] is not None and series['reported_percent']<profile.target_accuracy/100
+            if series['reported_n']>=(profile.min_block if balanced else 5) and below:
                 signals.append({'mode':mode,'n':series['reported_n'],'percent':series['reported_percent']})
         alert=min(signals,key=lambda s:s['percent']) if signals else None
         # Segurança recuperada é sinal descritivo separado, nunca amostra binomial de tentativas novas.
@@ -180,7 +185,9 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if entries: interval=spacing['interval'] if spacing['last_evidence_day'] else min(interval,spacing['interval'])
         else: interval=max(1,math.ceil(interval/(1+.5*incidence_strength)))
         if not committed: interval=initial_interval(snapshot if snapshot_current else None,profile,incidence_strength)
-        if alert: interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
+        if alert and (not balanced or alert['percent']<params.raw_low_threshold): interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
+        if balanced and (manual_adverse or registered_error): interval=min(interval,params.failure_interval)
+        if linked_adverse: interval=min(interval,params.first_interval)
         days_left=max(1,(_date(profile.exam_date)-day).days)
         interval=min(interval,max(1,days_left//4))
         interval=min(interval,profile.max_contact_gap)
@@ -199,9 +206,10 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         adverse_urgent=(observed is not None and performance['reported_n']>=10 and observed<.6 or
                         alert and alert['n']>=10 and alert['percent']<.6 or
                         manual.get('erros_criticos') is True or manual.get('erros_recorrentes') is True or
-                        confidence_rate is not None and confidence_rate<.6 or
+                        not balanced and confidence_rate is not None and confidence_rate<.6 or
                         safety_alert and snapshot['unique_questions']>=10 and safety_rate<.6 and (incidence_strength>=.1 or not incidence['contexts']))
-        evidence_priority='urgente' if adverse_urgent else 'alta' if (alert or safety_alert or observed is not None and performance['reported_n']>=10 and observed<profile.target_accuracy/100) else 'normal'
+        below_goal=confirmed_deficit(performance,profile.target_accuracy/100,profile.min_block) if balanced else observed is not None and performance['reported_n']>=10 and observed<profile.target_accuracy/100
+        evidence_priority='urgente' if adverse_urgent else 'alta' if (alert or safety_alert or below_goal or linked_adverse) else 'normal'
         temporal_priority='urgente' if committed and age is not None and age>=2*interval else 'alta' if reduced_due or overdue or pending_due else 'normal'
         priority=min((evidence_priority,temporal_priority),key={'urgente':0,'alta':1,'normal':2}.get)
         status='sem_registro' if not seen else 'diagnostico' if not primary or last is None else 'revisao'
@@ -214,17 +222,23 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         imported_pending=bool(snapshot_current and snapshot.get('pending_reviews'))
         score=max(importance,.000001)*(gap+profile.uncertainty_weight*uncertainty+.1*imported_pending+.01)*urgency
         reason='Começar um tema sem estudo registrado' if not seen else 'Medir rendimento e confirmar o último contato' if status=='diagnostico' else 'Reforçar desempenho abaixo da meta' if observed is not None and observed<profile.target_accuracy/100 else 'Revisitar pelo tempo sem contato' if overdue else 'Manter prática espaçada e conferir retenção'
+        if balanced and primary and not below_goal: reason='Ampliar a amostra e conferir retenção em um contato espaçado'
         if reduced_due: reason='Revisitar por questões após redução seletiva de cartões'
         if alert: reason=f"Reforçar erros recentes em questões {alert['mode']} ({100*alert['percent']:.0f}% em {alert['n']} questões)"
-        if confidence_rate is not None and confidence_rate<.6: reason='Recuperar acerto com convicção abaixo de 60%'
+        if not balanced and confidence_rate is not None and confidence_rate<.6: reason='Recuperar acerto com convicção abaixo de 60%'
         if pending_due: reason=f'Revisar {pending_due} respostas ainda sem convicção, com retorno marcado'
         if safety_alert and not pending_due: reason=f"Reforçar segurança acumulada da Osler ({100*safety_rate:.1f}% em {snapshot['unique_questions']} questões distintas; retrato de {snapshot['observed_date']})"
         if manual_adverse: reason='Reforçar erros críticos ou recorrentes informados por você'
+        if linked_adverse: reason='Há erros em retornos vinculados ainda não recuperados; eles não entram na taxa de questões novas'
         theme_contacts=[e['day'] for e in entries if e['kind']!='acumulado' and not e.get('review_of')]+[e['last_contact'] for e in entries if e.get('last_contact') and not e.get('review_of')]
         if known: theme_contacts.append(known)
         if snapshot and snapshot['last_contact']: theme_contacts.append(snapshot['last_contact'])
         theme_last=max(theme_contacts,default=None)
         due=(_date(spacing['last_evidence_day'])+timedelta(days=interval)).isoformat() if spacing['last_evidence_day'] else (_date(theme_last)+timedelta(days=interval)).isoformat() if theme_last else None
+        coordination=None
+        if balanced:
+            due,coordination=coordinate_due(due,pending,profile,as_of,spacing['last_evidence_day'] or theme_last,
+                protected=bool(manual_adverse or registered_error or linked_adverse or topic.get('cards_reduced_day') or observed is not None and observed<params.raw_low_threshold or alert and alert['percent']<params.raw_low_threshold))
         theme_due=due
         if pending: due=min([q['due_date'] for q in pending]+([due] if due else []))
         if reduced_due:
@@ -234,9 +248,12 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if due and profile.start_date: due=max(due,profile.start_date)
         raw_signal=observed if observed is not None else topic['pdf_accuracy']['value']/100 if topic['answered_pdf'] and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None else None
         if alert: raw_signal=min(raw_signal,alert['percent']) if raw_signal is not None else alert['percent']
-        low_accuracy=confidence_rate is not None and confidence_rate<.6 or raw_signal is not None and raw_signal<.6 or safety_alert and safety_rate<.6
-        phase=learning_state({'seen':seen,'n':confidence['exact_n'],'rate':confidence_rate,'lower':confidence['interval'][0] if confidence['interval'] else None,
-                              'source':confidence_source,'overdue':overdue,'pending_due':pending_due,'raw_rate':raw_signal},profile)
+        low_accuracy=not balanced and confidence_rate is not None and confidence_rate<.6 or raw_signal is not None and raw_signal<.6 or safety_alert and safety_rate<.6
+        evidence=performance if balanced else confidence
+        phase=learning_state({'seen':seen,'n':evidence['exact_n'],'rate':evidence['observed'],'lower':evidence['interval'][0] if evidence['interval'] else None,
+                              'source':source if balanced else confidence_source,'overdue':overdue,'pending_due':pending_due,'raw_rate':raw_signal},profile)
+        if balanced and phase=='dominado' and spacing['streak']<2: phase='aprendendo'
+        if linked_adverse: phase='alerta'
         if safety_alert and safety_rate<.6: phase='alerta'
         if not committed and seen and not low_accuracy and not reduced_due: phase='aprendendo'
         if manual_adverse or registered_error: phase='alerta'
@@ -258,6 +275,12 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                        'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,'registered_error':registered_error,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})
+        if balanced:
+            states[-1].update(review_coordination=coordination,activity_day=as_of,
+                linked_adverse=linked_adverse,
+                coordinated_credits=[{'date':e['day'],'questions':e['questions']} for e in entries if e['kind']=='bloco' and e.get('review_of') and theme_due and abs((_date(e['day'])-_date(theme_due)).days)<=2],
+                completed_today=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['day']==as_of),
+                representative_today=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['day']==as_of and not e.get('review_of')))
         states[-1].update(question_dose(states[-1],profile,entries,as_of))
         states[-1]['theme_recommended_questions']=states[-1]['recommended_questions']
         from .study_capacity import practice_state
@@ -391,7 +414,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in candidates
                if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and
-               t['total']>=profile.min_block and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,minimum)]
+               (t['total']>=profile.min_block or t.get('allow_small_lot')) and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,min(minimum,t['recommended_questions']) if t.get('allow_small_lot') else minimum)]
     if any(t.get('preventive_priority') for t in available):
         ranks={'urgente':0,'alta':1,'normal':2}
         available.sort(key=lambda t:(ranks[t['priority']],t.get('anticipated_days',0)>0,not t.get('preventive_priority',False),-t['score']))

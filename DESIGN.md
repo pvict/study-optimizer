@@ -258,6 +258,8 @@ Resumo de Hoje mostra questões registradas sobre a meta e restantes em faixa co
 
 Em Minhas provas, pesos ficam indisponíveis com motivo e instrução de recuperação quando faltam tabelas individuais. A prévia apresenta pesos e blocos de hoje antes/depois; fontes, prioridades e datas futuras ficam em detalhes recolhidos. Aplicar é uma ação separada e é desabilitada quando os dados mudam. Nenhuma nova paleta, componente promocional ou progresso foi introduzido.
 
+Revisões equilibradas usam a mesma hierarquia: escolha e comparação em “Como o app calcula as revisões”, nos ajustes avançados. O feedback distingue meta de acerto e informação de convicção. Quando há bloco combinado, o total fica explícito e as ações de lote vinculado e complemento têm quantidades no rótulo. Um retorno pequeno é identificado como lote, sem sugerir domínio do tema. O histórico da última mudança permite conferir o impacto sem ocupar a tela principal.
+
 ### Evidência e limites
 
 Esta captura é estática. O detector estático anterior à atualização documental sinalizou o traço inferior da aba como borda de cartão arredondado, embora o seletor fixe raio zero; esse diagnóstico não foi convertido em regra do sistema. Seus advisories de tamanho foram conciliados com as funções tipográficas observadas; a regra sem uso do resumo permanece fora dos tokens.

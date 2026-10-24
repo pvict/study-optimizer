@@ -26,6 +26,17 @@ def practice_state(state,day,profile):
     due=sum(lot['questions'] for lot in state.get('pending_reviews',[]) if lot['due_date']<=day)
     theme_due=state.get('theme_review_due',state.get('next_review'))
     only_lot=bool(due and (not theme_due or theme_due>day))
+    if profile.review_strategy=='balanced_v2':
+        representative=state.get('representative_today',0) if state.get('activity_day')==day else 0
+        credits=sum(c['questions'] for c in state.get('coordinated_credits',[]) if theme_due and c['date']<=day and
+                    abs((_date(c['date'])-_date(theme_due)).days)<=2 and (_date(day)-_date(theme_due)).days<=2)
+        done=representative+credits
+        if only_lot: q=min(state['total'],due)
+        elif theme_due and theme_due<=day:
+            q=min(state['total'],max(0,q-done,due+max(0,profile.min_block-representative)))
+        return {'recommended_questions':q,'review_kind':'lot_only' if only_lot else 'combined' if due else 'theme',
+                'allow_small_lot':bool(due),'lot_questions':due,
+                'representative_needed':max(0,profile.min_block-representative)}
     if only_lot: q=min(state['total'],max(profile.min_block,due))
     elif due: q=max(q,min(state['total'],due))
     return {'recommended_questions':q,'review_kind':'lot_only' if only_lot else 'theme'}
@@ -54,7 +65,9 @@ def capacity_policy(states,profile,day,budget,target,limits=None):
         for lot in t.get('pending_reviews',[]):
             i=max(0,(_date(lot['due_date'])-start).days)
             if i<HORIZON: lots_by_day[i]=lots_by_day.get(i,0)+lot['questions']
-        for i,q in lots_by_day.items(): per_day[i]=max(per_day.get(i,0),min(t['total'],max(profile.min_block,q)))
+        for i,q in lots_by_day.items():
+            amount=q+(profile.min_block if i in per_day else 0) if profile.review_strategy=='balanced_v2' else max(profile.min_block,q)
+            per_day[i]=max(per_day.get(i,0),min(t['total'],amount))
         for i,q in per_day.items(): loads[i]+=q; slots[i]+=1
     # A proporção de referência cede espaço à revisão devida; 0% e100% fixos seguem no modo fixo.
     new_questions=min(round(target*profile.new_share),max(0,budget-loads[0]))

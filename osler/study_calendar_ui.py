@@ -10,6 +10,7 @@ from .study_capacity_ui import render_capacity_summary
 from .study_swap_ui import render_swap_controls
 from .final_review_ui import render_exam_dates,render_final_review,render_mock_days
 from .mock_schedule_ui import render_mock_schedule
+from .review_parts_ui import render_review_parts
 
 
 def _select_day(day):
@@ -122,6 +123,7 @@ def render_calendar(service,go_record,go_review=None):
 
 
 def _render_selected_day(service,go_record,go_review,today,start_date,selected,plan):
+    strategy=service.store.profile()['profile'].get('review_strategy')
     st.subheader('Blocos de '+ '/'.join(reversed(selected.split('-'))))
     override=plan.get('routine_override',{})
     if override.get('mode')=='mock_day': st.success(f"Dia feito por simulado · {override['mock_questions']} questões, separadas dos blocos.")
@@ -169,7 +171,9 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
             left.caption(' › '.join(item['path'][:-1]))
             if selected==today.isoformat():
                 mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
-                if item.get('review_kind')=='lot_only' and go_review:
+                if strategy=='balanced_v2' and item.get('review_kind') in {'lot_only','combined'} and go_review:
+                    with right: render_review_parts(item,selected,go_record,go_review,'calendar')
+                elif item.get('review_kind')=='lot_only' and go_review:
                     for lot in item['pending_reviews']:
                         if lot['due_date']<=selected: right.button('Revisar lote',key='calendar_lot_'+lot['session_id'],on_click=go_review,args=(lot,))
                     left.caption('O complemento do bloco pode ser registrado na tela Hoje.')

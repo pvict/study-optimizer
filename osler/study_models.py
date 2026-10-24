@@ -79,6 +79,7 @@ class AdaptiveProfile:
     exam_weights: dict[str,float] = field(default_factory=dict)
     exam_weight_basis: str = ''
     parameter_values: dict = field(default_factory=dict)
+    review_strategy: str = 'legacy_v1'
 
     @property
     def parameters(self):
@@ -86,6 +87,7 @@ class AdaptiveProfile:
         return AlgorithmParameters(**self.parameter_values).validate()
 
     def validate(self):
+        if not isinstance(self.review_strategy,str) or self.review_strategy not in {'legacy_v1','balanced_v2'}: raise ValueError('Estratégia de revisão inválida.')
         if not isinstance(self.exam_weight_basis,str) or self.exam_weight_basis and (len(self.exam_weight_basis)!=64 or any(c not in '0123456789abcdef' for c in self.exam_weight_basis)):
             raise ValueError('Confirmação de pesos inválida. Refaça a prévia em Minhas provas.')
         self.parameters

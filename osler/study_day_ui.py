@@ -14,6 +14,7 @@ from .study_swap_ui import render_swap_controls,render_swap_history
 from .study_errors_ui import render_error_context
 from .final_review_ui import render_approach
 from .weekly_review_ui import render_absence_notice,render_weekly_review
+from .review_parts_ui import render_review_parts
 
 
 def _change_extra(service,day,topic_id,questions,revision,remove=False):
@@ -124,7 +125,9 @@ def render_study_day(service,go_record,go_review,go_edit=None):
                     if item['added_by_user']: st.caption(f"Adicionado por você · {item['extra_pending']} questões extras neste bloco · só hoje")
                     elif item['priority']=='urgente': st.caption('Prioridade urgente · comece por aqui')
                     mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
-                    if item.get('review_kind')=='lot_only':
+                    if view['profile'].get('review_strategy')=='balanced_v2' and item.get('review_kind') in {'lot_only','combined'}:
+                        render_review_parts(item,day,go_record,go_review,'study')
+                    elif item.get('review_kind')=='lot_only':
                         lots=[lot for lot in item['pending_reviews'] if lot['due_date']<=day]
                         for lot in lots:
                             st.button(f"Revisar lote de {lot['questions']} respostas",key='study_lot_'+lot['session_id'],

@@ -18,6 +18,7 @@ from .exam_goals_ui import render_exam_goals
 from .exam_goals import ExamGoals
 from .study_evolution_ui import render_evolution
 from .study_activity_ui import render_result_feedback
+from .review_strategy_ui import render_review_strategy
 from .study_errors_ui import render_quick_error,render_errors
 from .mock_exams_ui import render_mock_exams,render_mock_settings
 from .final_review_ui import render_exam_weights
@@ -108,6 +109,7 @@ def render_adaptive(repo):
             if settings=='Meta e rotina':
                 with st.container(key='study_settings'):
                     _settings(service)
+                    render_review_strategy(service)
                     render_mock_settings(service)
                     render_parameter_settings(service)
             elif settings=='Minhas provas':
@@ -246,7 +248,7 @@ def _settings(service):
         start=st.date_input('Início do cronograma',value=date.fromisoformat(p.start_date) if p.start_date else None,key='settings_start_date',format='DD/MM/YYYY')
         st.caption('Antes dessa data, o app não cobra metas nem faltas. O histórico anterior continua valendo para as revisões.')
         target=st.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
-        st.caption('Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
+        st.caption('Objetivo de aprendizagem: acerto em questões novas e amostra suficiente; convicção é informação complementar. Não é nota de prova nem probabilidade de aprovação.' if p.review_strategy=='balanced_v2' else 'Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
         if ExamGoals(service.repository).active():
             exam=date.fromisoformat(p.exam_date)
             st.caption('Data efetiva do plano: '+record['profile']['exam_date']+'. Gerencie em Minhas provas.')

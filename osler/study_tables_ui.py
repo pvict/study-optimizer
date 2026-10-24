@@ -28,7 +28,7 @@ def _clear_filters():
         st.session_state.pop(key,None)
 
 
-def _topic_list(rows,signature,go_record,cumulative=False):
+def _topic_list(rows,signature,go_record,cumulative=False,objective_goal=False):
     if not rows:
         st.info('Nenhum tema nesses filtros. Tente outra busca ou escolha Todos os temas.')
         return
@@ -56,7 +56,7 @@ def _topic_list(rows,signature,go_record,cumulative=False):
             if 'Revisão devida' in row or action not in {'Priorizar agora','Distribuição gradual'}:
                 st.caption('Próxima revisão: '+due+(' · '+row['Tipo do próximo bloco'] if row.get('Tipo do próximo bloco') else ''))
             if cumulative and row.get('Domínio / evidência'): st.caption(row['Domínio / evidência'])
-            if row.get('Meta do tema (%)') is not None: st.caption(f"Meta do tema: {row['Meta do tema (%)']:g}% · acerto com convicção em questões novas e amostra suficiente.")
+            if row.get('Meta do tema (%)') is not None: st.caption(f"Meta do tema: {row['Meta do tema (%)']:g}% · "+('acerto em questões novas e amostra suficiente; convicção complementar.' if objective_goal else 'acerto com convicção em questões novas e amostra suficiente.'))
             left,right=st.columns(2)
             left.button('Registrar resultado',key='list_record_'+row['topic_id'],on_click=go_record,args=(row['topic_id'],10),disabled=not row['catalog_available'],width='stretch')
             right.button('Adiantar hoje',key='list_extra_'+row['topic_id'],on_click=_open_extra,args=(row['topic_id'],),disabled=not row['catalog_available'],width='stretch')
@@ -94,7 +94,7 @@ def render_topic_table(service,go_record):
     area=more_filters.selectbox('Área',['Todas',*areas],key='statistics_area')
     mode='Todas' if cumulative else more_filters.selectbox('Questões',list(MODES),key='statistics_mode')
     detail=more_filters.checkbox('Exibir mais estatísticas',key='statistics_detail')
-    more_filters.caption('Estado atual: Dominados têm convicção em blocos, amostra suficiente e revisão em dia; Aprendendo inclui medição pendente; Em alerta inclui baixo rendimento ou revisão vencida. Não vistos entram por incidência. O período filtra os resultados, sem redefinir o estado atual.')
+    more_filters.caption(('Estado atual: na estratégia equilibrada, Dominados exigem acerto na meta, amostra suficiente, encontros espaçados e revisão em dia; convicção é complementar. ' if view['profile'].get('review_strategy')=='balanced_v2' else 'Estado atual: Dominados têm convicção em blocos, amostra suficiente e revisão em dia; ')+ 'Aprendendo inclui medição pendente; Em alerta inclui baixo rendimento ou revisão vencida. Não vistos entram por incidência. O período filtra os resultados, sem redefinir o estado atual.')
     rows=topic_statistics(specific_states,view['sessions'],period,reference,mode)
     rows=[r for r in rows if tuple(normalize_path(r['Caminho'].split(' → '))) not in aggregate_paths]
     if search:
@@ -160,7 +160,7 @@ def render_topic_table(service,go_record):
     signature=hashlib.sha256(json.dumps([cumulative,period,reference,mode,[r['topic_id'] for r in rows]]).encode()).hexdigest()[:16]
     layout=st.radio('Como visualizar?',['Tabela','Lista'],horizontal=True,key='statistics_layout')
     selected=None
-    if layout=='Lista': _topic_list(rows,signature,go_record,cumulative)
+    if layout=='Lista': _topic_list(rows,signature,go_record,cumulative,view['profile'].get('review_strategy')=='balanced_v2')
     else:
         st.caption('Selecione uma linha para agir no tema. Deslize a tabela para ver mais colunas ou escolha Lista.')
         selected=st.dataframe(displayed,hide_index=True,width='stretch',height=510,key='study_topics_table_'+signature,on_select='rerun',selection_mode='single-row',

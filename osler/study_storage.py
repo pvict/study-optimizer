@@ -127,7 +127,7 @@ class StudyStore:
             effective=replace(effective,institution_weights=policy['effective_weights'])
         return {'id':row['id'] if row else 0,'profile':effective.to_dict(),'configured_profile':configured.to_dict(),'weight_policy':policy}
 
-    def save_profile(self, profile, expected_id,*,expected_planning_token=None):
+    def save_profile(self, profile, expected_id,*,expected_planning_token=None,audit_preview=None):
         profile.validate()
         with self.repository._connection() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -142,7 +142,12 @@ class StudyStore:
                 policy=exam_weight_policy(profile,policy_inputs(db),today_local().isoformat())
                 if not policy['allowed']: raise ValueError(policy['reason'])
                 if profile.exam_weight_basis!=policy['basis']: raise ValueError('Confirme os pesos em uma prévia antes de salvar.')
-            return db.execute('INSERT INTO study_profiles(payload,created_at) VALUES(?,?)',(_encoded(profile.to_dict()),utc_now())).lastrowid
+            profile_id=db.execute('INSERT INTO study_profiles(payload,created_at) VALUES(?,?)',(_encoded(profile.to_dict()),utc_now())).lastrowid
+            if audit_preview is not None:
+                payload=_encoded({'kind':'review_strategy.change','profile_before':expected_id,'profile_after':profile_id,'preview':audit_preview})
+                db.execute('INSERT INTO study_plan_runs(payload,digest,created_at) VALUES(?,?,?)',
+                    (payload,hashlib.sha256(payload.encode()).hexdigest(),utc_now()))
+            return profile_id
 
     def save_plan(self, plan):
         payload = _encoded(plan)

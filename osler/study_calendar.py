@@ -100,6 +100,8 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
                     record['remaining']-=assigned
                     free-=assigned
                     scheduled_pending+=assigned
+            if profile.review_strategy=='balanced_v2' and item.get('review_kind')=='lot_only':
+                t.setdefault('coordinated_credits',[]).append({'date':day,'questions':item['questions']})
             if spacing_scenario=='progressive':
                 advance_projected_spacing(t,profile,day,item['questions'],lot_only=item.get('review_kind')=='lot_only')
                 item['assumed_interval_after']=t.get('review_interval_days',7)

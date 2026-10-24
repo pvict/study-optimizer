@@ -37,9 +37,10 @@ from .triage_service import TriageServiceMixin
 from .study_triage_policy import apply_triage
 from .mock_schedule_service import MockScheduleServiceMixin
 from .exam_weight_service import ExamWeightServiceMixin
+from .review_strategy_service import ReviewStrategyServiceMixin
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin,ExamWeightServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin,ExamWeightServiceMixin,ReviewStrategyServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
