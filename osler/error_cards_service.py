@@ -12,6 +12,7 @@ from .planner_service import today_local
 from .storage import utc_now
 from .study_storage import StudyStore,_encoded
 from .models import stable_topic_id
+from .error_card_creations import creation_queue
 
 
 def _expansion_parent(unresolved,path):
@@ -53,10 +54,31 @@ class ErrorCardsService:
     def _events(self,db=None):
         if db is None:
             with self.repo._connection() as connection:return self._events(connection)
-        return [{'id':r['id'],**json.loads(r['payload'])} for r in db.execute(
-            "SELECT id,payload FROM study_plan_runs WHERE json_extract(payload,'$.kind') LIKE 'error_cards.%' ORDER BY id")]
+        events=[]
+        for r in db.execute("SELECT id,payload,created_at FROM study_plan_runs WHERE json_extract(payload,'$.kind') LIKE 'error_cards.%' ORDER BY id"):
+            event={'id':r['id'],**json.loads(r['payload'])}
+            if event['kind']=='error_cards.snapshot':event['_source_recorded_at']=r['created_at']
+            events.append(event)
+        return events
 
-    def token(self):return max((r['id'] for r in self._events()),default=0)
+    def _token(self,db):
+        own=db.execute("SELECT COALESCE(MAX(id),0) FROM study_plan_runs WHERE json_extract(payload,'$.kind') LIKE 'error_cards.%'").fetchone()[0]
+        questions=db.execute('SELECT COALESCE(MAX(id),0) FROM study_events').fetchone()[0]
+        return hashlib.sha256(_encoded([own,questions]).encode()).hexdigest()
+
+    def token(self):
+        with self.repo._connection() as db:
+            db.execute('BEGIN')
+            return self._token(db)
+
+    def _context(self,day):
+        with self.repo._connection() as db:
+            db.execute('BEGIN')
+            events=self._events(db)
+            study=list(db.execute('SELECT * FROM study_events ORDER BY id'))
+            token=self._token(db)
+        snapshot=expanded_snapshot([r for r in events if r['kind']!='error_cards.snapshot' or r['observed_day']<=day])
+        return events,snapshot,creation_queue(snapshot,study,day),token
 
     def _append(self,payload,token,validate=None):
         encoded=_encoded(payload); digest=hashlib.sha256(encoded.encode()).hexdigest()
@@ -65,7 +87,7 @@ class ErrorCardsService:
             duplicate=db.execute('SELECT id FROM study_plan_runs WHERE digest=?',(digest,)).fetchone()
             if duplicate:return duplicate['id']
             events=self._events(db)
-            if max((r['id'] for r in events),default=0)!=token:raise ValueError('Os cards foram atualizados em outra tela. Atualize a página antes de salvar.')
+            if self._token(db)!=token:raise ValueError('Os cards ou os blocos de questões foram atualizados em outra tela. Atualize a página antes de salvar.')
             if validate:validate(events)
             return db.execute('INSERT INTO study_plan_runs(payload,digest,created_at) VALUES(?,?,?)',(encoded,digest,utc_now())).lastrowid
 
@@ -116,8 +138,11 @@ class ErrorCardsService:
             if previous['kind']=='error_cards.snapshot' and previous['sha256']==digest and previous['scope']==scope:return previous['id']
         folder=self.repo.exports/'error-cards';folder.mkdir(exist_ok=True)
         write_immutable(folder/(digest+'.html'),data)
+        with self.repo._connection() as db:
+            cutoff=db.execute('SELECT COALESCE(MAX(id),0) FROM study_events').fetchone()[0]
         return self._append({'kind':'error_cards.snapshot','sha256':digest,'filename':str(filename)[:200],
-                             'observed_day':day,'scope':scope,'tree':tree,'source':'exports/error-cards/'+digest+'.html'},token)
+                             'observed_day':day,'scope':scope,'tree':tree,'source':'exports/error-cards/'+digest+'.html',
+                             'study_event_cutoff':cutoff},token)
 
     def settings(self):
         return next((r for r in reversed(self._events()) if r['kind']=='error_cards.settings'),{'daily':200,'days':{}})
@@ -146,15 +171,15 @@ class ErrorCardsService:
         if any(type(n) is not int or not 0<=n<=5000 for n in (covered,repeats)) or covered+repeats==0:raise ValueError('Informe os cards estudados, sem duplicar repetições.')
         if recalled is not None and (type(recalled) is not int or not 0<=recalled<=covered+repeats):raise ValueError('Lembrados deve estar entre0 e o total de respostas.')
         if not isinstance(session_key,str) or not re.fullmatch(r'[\w.-]{1,128}',session_key):raise ValueError('Identificação do registro inválida.')
-        snapshot=self.latest_snapshot()
-        if not snapshot or snapshot['scope']=='inventory':raise ValueError('Importe um lote de pendentes ou escolha uma nova passagem antes de registrar.')
-        topics={t['topic_id']:t for t in snapshot['tree']['topics']}
-        if topic_id not in topics or day<snapshot['observed_day']:raise ValueError('Escolha um tema específico e uma data a partir do retrato importado.')
+        _,snapshot,queue,_=self._context(day)
+        if not queue['has_queue']:raise ValueError('Importe os pendentes ou registre os cards criados em um bloco de questões.')
+        topics={t['topic_id']:t for t in queue['topics']}
+        if topic_id not in topics:raise ValueError('Escolha um tema específico com cards disponíveis nesse dia.')
         def validate(events):
             if any(r.get('session_key')==session_key for r in events):raise ValueError('Este identificador já foi usado. Inicie outro registro.')
-            done=sum(r['covered'] for r in self._history(events) if not r['voided'] and r['snapshot_id']==snapshot['id'] and r['topic_id']==topic_id)
+            done=sum(r['covered'] for r in self._history(events) if not r['voided'] and r['snapshot_id']==queue['snapshot_id'] and r['topic_id']==topic_id)
             if done+covered>topics[topic_id]['count']:raise ValueError('Há mais cards diferentes que o saldo do tema. Informe repetições no campo separado ou importe um novo retrato.')
-        return self._append({'kind':'error_cards.session','snapshot_id':snapshot['id'],'session_key':session_key,
+        return self._append({'kind':'error_cards.session','snapshot_id':queue['snapshot_id'],'session_key':session_key,
                              'topic_id':topic_id,'path':topics[topic_id]['path'],'day':day,'covered':covered,'repeats':repeats,'recalled':recalled},token,validate)
 
     def undo(self,event_id,token):
@@ -177,8 +202,7 @@ class ErrorCardsService:
         return settings['daily'],'Carga habitual de cards de erros'
 
     def overview(self,day=None,question_view=None,routine=None):
-        day=day or today_local().isoformat();events=self._events()
-        snapshot=expanded_snapshot(events)
+        day=day or today_local().isoformat();events,snapshot,queue,token=self._context(day)
         settings=next((r for r in reversed(events) if r['kind']=='error_cards.settings'),{'daily':200,'days':{}})
         if question_view is None:
             from .adaptive_service import AdaptiveService
@@ -189,32 +213,34 @@ class ErrorCardsService:
         history=[r for r in self._history(events) if not r['voided'] and r['day']<=day]
         done=sum(r['covered']+r['repeats'] for r in history if r['day']==day)
         progress=defaultdict(lambda:{'covered':0,'last_day':None}); covered=0
-        if snapshot:
-            for r in history:
-                if r['snapshot_id']!=snapshot['id']:continue
-                p=progress[r['topic_id']];p['covered']+=r['covered'];p['last_day']=max(p['last_day'] or '',r['day']);covered+=r['covered']
-        active=bool(snapshot and snapshot['scope']!='inventory' and day>=snapshot['observed_day'])
-        ranked=plan_error_cards(snapshot['tree']['topics'],progress,question_view.get('states',[]),day,max(0,budget-done),
-            [i['topic_id'] for i in qp.get('items',[])],snapshot['observed_day'],reference_budget=budget,completed_today=done) if active else []
-        remaining=max(0,snapshot['tree']['schedulable']-covered) if snapshot else 0
-        return {'snapshot':snapshot,'settings':settings,'budget':budget,'budget_reason':reason,'done_today':done,'covered':covered,
-                'remaining':remaining,'unallocated':snapshot['tree']['unallocated'] if snapshot else 0,
+        for r in history:
+            if r['snapshot_id']!=queue['snapshot_id']:continue
+            p=progress[r['topic_id']];p['covered']+=r['covered'];p['last_day']=max(p['last_day'] or '',r['day'])
+        counts={t['topic_id']:t['count'] for t in queue['topics']}
+        covered=sum(min(counts.get(key,0),p['covered']) for key,p in progress.items())
+        unreconciled=sum(max(0,p['covered']-counts.get(key,0)) for key,p in progress.items())
+        active=queue['has_queue']
+        ranked=plan_error_cards(queue['topics'],progress,question_view.get('states',[]),day,max(0,budget-done),
+            [i['topic_id'] for i in qp.get('items',[])],queue['queue_start'],reference_budget=budget,completed_today=done) if active else []
+        remaining=sum(max(0,n-progress[key]['covered']) for key,n in counts.items())
+        return {**queue,'snapshot':snapshot,'settings':settings,'budget':budget,'budget_reason':reason,'done_today':done,'covered':covered,
+                'remaining':remaining,'unreconciled_covered':unreconciled,
                 'items':[t for t in ranked if t['planned']],'ranked':ranked,'progress':dict(progress),'history':history,
-                'active':active,'token':max((r['id'] for r in events),default=0),'routine':routine,'question_view':question_view}
+                'active':active,'token':token,'routine':routine,'question_view':question_view}
 
     def forecast(self,view,horizon=120):
         if not view['active']:return {'days':[],'completion':None,'remaining':view['remaining']}
-        snapshot=view['snapshot']; progress={k:dict(v) for k,v in view['progress'].items()}; rows=[]
+        progress={k:dict(v) for k,v in view['progress'].items()}; rows=[]
         current=today_local(); end=min(current+timedelta(days=horizon-1),date.fromisoformat(view['routine']['profile']['exam_date']))
         while current<=end:
             day=current.isoformat();capacity,reason=self.capacity(day,view['routine'],view['settings']);reference=capacity
             if current==today_local():capacity=max(0,capacity-view['done_today'])
             question_ids=[i['topic_id'] for i in view['question_view'].get('plan',{}).get('items',[])] if current==today_local() else []
-            ranked=plan_error_cards(snapshot['tree']['topics'],progress,view['question_view'].get('states',[]),day,capacity,question_ids=question_ids,snapshot_day=snapshot['observed_day'],reference_budget=reference,completed_today=view['done_today'] if current==today_local() else 0)
+            ranked=plan_error_cards(view['topics'],progress,view['question_view'].get('states',[]),day,capacity,question_ids=question_ids,snapshot_day=view['queue_start'],reference_budget=reference,completed_today=view['done_today'] if current==today_local() else 0)
             items=[t for t in ranked if t['planned']]
             for t in items:
                 p=progress.setdefault(t['topic_id'],{'covered':0,'last_day':None});p['covered']+=t['planned'];p['last_day']=day
-            remaining=sum(max(0,t['count']-progress.get(t['topic_id'],{}).get('covered',0)) for t in snapshot['tree']['topics'])
+            remaining=sum(max(0,t['count']-progress.get(t['topic_id'],{}).get('covered',0)) for t in view['topics'])
             rows.append({'date':day,'cards':sum(t['planned'] for t in items),'items':items,'remaining':remaining,'reason':reason})
             if not remaining:return {'days':rows,'completion':day,'remaining':0}
             current+=timedelta(days=1)

@@ -92,6 +92,8 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
             by_path={tuple(normalize_path(t['path'])):t for t in catalog}
         match=by_path.get(tuple(normalize_path(entry.path)))
         if match is None: raise ValueError('Tema não reconhecido de forma única no relatório atual. Use o caminho completo.')
+        if entry.cards_created and not match.get('is_leaf',True):
+            raise ValueError('Associe os flashcards criados a um tema específico, não a um grupo ou grande área.')
         return replace(entry,path=match['path'])
 
     def save_entry(self,entry,session_id=None,expected_version=0):
@@ -127,7 +129,8 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                                  minutes=float(row['minutos'].replace(',','.')) if row.get('minutos') else None,
                                  last_contact=row.get('ultimo_contato') or None,source='Tabela manual de estudo',
                                  confident_correct=int(row['acertos_conviccao']) if row.get('acertos_conviccao') else None,
-                                 review_of=row.get('revisao_de') or None)
+                                 review_of=row.get('revisao_de') or None,
+                                 cards_created=int(row.get('cards_criados') or 0))
                 entry=self._validate_entry(entry,by_path)
                 sid=row.get('id_sessao') or f'csv-{digest}-{line}'
                 version=int(row.get('versao') or 0)

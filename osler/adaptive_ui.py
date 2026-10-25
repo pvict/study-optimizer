@@ -43,6 +43,7 @@ def _go_record(topic_id,questions,mode=None):
     st.session_state.pop('study_edit',None)
     st.session_state.pop('study_review_of',None)
     st.session_state.pop('study_confident',None)
+    st.session_state.pop('study_cards_created',None)
     st.session_state.pop('study_date',None)
     st.session_state.pop('study_duration',None)
     st.session_state.pop('record_search',None)
@@ -129,7 +130,16 @@ def _register(service):
     if saved:
         st.subheader('Registro concluído')
         st.write(saved['topic'])
-        render_result_feedback(service.overview(today_local().isoformat()),saved.get('session_id'))
+        question_view=service.overview(today_local().isoformat())
+        render_result_feedback(question_view,saved.get('session_id'))
+        from .error_cards_service import ErrorCardsService
+        queue=ErrorCardsService(service.repository).overview(question_view=question_view)
+        event=next((r for r in service.store.active(today_local().isoformat()) if r['session_id']==saved.get('session_id')),None)
+        if event and event['entry'].get('cards_created',0):
+            count=event['entry']['cards_created']
+            if saved['session_id'] in queue['created_session_ids']:
+                st.success(f'{count} flashcards criados neste bloco foram incluídos na sua fila de cards de erros. A carga diária foi mantida.')
+            else:st.caption(f'{count} flashcards criados neste bloco já estão abrangidos pelo retrato de cards importado; não foram somados outra vez.')
         render_quick_error(service,saved.get('session_id'))
         st.button('Voltar ao plano',key='study_back_to_plan',type='primary',on_click=_back_to_plan)
         st.button('Registrar outro estudo',key='study_another_entry',on_click=_go_record,args=(saved['topic_id'],20))
@@ -170,6 +180,10 @@ def _register(service):
             confident=st.number_input('Desses acertos, quantos foram com convicção?',min_value=0,max_value=1000000,value=None,key='study_confident') if method=='acertos' else None
             st.caption('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
         else: n,correct,percent,confident=0,None,None,None
+        cards_created=0
+        if kind=='bloco' and chosen.get('is_leaf',True):
+            cards_created=st.number_input('Quantos flashcards de erros você criou?',0,5000,0,key='study_cards_created')
+            st.caption('Conte apenas os cards novos que você criou neste bloco, não os que revisou. Eles entram automaticamente na fila deste tema; a meta diária de cards não muda.')
         with st.expander('Data, modalidade e detalhes'):
             day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date',format='DD/MM/YYYY',help='O dia de estudo vai das 04h até antes das 04h do dia seguinte, no horário de Brasília. Registros anteriores mantêm a data informada.')
             mode=st.selectbox('Essas questões eram',['novas','repetidas','mistas'],format_func={'novas':'Novas para mim','repetidas':'Questões que já fiz antes','mistas':'Mistura ou não sei separar'}.get,key='study_mode') if kind!='contato' else 'mistas'
@@ -178,17 +192,18 @@ def _register(service):
         submitted=st.form_submit_button('Salvar resultado e atualizar meu plano',type='primary')
     if submitted:
         entry=StudyEntry(lookup[selected]['path'],day.isoformat(),int(n),int(correct) if correct is not None else None,percent,kind,mode,duration,last or None,
-                         confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'))
+                         confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'),
+                         cards_created=int(cards_created))
         sid=editing['session_id'] if editing else st.session_state.setdefault('study_entry_id',uuid.uuid4().hex)
         service.save_entry(entry,sid,editing['version'] if editing else 0)
         st.session_state['last_study_mode']=entry.mode
         st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected,'session_id':sid}
-        for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of']: st.session_state.pop(key,None)
+        for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of','study_cards_created']: st.session_state.pop(key,None)
         st.session_state['adaptive_notice']='Resultado salvo. O plano, os alertas e a evolução foram atualizados.'
         st.rerun()
     with st.expander('Importar vários resultados de uma vez'):
         st.write('CSV/TSV de blocos ou acumulados, ou tabela colada. Use id_sessao para identificar cada lançamento; reimportar o mesmo arquivo não duplica o histórico. Acertos e percentual são alternativas.')
-        template='id_sessao;tema;data;tipo;modalidade;questoes;acertos;percentual;minutos;ultimo_contato;versao;acertos_conviccao;revisao_de\n'
+        template='id_sessao;tema;data;tipo;modalidade;questoes;acertos;percentual;minutos;ultimo_contato;versao;acertos_conviccao;revisao_de;cards_criados\n'
         st.download_button('Baixar cabeçalho da tabela',template.encode('utf-8-sig'),'resultados_modelo.csv','text/csv')
         upload=st.file_uploader('Resultados CSV ou TSV',type=['csv','tsv'],key='study_upload')
         pasted=st.text_area('Ou cole a tabela de resultados',key='study_paste')
@@ -221,6 +236,7 @@ def _edit(event):
     st.session_state.pop('record_search',None)
     st.session_state['study_review_of']=e.get('review_of')
     st.session_state['study_confident']=e.get('confident_correct')
+    st.session_state['study_cards_created']=e.get('cards_created',0)
     st.session_state['study_method']='percentual' if e['percent'] is not None else 'acertos'
     st.session_state['adaptive_topic']=stable_topic_id(e['path'])
     for key,value in {'study_n':e['questions'] or 1,'study_correct':e['correct'],'study_percent':e['percent'],'study_kind':e['kind'],

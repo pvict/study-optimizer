@@ -24,7 +24,19 @@ class ReductionStore:
     def _token(db):
         counters = tuple(db.execute(f'SELECT COALESCE(MAX(id),0) FROM {table}').fetchone()[0]
                          for table in ['observation_events', 'matching_events', 'guide_days', 'incidence_datasets', 'planner_events'])
-        return (*counters, study_event_token(db), *tuple(db.execute('SELECT COUNT(*),COALESCE(MAX(imported_at),?) FROM reports', ('',)).fetchone()))
+        # Tabelas opcionais: a leitura legada não inicializa nem migra o planejador.
+        # Contadores bastam para fontes aditivas; observações/dias também permitem UPDATE.
+        extra = []
+        for table in ('reduction_actions', 'study_profiles', 'study_plan_runs', 'guide_settings', 'algorithm_parameters',
+                      'algorithm_selections', 'exam_targets', 'audit_events'):
+            exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
+            extra.append((table, db.execute('SELECT COALESCE(MAX(rowid),0) FROM '+table).fetchone()[0] if exists else 0))
+        for table in ('observations', 'study_days'):
+            exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
+            rows = [tuple(row) for row in db.execute('SELECT * FROM '+table+' ORDER BY rowid')] if exists else []
+            extra.append((table, rows))
+        digest = hashlib.sha256(json.dumps(extra, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        return (*counters, study_event_token(db), *tuple(db.execute('SELECT COUNT(*),COALESCE(MAX(imported_at),?) FROM reports', ('',)).fetchone()), digest)
 
     def evidence_token(self):
         with self.repository._connection() as db:

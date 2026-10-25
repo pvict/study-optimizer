@@ -20,7 +20,8 @@ def _entry_summary(e):
     accuracy=(f"{e['correct']}/{n} acertos ({_percent(100*e['correct']/n)})" if e.get('correct') is not None else
               f"≈ {_percent(e['percent'])} de acerto" if e.get('percent') is not None else 'Acerto não informado')
     confidence=f"{e['confident_correct']}/{n} com convicção ({_percent(100*e['confident_correct']/n)})" if e.get('confident_correct') is not None else 'Convicção não informada'
-    return f'{n} questões · {accuracy} · {confidence}'
+    cards=f" · {e['cards_created']} flashcards criados" if e.get('cards_created') else ''
+    return f'{n} questões · {accuracy} · {confidence}{cards}'
 
 
 def render_day_activity(view,go_edit=None):

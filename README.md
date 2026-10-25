@@ -7,13 +7,15 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.26.1.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.27.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 [Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 
 A interface usa navegação visível em abas, campos com contorno e separação por linhas e tons de azul-cinza entre conteúdo e apoio. Hoje tem resumo compacto; Calendário mostra a programação antes das ferramentas de recuperação; Temas reúne filtros secundários em “Mais filtros”. Após salvar um resultado, a confirmação oferece retorno ao plano ou um novo registro. [Decisões e limites da verificação do redesign](docs/design/redesign-ui.md).
 
 ## O que o aplicativo oferece
+
+- **Cards criados nos blocos:** informe a quantidade ao registrar suas questões; a fila do tema acompanha edições e lançamentos desconsiderados, sem duplicar os cards já abrangidos por um novo HTML. Criar não conta como estudar e não muda sua carga diária. **Redução com dados atuais:** até três sugestões seletivas, com fontes datadas, temas protegidos e reavaliação em sete dias. [Funcionamento, critérios e limites](docs/research/reducao-atual-e-novos-cards.md).
 
 - **Cards de erros acumulados:** decks inteiros por tema, com referência diária própria e até10% de margem, sem fragmentos para preencher a meta. Importação HTML sem duplicar pais e filhos, prioridade por tema específico, registros separados de cards diferentes e repetições e cenário dos próximos dias. Descansos e simulados são respeitados. [Funcionamento e limites](docs/research/cards-erros-recuperacao.md) · [Decks inteiros e complemento de Psiquiatria](docs/research/decks-inteiros-psiquiatria.md).
 

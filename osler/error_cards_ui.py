@@ -13,6 +13,8 @@ from .planner_service import today_local
 def _n(n):return f'{n:,}'.replace(',','.')
 def _date(day):return date.fromisoformat(day).strftime('%d/%m/%Y')
 
+def _load_label(view):return f"referência {view['budget']}/dia" if view['budget'] else 'passagem automática pausada'
+
 
 def open_error_cards():
     st.session_state['main_view']='Diminuir revisões';st.session_state['ec_mode']='Erros acumulados'
@@ -20,12 +22,12 @@ def open_error_cards():
 
 def render_cards_summary(repo,question_view,day=None):
     service=ErrorCardsService(repo)
-    if not service.latest_snapshot():return
     today=today_local().isoformat();day=day or today
     view=service.overview(today,question_view=question_view)
+    if not view['snapshot'] and not view['has_queue'] and not view['history']:return
     with st.container(border=True):
         if day==today:
-            st.markdown(f"**Cards de erros · {view['done_today']} respostas hoje · referência {view['budget']}/dia**")
+            st.markdown(f"**Cards de erros · {view['done_today']} respostas hoje · {_load_label(view)}**")
             st.caption(f"{sum(t['planned'] for t in view['items'])} cards na próxima passagem · separados das questões.")
         elif day<today:
             done=sum(r['covered']+r['repeats'] for r in view['history'] if r['day']==day)
@@ -58,6 +60,11 @@ def _start_record(item,token):
 def _record(service,view):
     item=st.session_state.get('ec_recording')
     if not item:return
+    if item['token']!=view['token']:
+        st.warning('A fila mudou depois que este formulário foi aberto. Confira o saldo atualizado e abra o tema novamente.')
+        if st.button('Fechar registro desatualizado'):
+            st.session_state.pop('ec_recording',None);st.rerun()
+        return
     st.subheader('Registrar cards · '+item['path'][-1]);st.caption(' › '.join(item['path'][:-1]))
     with st.form('ec_record'):
         if item['remaining']:
@@ -69,7 +76,7 @@ def _record(service,view):
         with st.expander('Repetições e lembrança (opcional)'):
             include=st.checkbox('Também anotei quantas respostas lembrei antes de virar',key='ec_include_recalled')
             recalled=st.number_input('Respostas lembradas antes de virar',0,5000,0,key='ec_recalled')
-        day=st.date_input('Dia de estudo (encerra às04h)',value=today_local(),min_value=date.fromisoformat(view['snapshot']['observed_day']),max_value=today_local(),key='ec_record_day')
+        day=st.date_input('Dia de estudo (encerra às04h)',value=today_local(),min_value=date.fromisoformat(view['queue_start']),max_value=today_local(),key='ec_record_day')
         save=st.form_submit_button('Salvar bloco de cards',type='primary')
     if st.button('Cancelar registro de cards'):st.session_state.pop('ec_recording',None);st.rerun()
     if save:
@@ -83,15 +90,15 @@ def _record(service,view):
 
 def _today(service,view):
     if not view['active']:
-        st.info('Seu arquivo está guardado como inventário. Importe somente os pendentes ou escolha Nova passagem por todos em Importar e ajustar. Não presumimos atraso no acervo inteiro.');return
-    if not view['budget']:st.info(view['budget_reason']+'. Nenhuma carga automática de cards hoje; você pode ajustar apenas este dia.')
+        st.info('Seu arquivo está guardado como inventário. Importe somente os pendentes ou escolha Nova passagem por todos em Importar e ajustar. Não presumimos atraso no acervo inteiro.' if view['snapshot'] else 'Não há cards disponíveis na fila atual. Os estudos que você já registrou continuam abaixo.')
+    if not view['budget']:st.info('A passagem automática pelos cards está pausada. A fila e seus registros ficam guardados. Use Temas para estudar um deck por conta própria ou ajuste apenas um dia quando houver espaço na rotina.' if not view['settings']['daily'] else view['budget_reason']+'. Nenhuma carga automática de cards hoje; você pode ajustar apenas este dia.')
     items=view['items']
     if items:
         st.markdown(f"**{sum(t['planned'] for t in items)} cards em {len(items)} decks inteiros para fazer**")
         st.caption(f"Referência de {view['budget']} cards/dia, com até10% de margem para completar um deck. A meta não é preenchida com fragmentos de outros decks.")
     oversized=[t for t in view['ranked'] if t.get('oversized')]
     if view['budget'] and oversized:st.info('Decks acima da referência e da margem: '+', '.join(t['path'][-1]+f" ({t['remaining']})" for t in oversized[:3])+'. Para fazê-los inteiros, aumente a referência de um dia em Importar e ajustar ou escolha o deck em Temas.')
-    if not items and view['budget']:st.info('Nenhum novo bloco de primeira passagem hoje. Os registros abaixo e os retornos da Osler continuam disponíveis.')
+    if not items and view['budget'] and view['active']:st.info('Nenhum novo bloco de primeira passagem hoje. Os registros abaixo e os retornos da Osler continuam disponíveis.')
     if len(items)>12:
         page=st.number_input('Página dos blocos de cards',1,math.ceil(len(items)/12),1,key='ec_today_page')
         items=items[(page-1)*12:page*12]
@@ -114,11 +121,13 @@ def _today(service,view):
 
 
 def _topics(view):
+    if not view['active'] and not view['snapshot']:
+        st.info('A fila atual está vazia. O histórico de cards realizados permanece em Hoje.');return
     query=st.text_input('Buscar tema de cards',placeholder='Ex.: diverticulite, trauma, hanseníase',key='ec_search').casefold().strip()
     topics=view['ranked'] if view['active'] else [{**t,'remaining':t['count'],'priority':'Inventário','reason':'Pendência não confirmada'} for t in view['snapshot']['tree']['topics']]
     if view['active']:
         missing={t['topic_id'] for t in topics}
-        topics=[*topics,*[{**t,'remaining':0,'priority':'Primeira passagem registrada','reason':'Retornos individuais continuam na Osler'} for t in view['snapshot']['tree']['topics'] if t['topic_id'] not in missing]]
+        topics=[*topics,*[{**t,'remaining':0,'priority':'Primeira passagem registrada','reason':'Retornos individuais continuam na Osler'} for t in view['topics'] if t['topic_id'] not in missing]]
     topics=[t for t in topics if query in ' › '.join(t['path']).casefold()]
     layout=st.radio('Ver temas de cards',['Lista','Tabela'],horizontal=True,key='ec_layout')
     st.caption(f'{len(topics)} temas específicos nesta busca. Pais e filhos não são somados.')
@@ -140,6 +149,8 @@ def _topics(view):
 def _forecast(service,view):
     st.subheader('Primeira passagem pelos próximos dias')
     st.caption('Cenário a carga constante, sem novos cards e sem contabilizar retornos individuais da Osler. Não é previsão de domínio nem de fim de todas as revisões.')
+    if not view['settings']['daily'] and not any(view['settings']['days'].values()):
+        st.info('A passagem pelos cards está pausada. Sua fila fica guardada; ajuste a carga ou reserve um dia quando houver espaço na rotina.');return
     forecast=service.forecast(view,548)
     if forecast['completion']:st.write('Primeira passagem dos temas identificados: **'+_date(forecast['completion'])+'**, se este cenário for cumprido.')
     elif forecast['days']:st.write(f"Ainda restariam {forecast['remaining']} cards identificados ao fim do período de preparação neste cenário.")
@@ -164,12 +175,13 @@ def _import_and_settings(service,view):
             st.write(f"Prévia: **{_n(tree['total'])} cards**, {len(tree['topics'])} temas específicos e {tree['unallocated']} cards sem subtema visível. Pais não entram duas vezes.")
             scope=st.radio('O que esse arquivo representa?',['pending','inventory','pass'],format_func={'pending':'Somente não estudados ou pendentes','inventory':'Todos os criados, incluindo já revisados','pass':'Quero uma nova passagem por todos os cards deste arquivo'}.get,key='ec_scope')
             observed=st.date_input('Dia de estudo do retrato (vira às04h)',value=today_local(),max_value=today_local(),key='ec_observed')
-            st.caption('Um novo retrato substitui o saldo atual. Registros anteriores ficam no histórico e não são deduzidos outra vez. Uma cópia idêntica não reinicia a passagem.')
+            st.caption('Um novo retrato substitui o saldo atual e passa a abranger as criações já registradas até esse dia. Elas não serão somadas outra vez. Confira se o arquivo já inclui esses cards. Registros e originais ficam guardados; uma cópia idêntica não reinicia a passagem.')
             if st.button('Importar esta árvore de cards',type='primary'):
                 service.import_html(data,upload.name if upload else 'arvore-colada.html',observed.isoformat(),scope,view['token'])
                 st.session_state.pop('ec_recording',None);st.session_state['ec_notice']='Árvore importada. Confira o plano na aba Hoje.';st.rerun()
         except (ValueError,UnicodeError) as exc:st.error(str(exc))
     st.subheader('Carga que cabe na sua rotina')
+    st.caption('Esta é uma parte da sua capacidade total de flashcards, junto dos retornos da Osler. Não some esta carga por cima do seu limite de revisões. Com muitos retornos, zero pausa novas passagens sem perder a fila.')
     with st.form('ec_settings'):
         daily=st.number_input('Cards de erros por dia',0,2000,view['settings']['daily'],step=10)
         st.caption('Referência separada das questões, com até10% de margem para fechar decks inteiros. Descansos e simulados ficam sem carga automática; os retornos individuais continuam na Osler.')
@@ -204,19 +216,22 @@ def render_error_cards(repo):
     st.title('Seus cards de erros')
     st.caption('Uma passagem viável pelo que você criou, em temas específicos. As questões continuam no seu plano habitual.')
     if 'ec_notice' in st.session_state:st.success(st.session_state.pop('ec_notice'))
-    if view['snapshot']:
+    show_queue=bool(view['snapshot'] or view['has_queue'] or view['history'])
+    if show_queue:
         with st.container(border=True,key='error_cards_summary'):
-            st.markdown(f"**{view['done_today']} respostas em cards hoje · referência {view['budget']}/dia** · {_n(view['remaining'])} cards identificados ainda sem passagem registrada")
-            if view['active']:st.progress(view['covered']/max(1,view['snapshot']['tree']['schedulable']))
+            st.markdown(f"**{view['done_today']} respostas em cards hoje · {_load_label(view)}** · {_n(view['remaining'])} cards identificados ainda sem passagem registrada")
+            if view['active']:st.progress(view['covered']/max(1,view['total_cards']))
             st.caption('Progresso deste lote; as revisões continuam na Osler. Repetições contam na carga diária e não reduzem novamente o saldo de cards diferentes.')
+            if view['created_cards']:st.caption(f"{view['created_cards']} cards acrescentados pelos blocos de questões, sem alterar a carga diária.")
+            if view['unreconciled_covered']:st.warning(f"{view['unreconciled_covered']} cards já estudados ficaram sem saldo correspondente após uma correção. O estudo foi preservado e não foi descontado de outros temas. Confira os lançamentos em Registrar.")
             if view['unallocated']:st.caption(f"Total importado: {_n(view['snapshot']['tree']['total'])} cards · {view['unallocated']} aguardam abertura dos grupos para revelar os subtemas.")
     _record(service,view)
     today,topics,forecast,settings=st.tabs(['Hoje','Temas','Próximos dias','Importar e ajustar'])
     with today:
-        if view['snapshot']:_today(service,view)
-        else:st.info('Envie o HTML da árvore em Importar e ajustar. Você verá a prévia sem somar pais e filhos.')
+        if show_queue:_today(service,view)
+        else:st.info('Informe os flashcards criados ao registrar suas questões, ou envie o HTML da árvore em Importar e ajustar. Pais e filhos não entram duas vezes.')
     with topics:
-        if view['snapshot']:_topics(view)
+        if show_queue:_topics(view)
     with forecast:
-        if view['snapshot']:_forecast(service,view)
+        if show_queue:_forecast(service,view)
     with settings:_import_and_settings(service,view)

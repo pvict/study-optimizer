@@ -20,6 +20,7 @@ class StudyEntry:
     source: str = 'Informado pelo usuário'
     confident_correct: int | None = None
     review_of: str | None = None
+    cards_created: int = 0
 
     def validate(self):
         if not isinstance(self.path, list) or not self.path or any(not isinstance(p,str) or not p.strip() for p in self.path):
@@ -28,6 +29,9 @@ class StudyEntry:
         if self.kind not in {'bloco','acumulado','contato'} or self.mode not in {'novas','repetidas','mistas'}:
             raise ValueError('Tipo de registro ou modalidade inválida.')
         _number(self.questions, 'Questões', integer=True, maximum=1000000)
+        _number(self.cards_created, 'Flashcards criados', integer=True, maximum=5000)
+        if self.cards_created and self.kind != 'bloco':
+            raise ValueError('Flashcards criados devem acompanhar um bloco de questões de um tema específico.')
         if self.correct is not None:
             _number(self.correct, 'Acertos', integer=True, maximum=self.questions)
         if self.percent is not None:
