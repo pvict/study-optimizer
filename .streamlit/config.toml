@@ -2,6 +2,7 @@
 address = "127.0.0.1"
 port = 8501
 headless = true
+enableStaticServing = true
 maxUploadSize = 50
 enableCORS = true
 enableXsrfProtection = true
@@ -15,8 +16,14 @@ toolbarMode = "minimal"
 
 [theme]
 base = "light"
-primaryColor = "#2457d6"
-backgroundColor = "#f3f4f6"
-secondaryBackgroundColor = "#dfe7f1"
-textColor = "#1d1d1f"
-font = "sans-serif"
+primaryColor = "#4F46E5"
+backgroundColor = "#F6F7FB"
+secondaryBackgroundColor = "#F3F4F6"
+textColor = "#111827"
+font = '"SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, Inter, "Segoe UI", system-ui, sans-serif'
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/InterVariable.woff2"
+weight = "100 900"
+style = "normal"

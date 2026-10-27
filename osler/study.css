@@ -1,37 +1,13 @@
-:root {
-  --study-primary: #2457d6;
-  --study-primary-deep: #1e46ad;
-  --study-bg: #f3f4f6;
-  --study-surface: #e8edf5;
-  --study-soft: #dfe7f1;
-  --study-ink: #1d1d1f;
-  --study-muted: #5f6368;
-  --study-line: #d9dde3;
-  --study-field-line: #7d8796;
-  --study-selected: #eef3ff;
-  --study-success: #166534;
-  --study-success-bg: #f0fdf4;
-  --study-warning: #9a3412;
-  --study-warning-bg: #fff7ed;
-  --study-danger: #991b1b;
-  --study-danger-bg: #fef2f2;
-  --study-radius: 12px;
-  --study-space: 1rem;
-}
+/* Estrutura existente. Tokens, fonte e escala tipográfica em bento.css. */
 .stApp { background: var(--study-bg); color: var(--study-ink); }
 .stApp ::selection { background: #dbeafe; color: var(--study-ink); }
 .stApp input, .stApp textarea { caret-color: var(--study-primary); }
 .block-container { max-width: 1240px; padding: 4rem 2rem 4rem; container: study / inline-size; }
-.stApp h1 { font-size: 1.9rem; line-height: 1.2; letter-spacing: -.025em; font-weight: 700; padding-bottom: .3rem; }
-.stApp h2 { font-size: 1.3rem; line-height: 1.3; letter-spacing: -.015em; font-weight: 650; }
-.stApp h3 { font-size: 1.1rem; line-height: 1.4; font-weight: 650; }
-.stApp p, .stApp li { line-height: 1.55; }
+.stApp h1 { padding-bottom: .3rem; }
 .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label { overflow-wrap: anywhere; }
 .stApp [data-testid="stCaptionContainer"] { color: var(--study-muted); }
-.stApp [data-testid="stCaptionContainer"] p { font-size: .875rem; color: var(--study-muted); }
 .stApp input::placeholder, .stApp textarea::placeholder { color: var(--study-muted); opacity: 1; }
 .stApp [data-testid="stSidebar"] { background: var(--study-soft); border-right: 1px solid var(--study-line); }
-.stApp [data-testid="stSidebar"] h1 { font-size: 1.35rem; letter-spacing: -.02em; }
 .stApp [data-testid="stColumn"], .stApp [data-testid="stVerticalBlock"] { min-width: 0; }
 .stApp [data-testid="stDataFrame"], .stApp [data-testid="stDataEditor"] { max-width: 100%; min-width: 0; }
 .stApp [data-testid="stMetric"] { font-variant-numeric: tabular-nums; padding: .2rem 0; }
@@ -87,7 +63,6 @@
 }
 @media (max-width: 760px) {
   .block-container { padding: 4rem max(1rem, env(safe-area-inset-left)) 3rem; }
-  .stApp h1 { font-size: 1.65rem; }
   .stApp [data-testid="stHorizontalBlock"] { flex-direction: column; align-items: stretch; gap: .8rem; }
   .stApp [data-testid="stColumn"] { width: 100%; flex: 1 1 100%; }
   .stApp input, .stApp textarea, .stApp [data-baseweb="select"] { font-size: 16px; }

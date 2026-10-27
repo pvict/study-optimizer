@@ -1,406 +1,302 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-22T01:15:53.117125+00:00",
-  "title": "Design System: Osler",
+  "generatedAt": "2026-10-27T16:22:51.653177+00:00",
+  "title": "Design System: Osler — Fundação Bento",
   "extensions": {
     "colorMeta": {
       "primary": {
-        "role": "primary",
-        "displayName": "Azul de ação",
-        "tonalRamp": [
-          "oklch(15.00% 0.20279 263.88)",
-          "oklch(26.43% 0.20279 263.88)",
-          "oklch(37.86% 0.20279 263.88)",
-          "oklch(49.29% 0.20279 263.88)",
-          "oklch(60.71% 0.20279 263.88)",
-          "oklch(72.14% 0.20279 263.88)",
-          "oklch(83.57% 0.20279 263.88)",
-          "oklch(95.00% 0.20279 263.88)"
-        ]
+        "displayName": "primary",
+        "role": "primary"
       },
       "primary-deep": {
-        "role": "primary",
-        "displayName": "Azul profundo",
-        "tonalRamp": [
-          "oklch(15.00% 0.17092 264.23)",
-          "oklch(26.43% 0.17092 264.23)",
-          "oklch(37.86% 0.17092 264.23)",
-          "oklch(49.29% 0.17092 264.23)",
-          "oklch(60.71% 0.17092 264.23)",
-          "oklch(72.14% 0.17092 264.23)",
-          "oklch(83.57% 0.17092 264.23)",
-          "oklch(95.00% 0.17092 264.23)"
-        ]
+        "displayName": "primary-deep",
+        "role": "primary"
       },
       "page": {
-        "role": "neutral",
-        "displayName": "Fundo neutro",
-        "tonalRamp": [
-          "oklch(15.00% 0.00287 264.54)",
-          "oklch(26.43% 0.00287 264.54)",
-          "oklch(37.86% 0.00287 264.54)",
-          "oklch(49.29% 0.00287 264.54)",
-          "oklch(60.71% 0.00287 264.54)",
-          "oklch(72.14% 0.00287 264.54)",
-          "oklch(83.57% 0.00287 264.54)",
-          "oklch(95.00% 0.00287 264.54)"
-        ]
+        "displayName": "page",
+        "role": "neutral"
       },
       "surface": {
-        "role": "neutral",
-        "displayName": "Superfície em azul-cinza"
-      },
-      "ink": {
-        "role": "neutral",
-        "displayName": "Tinta",
-        "tonalRamp": [
-          "oklch(15.00% 0.00381 286.10)",
-          "oklch(26.43% 0.00381 286.10)",
-          "oklch(37.86% 0.00381 286.10)",
-          "oklch(49.29% 0.00381 286.10)",
-          "oklch(60.71% 0.00381 286.10)",
-          "oklch(72.14% 0.00381 286.10)",
-          "oklch(83.57% 0.00381 286.10)",
-          "oklch(95.00% 0.00381 286.10)"
-        ]
-      },
-      "muted": {
-        "role": "neutral",
-        "displayName": "Texto de apoio",
-        "tonalRamp": [
-          "oklch(15.00% 0.00939 253.91)",
-          "oklch(26.43% 0.00939 253.91)",
-          "oklch(37.86% 0.00939 253.91)",
-          "oklch(49.29% 0.00939 253.91)",
-          "oklch(60.71% 0.00939 253.91)",
-          "oklch(72.14% 0.00939 253.91)",
-          "oklch(83.57% 0.00939 253.91)",
-          "oklch(95.00% 0.00939 253.91)"
-        ]
-      },
-      "line": {
-        "role": "neutral",
-        "displayName": "Linha clara",
-        "tonalRamp": [
-          "oklch(15.00% 0.00927 258.34)",
-          "oklch(26.43% 0.00927 258.34)",
-          "oklch(37.86% 0.00927 258.34)",
-          "oklch(49.29% 0.00927 258.34)",
-          "oklch(60.71% 0.00927 258.34)",
-          "oklch(72.14% 0.00927 258.34)",
-          "oklch(83.57% 0.00927 258.34)",
-          "oklch(95.00% 0.00927 258.34)"
-        ]
-      },
-      "selected": {
-        "role": "primary",
-        "displayName": "Azul suave de seleção",
-        "tonalRamp": [
-          "oklch(15.00% 0.01695 267.79)",
-          "oklch(26.43% 0.01695 267.79)",
-          "oklch(37.86% 0.01695 267.79)",
-          "oklch(49.29% 0.01695 267.79)",
-          "oklch(60.71% 0.01695 267.79)",
-          "oklch(72.14% 0.01695 267.79)",
-          "oklch(83.57% 0.01695 267.79)",
-          "oklch(95.00% 0.01695 267.79)"
-        ]
-      },
-      "selection": {
-        "role": "primary",
-        "displayName": "Azul de seleção de texto",
-        "tonalRamp": [
-          "oklch(15.00% 0.03159 255.59)",
-          "oklch(26.43% 0.03159 255.59)",
-          "oklch(37.86% 0.03159 255.59)",
-          "oklch(49.29% 0.03159 255.59)",
-          "oklch(60.71% 0.03159 255.59)",
-          "oklch(72.14% 0.03159 255.59)",
-          "oklch(83.57% 0.03159 255.59)",
-          "oklch(95.00% 0.03159 255.59)"
-        ]
-      },
-      "success": {
-        "role": "semantic",
-        "displayName": "Dominado",
-        "tonalRamp": [
-          "oklch(15.00% 0.10832 151.33)",
-          "oklch(26.43% 0.10832 151.33)",
-          "oklch(37.86% 0.10832 151.33)",
-          "oklch(49.29% 0.10832 151.33)",
-          "oklch(60.71% 0.10832 151.33)",
-          "oklch(72.14% 0.10832 151.33)",
-          "oklch(83.57% 0.10832 151.33)",
-          "oklch(95.00% 0.10832 151.33)"
-        ]
-      },
-      "success-bg": {
-        "role": "semantic",
-        "displayName": "Fundo Dominado",
-        "tonalRamp": [
-          "oklch(15.00% 0.01806 155.83)",
-          "oklch(26.43% 0.01806 155.83)",
-          "oklch(37.86% 0.01806 155.83)",
-          "oklch(49.29% 0.01806 155.83)",
-          "oklch(60.71% 0.01806 155.83)",
-          "oklch(72.14% 0.01806 155.83)",
-          "oklch(83.57% 0.01806 155.83)",
-          "oklch(95.00% 0.01806 155.83)"
-        ]
-      },
-      "warning": {
-        "role": "semantic",
-        "displayName": "Alerta",
-        "tonalRamp": [
-          "oklch(15.00% 0.14305 37.30)",
-          "oklch(26.43% 0.14305 37.30)",
-          "oklch(37.86% 0.14305 37.30)",
-          "oklch(49.29% 0.14305 37.30)",
-          "oklch(60.71% 0.14305 37.30)",
-          "oklch(72.14% 0.14305 37.30)",
-          "oklch(83.57% 0.14305 37.30)",
-          "oklch(95.00% 0.14305 37.30)"
-        ]
-      },
-      "warning-bg": {
-        "role": "semantic",
-        "displayName": "Fundo de alerta",
-        "tonalRamp": [
-          "oklch(15.00% 0.01577 73.68)",
-          "oklch(26.43% 0.01577 73.68)",
-          "oklch(37.86% 0.01577 73.68)",
-          "oklch(49.29% 0.01577 73.68)",
-          "oklch(60.71% 0.01577 73.68)",
-          "oklch(72.14% 0.01577 73.68)",
-          "oklch(83.57% 0.01577 73.68)",
-          "oklch(95.00% 0.01577 73.68)"
-        ]
-      },
-      "danger": {
-        "role": "semantic",
-        "displayName": "Atraso",
-        "tonalRamp": [
-          "oklch(15.00% 0.16132 26.90)",
-          "oklch(26.43% 0.16132 26.90)",
-          "oklch(37.86% 0.16132 26.90)",
-          "oklch(49.29% 0.16132 26.90)",
-          "oklch(60.71% 0.16132 26.90)",
-          "oklch(72.14% 0.16132 26.90)",
-          "oklch(83.57% 0.16132 26.90)",
-          "oklch(95.00% 0.16132 26.90)"
-        ]
-      },
-      "danger-bg": {
-        "role": "semantic",
-        "displayName": "Fundo de atraso",
-        "tonalRamp": [
-          "oklch(15.00% 0.01295 17.38)",
-          "oklch(26.43% 0.01295 17.38)",
-          "oklch(37.86% 0.01295 17.38)",
-          "oklch(49.29% 0.01295 17.38)",
-          "oklch(60.71% 0.01295 17.38)",
-          "oklch(72.14% 0.01295 17.38)",
-          "oklch(83.57% 0.01295 17.38)",
-          "oklch(95.00% 0.01295 17.38)"
-        ]
+        "displayName": "surface",
+        "role": "neutral"
       },
       "soft": {
-        "role": "neutral",
-        "displayName": "Apoio cinza"
+        "displayName": "soft",
+        "role": "neutral"
+      },
+      "ink": {
+        "displayName": "ink",
+        "role": "neutral"
+      },
+      "muted": {
+        "displayName": "muted",
+        "role": "neutral"
+      },
+      "ink-tertiary": {
+        "displayName": "ink-tertiary",
+        "role": "neutral"
+      },
+      "line": {
+        "displayName": "line",
+        "role": "neutral"
       },
       "field-line": {
-        "role": "neutral",
-        "displayName": "Limite de campo",
-        "tonalRamp": [
-          "oklch(15.00% 0.02553 258.37)",
-          "oklch(26.43% 0.02553 258.37)",
-          "oklch(37.86% 0.02553 258.37)",
-          "oklch(49.29% 0.02553 258.37)",
-          "oklch(60.71% 0.02553 258.37)",
-          "oklch(72.14% 0.02553 258.37)",
-          "oklch(83.57% 0.02553 258.37)",
-          "oklch(95.00% 0.02553 258.37)"
-        ]
+        "displayName": "field-line",
+        "role": "neutral"
       },
       "field-bg": {
-        "role": "neutral",
-        "displayName": "Interior de campo",
-        "tonalRamp": [
-          "oklch(15.00% 0.00287 264.54)",
-          "oklch(26.43% 0.00287 264.54)",
-          "oklch(37.86% 0.00287 264.54)",
-          "oklch(49.29% 0.00287 264.54)",
-          "oklch(60.71% 0.00287 264.54)",
-          "oklch(72.14% 0.00287 264.54)",
-          "oklch(83.57% 0.00287 264.54)",
-          "oklch(95.00% 0.00287 264.54)"
-        ]
+        "displayName": "field-bg",
+        "role": "neutral"
+      },
+      "selected": {
+        "displayName": "selected",
+        "role": "neutral"
+      },
+      "selection": {
+        "displayName": "selection",
+        "role": "neutral"
+      },
+      "success": {
+        "displayName": "success",
+        "role": "neutral"
+      },
+      "success-bg": {
+        "displayName": "success-bg",
+        "role": "neutral"
+      },
+      "warning": {
+        "displayName": "warning",
+        "role": "neutral"
+      },
+      "warning-bg": {
+        "displayName": "warning-bg",
+        "role": "neutral"
+      },
+      "danger": {
+        "displayName": "danger",
+        "role": "neutral"
+      },
+      "danger-bg": {
+        "displayName": "danger-bg",
+        "role": "neutral"
+      },
+      "sand": {
+        "displayName": "sand",
+        "role": "neutral"
+      },
+      "sand-ink": {
+        "displayName": "sand-ink",
+        "role": "neutral"
+      },
+      "clinica-fill": {
+        "displayName": "clinica-fill",
+        "role": "semantic"
+      },
+      "clinica-tint": {
+        "displayName": "clinica-tint",
+        "role": "semantic"
+      },
+      "clinica-ink": {
+        "displayName": "clinica-ink",
+        "role": "semantic"
+      },
+      "clinica-solid": {
+        "displayName": "clinica-solid",
+        "role": "semantic"
+      },
+      "cirurgia-fill": {
+        "displayName": "cirurgia-fill",
+        "role": "semantic"
+      },
+      "cirurgia-tint": {
+        "displayName": "cirurgia-tint",
+        "role": "semantic"
+      },
+      "cirurgia-ink": {
+        "displayName": "cirurgia-ink",
+        "role": "semantic"
+      },
+      "cirurgia-solid": {
+        "displayName": "cirurgia-solid",
+        "role": "semantic"
+      },
+      "pediatria-fill": {
+        "displayName": "pediatria-fill",
+        "role": "semantic"
+      },
+      "pediatria-tint": {
+        "displayName": "pediatria-tint",
+        "role": "semantic"
+      },
+      "pediatria-ink": {
+        "displayName": "pediatria-ink",
+        "role": "semantic"
+      },
+      "pediatria-solid": {
+        "displayName": "pediatria-solid",
+        "role": "semantic"
+      },
+      "go-fill": {
+        "displayName": "go-fill",
+        "role": "semantic"
+      },
+      "go-tint": {
+        "displayName": "go-tint",
+        "role": "semantic"
+      },
+      "go-ink": {
+        "displayName": "go-ink",
+        "role": "semantic"
+      },
+      "go-solid": {
+        "displayName": "go-solid",
+        "role": "semantic"
+      },
+      "preventiva-fill": {
+        "displayName": "preventiva-fill",
+        "role": "semantic"
+      },
+      "preventiva-tint": {
+        "displayName": "preventiva-tint",
+        "role": "semantic"
+      },
+      "preventiva-ink": {
+        "displayName": "preventiva-ink",
+        "role": "semantic"
+      },
+      "preventiva-solid": {
+        "displayName": "preventiva-solid",
+        "role": "semantic"
+      },
+      "neutral-fill": {
+        "displayName": "neutral-fill",
+        "role": "neutral"
+      },
+      "neutral-tint": {
+        "displayName": "neutral-tint",
+        "role": "neutral"
+      },
+      "neutral-ink": {
+        "displayName": "neutral-ink",
+        "role": "neutral"
+      },
+      "neutral-solid": {
+        "displayName": "neutral-solid",
+        "role": "neutral"
       }
     },
     "typographyMeta": {
       "body": {
-        "displayName": "Corpo nativo",
-        "purpose": "Família solicitada no tema; fonte resolvida e tamanho global não extraídos."
-      },
-      "headline": {
-        "displayName": "Título da tela",
-        "purpose": "Escala própria; reduz para 1.65rem em viewport até 760px."
-      },
-      "metric": {
-        "displayName": "Métrica",
-        "purpose": "Números tabulares; resumo reduz para 1.55rem em viewport até 760px."
-      },
-      "headline-narrow": {
-        "displayName": "headline-narrow",
-        "purpose": "Título em viewport até 760px."
-      },
-      "sidebar-title": {
-        "displayName": "sidebar-title",
-        "purpose": "Título da lateral."
-      },
-      "field-narrow": {
-        "displayName": "field-narrow",
-        "purpose": "Campos em viewport até 760px."
-      },
-      "progress-total": {
-        "displayName": "progress-total",
-        "purpose": "Total registrado no resumo compacto de Hoje."
-      },
-      "topic-metric": {
-        "displayName": "topic-metric",
-        "purpose": "Métricas da consulta Temas."
-      },
-      "evolution-metric-narrow": {
-        "displayName": "evolution-metric-narrow",
-        "purpose": "Métricas de Evolução em viewport ou container estreito."
-      },
-      "dose-narrow": {
-        "displayName": "dose-narrow",
-        "purpose": "Dose em viewport até 760px."
+        "displayName": "SF Pro / Inter local",
+        "purpose": "Pilha local; sem fonte remota nem redistribuição SF Pro."
       }
     },
-    "shadows": [],
+    "bento": {
+      "phase": 1,
+      "source": "osler/bento.css",
+      "tokens": {
+        "--o-font": "\"SF Pro Display\",\"SF Pro Text\",-apple-system,BlinkMacSystemFont,\"Inter\",\"Segoe UI\",system-ui,sans-serif",
+        "--o-bg": "#F6F7FB",
+        "--o-card": "#FFFFFF",
+        "--o-line": "rgba(17,24,39,.08)",
+        "--o-ink": "#111827",
+        "--o-ink-2": "#4B5563",
+        "--o-ink-3": "#6B7280",
+        "--o-primary": "#4F46E5",
+        "--o-primary-strong": "#4338CA",
+        "--o-primary-tint": "#EEF2FF",
+        "--o-radius": "24px",
+        "--o-radius-md": "16px",
+        "--o-radius-sm": "12px",
+        "--o-pill": "999px",
+        "--o-shadow": "0 1px 2px rgba(17,24,39,.04),0 6px 20px -6px rgba(17,24,39,.06)",
+        "--o-shadow-hover": "0 2px 4px rgba(17,24,39,.05),0 14px 32px -8px rgba(17,24,39,.12)",
+        "--o-gap": "16px",
+        "--o-pad": "24px",
+        "--o-sand": "#F5F1EA",
+        "--o-sand-ink": "#5B4A32",
+        "--a-clinica-fill": "#4F46E5",
+        "--a-clinica-tint": "#EEF2FF",
+        "--a-clinica-ink": "#3730A3",
+        "--a-clinica-solid": "#4338CA",
+        "--a-cirurgia-fill": "#FF6B6B",
+        "--a-cirurgia-tint": "#FFF1F0",
+        "--a-cirurgia-ink": "#B42318",
+        "--a-cirurgia-solid": "#B42318",
+        "--a-pediatria-fill": "#10B981",
+        "--a-pediatria-tint": "#ECFDF5",
+        "--a-pediatria-ink": "#047857",
+        "--a-pediatria-solid": "#047857",
+        "--a-go-fill": "#8B5CF6",
+        "--a-go-tint": "#F5F3FF",
+        "--a-go-ink": "#6D28D9",
+        "--a-go-solid": "#6D28D9",
+        "--a-preventiva-fill": "#F59E0B",
+        "--a-preventiva-tint": "#FFFBEB",
+        "--a-preventiva-ink": "#92400E",
+        "--a-preventiva-solid": "#92400E",
+        "--a-neutral-fill": "#6B7280",
+        "--a-neutral-tint": "#F3F4F6",
+        "--a-neutral-ink": "#374151",
+        "--a-neutral-solid": "#374151"
+      },
+      "applied": "cores e tipografia globais",
+      "deferred": "composição e navegação das fases2–5"
+    },
+    "shadows": [
+      {
+        "name": "bento",
+        "value": "0 1px 2px rgba(17,24,39,.04),0 6px 20px -6px rgba(17,24,39,.06)"
+      }
+    ],
     "motion": [
       {
-        "name": "button-color-transition",
-        "value": "background-color 150ms ease-out, border-color 150ms ease-out",
-        "purpose": "Transição própria de botões e submit; removida em prefers-reduced-motion: reduce."
+        "name": "bento-interactive",
+        "value": "160ms ease-out",
+        "purpose": "Só componente novo; removida com movimento reduzido."
       }
     ],
     "breakpoints": [
       {
-        "name": "viewport-medium",
-        "value": "1000px"
-      },
-      {
-        "name": "viewport-narrow",
+        "name": "font-mobile",
         "value": "760px"
-      },
-      {
-        "name": "study-container-narrow",
-        "value": "700px"
-      },
-      {
-        "name": "study-container-small",
-        "value": "350px"
       }
     ]
   },
   "components": [
     {
-      "name": "Botão — contrato local",
-      "kind": "button",
-      "refersTo": "button-common",
-      "description": "Somente raio, altura mínima, quebra, transição e foco próprios. Cores, bordas, padding e hover/active/disabled nativos não foram extraídos.",
-      "html": "<button class=\"ds-button\">Registrar este bloco</button>",
-      "css": ".ds-button{font-family:sans-serif;min-height:44px;border-radius:8px;white-space:normal;transition:background-color 150ms ease-out,border-color 150ms ease-out}.ds-button:focus-visible{outline:3px solid var(--study-primary-deep, #1e46ad);outline-offset:3px;}@media(prefers-reduced-motion:reduce){.ds-button{transition:none}}"
-    },
-    {
-      "name": "Campo — contrato local",
-      "kind": "input",
-      "description": "Campo com fundo, contorno e foco próprios; exemplo isolado, sem reproduzir o wrapper Streamlit.",
-      "html": "<label class=\"ds-field\">Buscar tema <input class=\"ds-input\" placeholder=\"Ex.: trauma, diabetes, pediatria\"></label>",
-      "css": ".ds-field{font-family:sans-serif;overflow-wrap:anywhere;color:var(--study-ink,#1d1d1f)}.ds-input{display:block;min-height:44px;border:1px solid var(--study-field-line,#7d8796);background:#f7f8fa;border-radius:8px;color:var(--study-ink,#1d1d1f);caret-color:var(--study-primary,#2457d6)}.ds-input::placeholder{color:var(--study-muted,#5f6368);opacity:1}.ds-input:focus-visible{outline:3px solid var(--study-primary-deep,#1e46ad);outline-offset:3px}@media(max-width:760px){.ds-input{font-size:16px}}",
-      "refersTo": "field"
-    },
-    {
-      "name": "Navegação de estudo — regras locais",
-      "kind": "nav",
-      "refersTo": "navigation-selected",
-      "description": "Seis destinos com aparência de abas; inputs radio e foco preservados. Exemplo isolado, sem alterar papel ARIA para tab.",
-      "html": "<div class=\"ds-nav-shell\"><div class=\"ds-navigation\" role=\"radiogroup\" aria-label=\"Seu estudo\"><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\" checked><span>Hoje</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Calendário</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Evolução</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Temas</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Registrar</span></label><label class=\"ds-nav-label\"><input type=\"radio\" name=\"ds-study\"><span>Ajustes</span></label></div></div>",
-      "css": ".ds-nav-shell{container:ds-study/inline-size;border-bottom:1px solid var(--study-line,#d9dde3)}.ds-navigation{font-family:sans-serif;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.4rem}.ds-nav-label{display:flex;align-items:center;justify-content:center;position:relative;margin:0;min-width:0;min-height:44px;border-radius:0;border-bottom:3px solid transparent;padding:.4rem .3rem;font-size:.9rem;font-weight:600;overflow-wrap:anywhere}.ds-nav-label input{position:absolute;opacity:0;width:1px;height:1px}.ds-nav-label:hover{background:var(--study-selected,#eef3ff)}.ds-nav-label:has(input:checked){background:var(--study-surface,#e8edf5);color:var(--study-primary-deep,#1e46ad);border-bottom-color:var(--study-primary,#2457d6)}.ds-nav-label:has(input:focus-visible){outline:3px solid var(--study-primary-deep,#1e46ad);outline-offset:3px}@media(max-width:760px){.ds-navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}@container ds-study (max-width:700px){.ds-navigation{grid-template-columns:repeat(3,minmax(0,1fr))}}@container ds-study (max-width:350px){.ds-navigation{grid-template-columns:repeat(2,minmax(0,1fr))}.ds-nav-label:last-child:nth-child(odd){grid-column:1/-1}}"
-    },
-    {
-      "name": "Estados de aprendizagem",
+      "name": "Estado neutro Bento",
       "kind": "chip",
-      "refersTo": "status-learning",
-      "description": "Rótulos informativos; cor acompanhada pelo estado em texto. Sem comportamento de botão.",
-      "html": "<span class=\"ds-status ds-learning\">Aprendendo</span> <span class=\"ds-status ds-success\">Dominado</span> <span class=\"ds-status ds-warning\">Em alerta</span>",
-      "css": ".ds-status{font-family:sans-serif;display:inline-block;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;font-weight:600}.ds-learning{color:var(--study-primary-deep, #1e46ad);background:#eef3ff}.ds-success{color:var(--study-success, #166534);background:var(--study-success-bg, #f0fdf4)}.ds-warning{color:var(--study-warning, #9a3412);background:var(--study-warning-bg, #fff7ed)}"
-    },
-    {
-      "name": "Bloco — superfície e cabeçalho próprios",
-      "kind": "card",
-      "refersTo": "study-block",
-      "description": "Regras próprias de superfície, padding vertical e cabeçalho; sem reproduzir borda ou padding horizontal nativos do container Streamlit.",
-      "html": "<article class=\"ds-block\"><div class=\"ds-block-heading\"><h3>Tema selecionado</h3><span class=\"ds-block-dose\">questões</span></div><div class=\"ds-block-meta\"><span>Etapa do plano</span></div></article>",
-      "css": ".ds-block{font-family:sans-serif;background:var(--study-surface, #e8edf5);border-radius:var(--study-radius, 12px);padding-block:.1rem;color:var(--study-ink, #1d1d1f)}.ds-block-heading{display:flex;align-items:start;justify-content:space-between;gap:.8rem;margin:0 0 .35rem}.ds-block-heading h3{margin:0;padding:0;flex:1;min-width:0;font-size:1.1rem;line-height:1.4;font-weight:650;overflow-wrap:anywhere}.ds-block-dose{flex-shrink:0;font-size:.9rem;font-weight:650;color:var(--study-primary-deep, #1e46ad);background:#eef3ff;padding:.35rem .55rem;border-radius:6px;font-variant-numeric:tabular-nums}.ds-block-meta{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:.875rem;color:var(--study-muted, #5f6368);margin:.15rem 0 .3rem}@media(max-width:760px){.ds-block-heading{flex-wrap:wrap}.ds-block-dose{font-size:.85rem}}"
-    },
-    {
-      "name": "Resumo de Hoje",
-      "kind": "custom",
-      "refersTo": "summary",
-      "description": "Faixa compacta do progresso; sem valores de demonstração ou barra fictícia.",
-      "html": "<div class=\"ds-summary\"><strong>Questões registradas</strong><span>Restantes no plano</span></div>",
-      "css": ".ds-summary{font-family:sans-serif;display:flex;gap:.3rem 1rem;justify-content:space-between;flex-wrap:wrap;font-variant-numeric:tabular-nums;padding:.8rem 1rem;background:var(--study-surface,#e8edf5);border:1px solid var(--study-line,#d9dde3);border-radius:8px}.ds-summary strong{font-size:1rem;color:var(--study-ink,#1d1d1f)}.ds-summary span{font-size:.9rem;color:var(--study-muted,#5f6368)}"
-    },
-    {
-      "name": "Apoio de estudo",
-      "kind": "card",
-      "refersTo": "support",
-      "description": "Superfície de apoio mais escura que a área de trabalho em azul-cinza.",
-      "html": "<aside class=\"ds-support\">Ajustes e revisões disponíveis</aside>",
-      "css": ".ds-support{font-family:sans-serif;padding:1rem;background:var(--study-soft,#dfe7f1);color:var(--study-ink,#1d1d1f);border-radius:var(--study-radius,12px)}@media(max-width:760px){.ds-support{padding:.75rem}}"
+      "refersTo": "bento-status",
+      "description": "Sem cor de área; texto obrigatório; alerta com borda.",
+      "html": "<span class=\"o-chip o-chip--alerta\">Em alerta</span>",
+      "css": ".o-chip{color:#111827;background:#F3F4F6;border-radius:999px;padding:4px 10px;font:600 12px/16px sans-serif}.o-chip--alerta{border:1px solid rgba(17,24,39,.45);background:#FFFFFF}"
     }
   ],
   "narrative": {
-    "northStar": "Clareza para estudar",
-    "overview": "A identidade existente combina azul Osler, fundo neutro, superfícies em azul-cinza e apoio cinza contrastante. Abas sem círculos distinguem destinos de campos de formulário. A direção Operate valoriza leitura rápida e ações de estudo evidentes: mostrar o que falta, oferecer o próximo bloco e deixar ajustes e explicações em segundo plano. O uso confirmado abrange computador e celular. Evolução estende a identidade com uma jornada elegante de marcos e conquistas discretas; estratégia em [Evolução](docs/design/evolucao.md).\n\nEste documento registra o código atual, sem criar uma identidade nova. A referência normativa é `osler/study.css`, aplicada por `study_style.py`, com componentes em `study_components.py`, `study_day_ui.py`, `study_tables_ui.py`, `study_calendar_ui.py` e `adaptive_ui.py`, mais o tema de `.streamlit/config.toml`. Os tokens acima registram valores reutilizados; estilos e comportamento nativos dependem do Streamlit 1.66. A cascata efetiva do navegador não foi inspecionada. Este registro atualiza o sistema existente para o redesign de apresentação autorizado, preservando seus compromissos confirmados.",
+    "northStar": "Clareza para estudar, um bloco de cada vez.",
+    "overview": "Fundação visual; layout e regras existentes preservados nesta fase.",
     "keyCharacteristics": [
-      "Português simples, ações específicas e detalhes recolhidos.",
-      "Abas claras sem círculos, campos delimitados e hierarquia entre trabalho e apoio.",
-      "Azul como acento; estados sempre acompanhados por texto.",
-      "Tipografia nativa, números alinháveis e conteúdo com quebra de linha.",
-      "Mesma tarefa disponível em computador e celular, sem depender de hover."
+      "Português simples",
+      "Tema claro, sem cards pretos",
+      "Estados neutros",
+      "Fonte local",
+      "Widgets e keys preservados"
     ],
     "rules": [
-      {
-        "name": "The Estado Legível Rule",
-        "body": "Cor reforça um rótulo explícito; nunca substitui o estado, a data ou a quantidade.",
-        "section": "colors"
-      },
-      {
-        "name": "The Agrupamento Útil Rule",
-        "body": "Um container deve reunir uma tarefa ou seu contexto; não adicionar camadas decorativas para cada linha de informação.",
-        "section": "elevation"
-      }
+      "Cor categoriza a área; estado sempre tem texto.",
+      "Dado ausente nunca vira zero.",
+      "Nenhuma regra de estudo muda."
     ],
     "dos": [
-      "**Do** priorizar a ação de estudo e deixar configuração e explicações em detalhes recolhidos.",
-      "**Do** reutilizar os tokens acima e widgets nativos antes de criar uma nova aparência.",
-      "**Do** apresentar destinos em abas sem círculos e manter a semântica radio dos widgets existentes.",
-      "**Do** acompanhar estados com texto e oferecer alternativa Lista para consultar temas.",
-      "**Do** verificar renderização, teclado e toque quando houver ambiente permitido; separar evidência funcional de evidência visual.",
-      "**Do** preservar originais, versões, histórico e preferências ao mudar a apresentação."
+      "Usar tokens e APIs públicas.",
+      "Medir contraste no navegador.",
+      "Validar só com cenário sintético."
     ],
     "donts": [
-      "**Don't** adicionar fonte remota, tipografia promocional ou animação decorativa.",
-      "**Don't** inventar progresso, dados pessoais demonstrativos ou urgência artificial.",
-      "**Don't** tratar meta de 90% como probabilidade ou garantia de aprovação, percentual revisado como acerto ou data de PDF como contato.",
-      "**Don't** depender de hover, ocultar ações essenciais no celular ou remover foco visível.",
-      "**Don't** automatizar a plataforma Osler ou aplicações de suspensão/reativação; a interface trabalha com exportações manuais e entradas do usuário.",
-      "**Don't** declarar validação visual, toque ou conformidade completa a partir de CSS, detector estático ou AppTest."
+      "Sem CDN, JavaScript próprio ou fonte SF Pro no repositório.",
+      "Não inventar progresso ou probabilidade de aprovação.",
+      "Não executar fases posteriores."
     ]
   }
 }

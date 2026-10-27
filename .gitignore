@@ -38,6 +38,8 @@ dist/
 !/docs/research/
 !/docs/design/
 !/docs/third-party/
+!/docs/plans/
+!/docs/redesign/
 !/docs/README.md
 /docs/research/*.json
 /docs/research/fluidmed-public-artifacts/
@@ -52,3 +54,6 @@ Thumbs.db
 
 # Relatórios pessoais gerados pela análise de calibração
 /analises/
+
+# Capturas de validação ficam locais; preservadas para inspeção, fora do Git.
+/evidencias/
