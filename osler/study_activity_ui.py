@@ -2,6 +2,7 @@
 import streamlit as st
 
 from .study_feedback import day_activity,result_feedback
+from .study_dashboard import entry_clock
 
 MODES={'novas':'Questões novas','repetidas':'Questões repetidas','mistas':'Questões mistas'}
 
@@ -40,6 +41,8 @@ def render_day_activity(view,go_edit=None):
             left.markdown('**'+e['path'][-1]+'**')
             left.write(_entry_summary(e))
             left.caption(' › '.join(e['path'][:-1])+' · '+(MODES[e['mode']] if e['kind']=='bloco' else 'Estudo sem questões'))
+            if clock:=entry_clock(event):
+                left.caption(('Atualizado' if event['version']>1 else 'Registrado')+' às '+clock+' · Brasília')
             if go_edit:
                 right.button('Corrigir',key='activity_edit_'+event['session_id'],on_click=go_edit,args=(event,),width='stretch')
         st.divider()

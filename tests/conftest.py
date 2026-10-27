@@ -74,3 +74,11 @@ def sample_pdf():
 @pytest.fixture
 def project_root():
     return Path(__file__).resolve().parents[1]
+
+
+def open_view(app, main=None, adaptive=None):
+    """Navega pelas mesmas chaves de estado do menu único, sem widgets legados."""
+    if main is not None: app.session_state['main_view']=main
+    elif adaptive is not None: app.session_state['main_view']='Plano de questões'
+    if adaptive is not None: app.session_state['adaptive_view']=adaptive
+    return app.run()

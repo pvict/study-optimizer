@@ -1,3 +1,4 @@
+from conftest import open_view
 """Fluxos novos de apresentação, sem substituir testes dos serviços existentes."""
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
@@ -13,7 +14,7 @@ def open_app(tmp_path,monkeypatch,project_root,sample_pdf):
 def test_today_puts_action_before_settings_and_labels_current_screen(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,app=open_app(tmp_path,monkeypatch,project_root,sample_pdf)
     assert not app.exception
-    assert app.title[0].value=='Seu plano de hoje'
+    assert app.title[0].value=='Olá'
     assert any(e.label=='Adiantar revisões' and not e.proto.expanded for e in app.expander)
     assert any(e.label=='Ajustar meu dia' for e in app.expander)
     assert any(b.key and b.key.startswith('study_') for b in app.button)
@@ -24,7 +25,7 @@ def test_today_puts_action_before_settings_and_labels_current_screen(tmp_path,mo
 
 def test_status_filters_and_list_actions_use_the_correct_specific_topic(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,app=open_app(tmp_path,monkeypatch,project_root,sample_pdf)
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     app.button(key='focus_alerta').click().run()
     assert not app.exception and app.selectbox(key='statistics_focus').value=='Em alerta'
     app.selectbox(key='statistics_focus').set_value('Todos os temas').run()
@@ -33,14 +34,14 @@ def test_status_filters_and_list_actions_use_the_correct_specific_topic(tmp_path
     first=next(b for b in app.button if b.key and b.key.startswith('list_record_'))
     selected=first.key.removeprefix('list_record_')
     first.click().run()
-    assert not app.exception and app.radio(key='adaptive_view').value=='Registrar resultados'
+    assert not app.exception and app.session_state['adaptive_view']=='Registrar resultados'
     assert app.session_state['adaptive_topic']==selected
     assert not AdaptiveService(repo).store.active('2026-10-15')
 
 
 def test_calendar_agenda_and_grid_keep_the_same_day_selection(tmp_path,monkeypatch,project_root,sample_pdf):
     _,app=open_app(tmp_path,monkeypatch,project_root,sample_pdf)
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     assert not app.exception and app.radio(key='calendar_mode').value=='Agenda'
     target='2026-10-16'
     app.button(key='calendar_cell_'+target).click().run()

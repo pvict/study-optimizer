@@ -1,3 +1,4 @@
+from conftest import open_view
 from dataclasses import replace
 import pytest
 from osler.study_models import AdaptiveProfile
@@ -62,11 +63,11 @@ def test_ui_shows_start_without_study_debt_and_calendar_opens_on_start(tmp_path,
     assert not any('Descanse hoje' in x.value for x in app.info)
     assert not any(b.label=='Registrar este bloco' for b in app.button)
     assert service.agenda.daily_plans()==[]
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     assert not app.exception
     assert app.date_input(key='calendar_reference').value.isoformat()=='2026-10-22'
     assert service.replanning('2026-10-21')['backlog']==[]
-    app.radio(key='adaptive_view').set_value('Ajustes').run()
+    open_view(app,adaptive='Ajustes')
     assert app.date_input(key='settings_start_date').value.isoformat()=='2026-10-22'
 
 
@@ -96,7 +97,7 @@ def test_far_future_start_does_not_crash_calendar(tmp_path,monkeypatch,project_r
     service.store.save_profile(AdaptiveProfile(start_date='2030-10-22'),0)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     assert not app.exception
     assert app.date_input(key='calendar_reference').value<=today_local()+timedelta(days=547)
 

@@ -1,3 +1,4 @@
+from conftest import open_view
 from datetime import date
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
@@ -9,7 +10,7 @@ def test_exam_form_three_targets_edit_principal_void_and_sources(tmp_path,monkey
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Ajustes').run()
+    open_view(app,adaptive='Ajustes')
     app.radio(key='study_settings_section').set_value('Minhas provas').run()
     assert not app.exception
     app.text_input(key='exam_field_institution').set_value('Prova de teste')
@@ -46,7 +47,7 @@ def test_empty_exam_date_shows_recoverable_error(tmp_path,monkeypatch,project_ro
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Ajustes').run()
+    open_view(app,adaptive='Ajustes')
     app.radio(key='study_settings_section').set_value('Minhas provas').run()
     app.text_input(key='exam_field_institution').set_value('Prova de teste')
     app.number_input(key='exam_field_cutoff').set_value(75.)
@@ -63,11 +64,11 @@ def test_principal_flow_has_no_legacy_and_no_new_required_registration_field(tmp
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     assert not app.exception
     for destination in ['Plano de questões','Diminuir revisões']:
-        app.radio(key='main_view').set_value(destination).run()
+        open_view(app,main=destination)
         assert not app.exception
         assert not any('lotes e avaliações detalhadas' in e.label.lower() for e in app.expander)
         assert not any(b.key and b.key.startswith('reduce_') for b in app.button)
-    app.radio(key='main_view').set_value('Plano de questões').run()
+    open_view(app,main='Plano de questões')
     next(b for b in app.button if b.label=='Registrar este bloco').click().run()
     assert not app.exception and app.number_input(key='study_confident').value is None
     assert not any(n.key and n.key.startswith('exam_field_') for n in app.number_input)

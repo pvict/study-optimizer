@@ -181,14 +181,8 @@ def run():
                 except (ValueError, OSError) as recovery_error:
                     st.error(str(recovery_error))
         return
-    st.sidebar.title("Osler")
-    st.sidebar.caption("Preparação para a residência")
-    views = ["Plano de questões", "Diminuir revisões", "Ferramentas"]
-    if st.session_state.get("main_view") not in views:
-        st.session_state["main_view"] = "Plano de questões"
-    view = st.sidebar.radio("Navegação", views,format_func={"Plano de questões":"Meu estudo","Diminuir revisões":"Flashcards","Ferramentas":"Arquivos e ferramentas"}.get,key="main_view",label_visibility="collapsed")
-    with st.sidebar.expander("Sobre o app"):
-        st.caption("Tudo fica no seu computador. As ações na Osler continuam sendo feitas por você.")
+    from .study_navigation_ui import render_navigation
+    view=render_navigation()
     if view == "Plano de questões":
         render_adaptive(repo)
         return

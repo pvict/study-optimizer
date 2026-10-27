@@ -1,3 +1,4 @@
+from conftest import open_view
 from datetime import date
 from streamlit.testing.v1 import AppTest
 from test_study_prevention import prevention_service
@@ -7,7 +8,7 @@ def test_open_orange_day_compare_apply_and_undo_prevention(tmp_path,monkeypatch,
     service,t=prevention_service(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     app.date_input(key='calendar_reference').set_value(date(2026,10,21)).run()
     assert not app.exception
     app.button(key='calendar_risks_2026-10-21').click().run()
@@ -31,7 +32,7 @@ def test_preventive_panel_handles_no_forecast_risk(tmp_path,monkeypatch,project_
     service.configure_day('2026-10-21',20,'normal',1)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     app.toggle(key='prevention_enabled').set_value(True).run()
     assert not app.exception
     assert any('nenhuma pendência prevista' in i.value.lower() for i in app.info)

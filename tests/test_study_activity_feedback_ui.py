@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 
 from osler.adaptive_service import AdaptiveService
@@ -28,7 +29,7 @@ def test_save_shows_feedback_then_today_lists_result_and_allows_correction(tmp_p
     assert any(t.label=='Feito hoje (30)' for t in app.tabs)
     event=AdaptiveService(repo).store.active('2026-10-15')[0]
     app.button(key='activity_edit_'+event['session_id']).click().run()
-    assert app.radio(key='adaptive_view').value=='Registrar resultados'
+    assert app.session_state['adaptive_view']=='Registrar resultados'
     assert app.number_input(key='study_n').value==30
     app.number_input(key='study_n').set_value(25)
     app.number_input(key='study_correct').set_value(20)

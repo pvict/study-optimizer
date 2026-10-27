@@ -1,3 +1,4 @@
+from conftest import open_view
 from copy import deepcopy
 import sqlite3
 
@@ -174,7 +175,7 @@ def test_practical_ui_has_ready_list_and_single_optional_declaration(tmp_path, m
     repo, *_ = triage_fixture(tmp_path, sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
     app = AppTest.from_file(str(project_root/'app.py'), default_timeout=30).run()
-    app.radio(key='main_view').set_value('Diminuir revisões').run()
+    open_view(app,main='Diminuir revisões')
     app.radio(key='ec_mode').set_value('Reduzir outras revisões').run()
     assert not app.exception
     assert len(app.dataframe) >= 1

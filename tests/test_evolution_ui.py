@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
 from osler.adaptive_service import AdaptiveService
@@ -50,7 +51,7 @@ def test_evolution_navigation_dates_charts_and_empty_performance(tmp_path,sample
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=120).run()
-    app.radio(key='adaptive_view').set_value('Evolução').run()
+    open_view(app,adaptive='Evolução')
     assert not app.exception
     assert app.radio(key='evolution_period').value=='1 mês'
     assert any('previsto' in e.value.lower() for e in app.caption)

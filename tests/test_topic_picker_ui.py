@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
 
@@ -18,10 +19,10 @@ def test_calendar_and_confidence_registration_are_visible(tmp_path,monkeypatch,p
     setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=30).run()
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     assert not app.exception
     assert any('previsão' in c.value.lower() for c in app.caption)
-    app.radio(key='adaptive_view').set_value('Registrar resultados').run()
+    open_view(app,adaptive='Registrar resultados')
     assert not app.exception
     assert app.number_input(key='study_confident').value is None
 

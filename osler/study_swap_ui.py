@@ -39,8 +39,8 @@ def _describe(topic):
     return ('Tema novo' if topic_is_new(topic) else 'Revisão / diagnóstico')+' · Prioridade '+PRIORITIES[topic['priority']].lower()
 
 
-def render_swap_controls(service,day,item,scope='today'):
-    st.button('Trocar tema',key=f'swap_open_{scope}_{item["topic_id"]}',on_click=_open,args=(day,item['topic_id']))
+def render_swap_controls(service,day,item,scope='today',button_container=None):
+    (button_container or st).button('Trocar tema',key=f'swap_open_{scope}_{item["topic_id"]}',on_click=_open,args=(day,item['topic_id']))
     if st.session_state.get('open_swap')!=(day,item['topic_id']): return
     key=(day,item['topic_id'],service.agenda.token())
     cached=st.session_state.get('swap_preview',{})

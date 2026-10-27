@@ -1,3 +1,4 @@
+from conftest import open_view
 from datetime import date
 from streamlit.testing.v1 import AppTest
 from osler.adaptive_service import AdaptiveService
@@ -12,7 +13,7 @@ def test_calendar_has_real_delay_and_preview_apply_undo_without_fake_results(tmp
     service.save_entry(StudyEntry(t['path'],'2026-10-01',20,10,confident_correct=10),'old')
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     assert not app.exception
     assert any('atrasad' in str(m.value).lower() for m in app.caption) or any('atrasad' in str(h.value).lower() for h in app.get('html'))
     app.radio(key='replan_mode').set_value('reviews').run()
@@ -36,7 +37,7 @@ def test_past_calendar_does_not_invent_study_when_no_plan_exists(tmp_path,monkey
     setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     app.date_input(key='calendar_reference').set_value(date(2026,10,10)).run()
     assert not app.exception
     app.button(key='calendar_cell_2026-10-10').click().run()

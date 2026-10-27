@@ -18,7 +18,7 @@ from urllib.request import urlopen
 
 ROOT=Path(__file__).resolve().parents[1]
 SIZES=[(1440,900),(1366,768),(768,1024),(390,844)]
-SCREENS=[('hoje','Hoje','Seu plano de hoje'),('calendario','Calendário','Calendário de estudos'),
+SCREENS=[('hoje','Hoje','Olá'),('calendario','Calendário','Calendário de estudos'),
          ('evolucao','Evolução','Sua evolução'),('temas','Temas','Temas e desempenho'),
          ('registrar','Registrar','Registrar resultado'),('simulados','Simulados','Seus simulados'),
          ('ajustes','Ajustes','Ajustes do plano'),('flashcards',None,'Seus cards de erros'),
@@ -76,15 +76,15 @@ def _ready(page,heading):
 def _screen(page,name,label,heading,width):
     expand=page.get_by_role('button',name='Expand sidebar',exact=True)
     if expand.is_visible():expand.click()
-    destination='Flashcards' if name=='flashcards' else 'Arquivos e ferramentas' if name=='arquivos' else 'Meu estudo'
-    page.locator('.st-key-main_view').get_by_text(destination,exact=True).click()
+    routes={'hoje':'today','calendario':'calendar','evolucao':'evolution','temas':'topics','registrar':'register',
+            'simulados':'mocks','ajustes':'settings','flashcards':'flashcards','arquivos':'files'}
+    page.locator('.st-key-nav_'+routes[name]).get_by_role('button').click()
     page.wait_for_function("document.querySelector('[data-testid=stApp]')?.getAttribute('data-test-script-state') === 'notRunning'",timeout=60000)
     # No celular, a lateral aberta cobre a navegação superior. Fechar antes
     # de escolher o destino, em vez de forçar clique através do painel.
     if width<900:
         collapse=page.get_by_role('button',name='Collapse sidebar',exact=True)
         if collapse.is_visible():collapse.click()
-    if label:page.locator('.st-key-adaptive_view').get_by_text(label,exact=True).click()
     _ready(page,heading)
     if width<900:
         collapse=page.get_by_role('button',name='Collapse sidebar',exact=True)
@@ -125,7 +125,7 @@ def capture(data_dir,output,label,all_screens=False,url='http://127.0.0.1:8602/'
                     if urlsplit(route.request.url).hostname in {'127.0.0.1',None}:route.continue_()
                     else:remote.append(route.request.url);route.abort()
                 context.route('**/*',local_only)
-                page=context.new_page();page.goto(url);_ready(page,'Seu plano de hoje')
+                page=context.new_page();page.goto(url);_ready(page,'Olá')
                 fonts=font_probe(page)
                 for name,visible,heading in SCREENS if all_screens else SCREENS[:1]:
                     _screen(page,name,visible,heading,width)

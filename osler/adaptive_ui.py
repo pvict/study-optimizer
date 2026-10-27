@@ -68,12 +68,11 @@ def render_adaptive(repo):
         previous=[r for r in service.store.active(today_local().isoformat()) if r['entry']['kind']=='bloco']
         st.session_state['last_study_mode']=max(previous,key=lambda r:r['id'])['entry']['mode'] if previous else 'novas'
     if st.session_state.get('adaptive_view') not in VIEWS: st.session_state['adaptive_view']='Meu dia'
-    with st.container(key='study_navigation'):
-        view=st.radio('Seu estudo',VIEWS,format_func=lambda v:{'Meu dia':'Hoje','Temas e estatísticas':'Temas','Registrar resultados':'Registrar'}.get(v,v),horizontal=True,key='adaptive_view',label_visibility='collapsed',width='stretch')
+    view=st.session_state['adaptive_view']
     current=st.session_state['adaptive_view']
-    st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
+    if current!='Meu dia': st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
               'Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução','Simulados':'Seus simulados'}[current])
-    st.caption({'Meu dia':'Faça os blocos abaixo e registre o resultado para atualizar o plano.',
+    if current!='Meu dia': st.caption({'Meu dia':'Faça os blocos abaixo e registre o resultado para atualizar o plano.',
                 'Calendário':'Consulte os próximos dias e abra espaço para suas revisões.',
                 'Temas e estatísticas':'Encontre o que precisa de atenção e acompanhe seu rendimento.',
                 'Registrar resultados':'Registre o que fez. O próximo plano acompanha seus resultados.',

@@ -1,3 +1,4 @@
+from conftest import open_view
 """Contratos de tarefa do redesign: filtros e registro, sem dados reais."""
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
@@ -12,7 +13,7 @@ def start(tmp_path,monkeypatch,project_root,sample_pdf):
 
 def test_clear_filters_restores_topics_without_recording_study(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     original=len(app.dataframe[0].value)
     app.text_input(key='statistics_search').set_value('não existe este tema').run()
     assert len(app.dataframe[0].value)==0
@@ -51,4 +52,4 @@ def test_success_offers_return_and_does_not_resubmit_on_rerun(tmp_path,monkeypat
     app.run()
     assert len(AdaptiveService(repo).store.active('2026-10-15'))==1
     app.button(key='study_back_to_plan').click().run()
-    assert app.radio(key='adaptive_view').value=='Meu dia'
+    assert app.session_state['adaptive_view']=='Meu dia'

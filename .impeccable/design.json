@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-27T16:22:51.653177+00:00",
-  "title": "Design System: Osler — Fundação Bento",
+  "generatedAt": "2026-10-27T23:34:13.667588+00:00",
+  "title": "Design System: Osler — Bento, navegação e Hoje",
   "extensions": {
     "colorMeta": {
       "primary": {
@@ -192,7 +192,7 @@
       }
     },
     "bento": {
-      "phase": 1,
+      "phase": 2,
       "source": "osler/bento.css",
       "tokens": {
         "--o-font": "\"SF Pro Display\",\"SF Pro Text\",-apple-system,BlinkMacSystemFont,\"Inter\",\"Segoe UI\",system-ui,sans-serif",
@@ -241,7 +241,11 @@
         "--a-neutral-solid": "#374151"
       },
       "applied": "cores e tipografia globais",
-      "deferred": "composição e navegação das fases2–5"
+      "deferred": "composição e navegação das fases2–5",
+      "surfaces": [
+        "navegação lateral",
+        "Hoje"
+      ]
     },
     "shadows": [
       {
@@ -275,7 +279,7 @@
   ],
   "narrative": {
     "northStar": "Clareza para estudar, um bloco de cada vez.",
-    "overview": "Fundação visual; layout e regras existentes preservados nesta fase.",
+    "overview": "Fundação visual local, navegação única e Hoje em Bento; cálculos e demais composições preservados.",
     "keyCharacteristics": [
       "Português simples",
       "Tema claro, sem cards pretos",

@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
 
@@ -39,7 +40,7 @@ def test_topic_trajectory_is_accessible_without_prescribing_a_lifetime_total(tmp
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     assert not app.exception
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     app.toggle(key='show_trajectories').set_value(True).run()
     assert not app.exception
     assert any('Próximo bloco' in str(frame.value.columns) for frame in app.dataframe)

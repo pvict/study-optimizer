@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 
 from test_assessments import setup_assessment
@@ -15,8 +16,8 @@ def start(tmp_path,monkeypatch,project_root,sample_pdf):
 def test_today_uses_question_goal_without_time_widget_and_persists_extra(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
     assert not app.exception
-    assert len(app.radio(key='main_view').options)==3
-    assert {'Hoje','Calendário','Evolução','Temas','Registrar','Ajustes'}<=set(app.radio(key='adaptive_view').options)
+    assert {'nav_today','nav_flashcards','nav_files'} <= {b.key for b in app.button}
+    assert {'nav_today','nav_calendar','nav_evolution','nav_topics','nav_register','nav_settings'} <= {b.key for b in app.button}
     assert not any('tempo total' in s.label.lower() for s in app.select_slider)
     assert any('0 de 60 questões registradas' in h.value for h in app.get('html'))
     app.number_input(key='day_questions').set_value(40)
@@ -35,7 +36,7 @@ def test_today_uses_question_goal_without_time_widget_and_persists_extra(tmp_pat
 
 def test_topic_table_has_real_period_controls_and_export(tmp_path,monkeypatch,project_root,sample_pdf):
     _,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     assert not app.exception
     assert app.radio(key='statistics_period').options==['Dia','Semana','Mês','Todo o período']
     for period in ['Semana','Mês','Todo o período']:
@@ -51,7 +52,7 @@ def test_backdated_result_before_first_pdf_is_visible_in_period_table(tmp_path,m
     service=AdaptiveService(repo)
     t=service.overview('2026-10-15')['states'][0]
     service.save_entry(StudyEntry(t['path'],'2026-10-01',10,8),'historical')
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     app.date_input(key='statistics_date').set_value(date(2026,10,1)).run()
     assert not app.exception
     assert any(m.label=='Questões no período' and m.value=='10' for m in app.metric)
@@ -59,16 +60,16 @@ def test_backdated_result_before_first_pdf_is_visible_in_period_table(tmp_path,m
 
 def test_returning_after_profile_change_refreshes_day_form_default(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
-    app.radio(key='adaptive_view').set_value('Ajustes').run()
+    open_view(app,adaptive='Ajustes')
     AdaptiveService(repo).store.save_profile(AdaptiveProfile(max_questions=80),0)
-    app.radio(key='adaptive_view').set_value('Meu dia').run()
+    open_view(app,adaptive='Meu dia')
     assert not app.exception
     assert app.number_input(key='day_questions').value==80
 
 
 def test_table_filter_resets_row_selection_before_actions_change_topic(tmp_path,monkeypatch,project_root,sample_pdf):
     _,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     table_id=app.dataframe[0].proto.id.split('-',2)[2]
     app.session_state[table_id]={'selection':{'rows':[0],'columns':[],'cells':[]}}
     app.run()

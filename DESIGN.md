@@ -1,6 +1,6 @@
 ---
-name: Osler — fundação Bento
-description: Fundação visual local; composição e navegação existentes preservadas nesta fase.
+name: Osler — Bento, navegação e Hoje
+description: Fundação visual local e composição Bento de Hoje; navegação lateral única.
 colors:
   primary: "#4F46E5"
   primary-deep: "#4338CA"
@@ -21,6 +21,8 @@ colors:
   warning-bg: "#F3F4F6"
   danger: "#111827"
   danger-bg: "#F3F4F6"
+  track: "#E5E7EB"
+  neutral-outline: "#9CA3AF"
   sand: "#F5F1EA"
   sand-ink: "#5B4A32"
   clinica-fill: "#4F46E5"
@@ -77,11 +79,19 @@ typography:
     fontSize: "12px"
     lineHeight: "16px"
     fontWeight: 600
+  navigation:
+    fontSize: "14px"
+    lineHeight: "20px"
+  mobile-field:
+    fontSize: "16px"
+    lineHeight: "22px"
   metric:
     fontSize: "40px"
     lineHeight: "44px"
     fontWeight: 700
 rounded:
+  button: "14px"
+  squircle: "34px"
   card: "24px"
   medium: "16px"
   small: "12px"
@@ -99,13 +109,13 @@ components:
     rounded: "{rounded.pill}"
 ---
 
-# Design System: Osler — Fundação Bento (fase 1)
+# Design System: Osler — Bento (fases 1–2)
 
 ## Direção e escopo
 
 **Clareza para estudar, um bloco de cada vez.** Interface Operate local para preparação de residência, em português simples, no computador e no celular. O briefing aprovado é `docs/redesign/PROMPT-CODEX-REDESIGN-BENTO-OSLER.md`; suas regras e valores vencem sugestões genéricas das skills.
 
-Esta fase aplica **somente a base de cores e tipografia**, prepara a biblioteca visual e mantém a composição e navegação existentes. Novo menu, hero, ritmo semanal, pausa e reorganização das telas pertencem às fases2–5. Não interpretar componentes preparados como telas já redesenhadas.
+As fases1–2 estão aplicadas: fundação de cor/tipografia, menu lateral único e Hoje em Bento. Temas/Registrar, Calendário/Simulados/Evolução e ferramentas mantêm sua composição até as fases3–5. Nenhuma regra de estudo, prioridade ou gravação muda.
 
 Fontes normativas: `osler/bento.css` (tokens e base), `osler/bento.py` (primitivas puras e variações fixas), `osler/study.css` (estrutura existente), carregados nesta ordem por `study_style.py`. `.streamlit/config.toml` alinha o tema nativo e serve a fonte local. O sidecar `.impeccable/design.json` espelha estes valores; não cria rampas adicionais.
 
@@ -137,7 +147,7 @@ HTML é estático; ações continuam em widgets nativos, com keys, callbacks e f
 
 O anel SVG usa `st.markdown(ring(...), unsafe_allow_html=True)` apenas para o HTML estático validado do helper. O sanitizador de `st.html` no Streamlit1.66 remove SVG; não habilitar JavaScript para contornar isso. Os estilos do anel aceitam as duas âncoras estáveis dos renderizadores. A fixture visual confirma arco e rótulo40/60 no navegador.
 
-## Componentes preparados e composição preservada
+## Componentes e composição por fase
 
 Novos containers `.st-key-bento-*`: raio24px, padding24px, gap16px e sombra suave exatos do briefing. Variantes por área são geradas por laço Python referenciando tokens, sem duplicar valores. Primário14px no contexto Bento, altura44px, um por contexto. `corner-shape:squircle` é melhoria progressiva com raio34px; sem suporte, mantém24px. Não depender dela para funcionamento.
 
@@ -158,3 +168,24 @@ Uso local, sem acesso à conta Osler. Suspensão/reativação manuais. Questões
 `scripts/seed_demo_data.py` cria apenas dados sintéticos em pasta temporária nova e recusa data, banco preexistente, pasta existente e caminhos indiretos. `scripts/capture_bento.py` inicia servidor próprio na porta8602, usa esse cenário e bloqueia recursos remotos. Capturas identificadas como sintéticas em `evidencias/bento/fase1/`; banco de produção não é usado na validação. Playwright é dependência de desenvolvimento, navegador instalado reutilizado.
 
 Resultado, rubrica, contrastes e limitações desta fase: `docs/design/bento-fase1-entrega.md`. As prévias orientam a linguagem; seus números e textos pedagógicos não são fatos do produto. As páginas de fases futuras continuam sem alegação de redesign concluído.
+
+
+## Fase2 — navegação e Hoje
+
+Menu lateral único com marca própria, Registrar bloco, cinco destinos de estudo, Flashcards/Arquivos e Ajustes. main_view e adaptive_view continuam como chaves de sessão; os dois radios de navegação foram retirados. Os demais seletores pertencem às suas telas.
+
+Hoje: saudaçãoOlá enquanto não existe nome configurado, subtítuloUm bloco de cada vez, data do dia de estudo (corte04h), hero do primeiro item real e cor de área, anelHoje, ritmo de sete dias, Para fazer/Feito hoje, pausa opcional e faixaSua semana. Nome em Ajustes continua na fase5. Dados de exemplo só aparecem nos cenários de teste, nunca no aplicativo real.
+
+Hero e restante da lista compartilham controles antigos de registro, troca e complementos. Lotes preservam session_id/review_of; apenas a primeira ação é primária. Quando são retornos/complementos, os rótulos específicos continuam no lugar deRegistrar este bloco. Detalhes de erros e trajetória ficam emVer próximas revisões; Planner parcial continua visível. Volume acima da meta não oculta temas restantes. Meta registrada só substitui o hero se não há blocos pendentes.
+
+O estado de descanso usa areia. Simulado oferece o destinoSimulados; descanso de revisão final aponta paraCalendário. Sem relatório, háImportar relatório; antes do início, não há cobrança. Nenhum caso sem meta escreveX de0: mostra o número registrado e explica a ausência de meta.
+
+Resumos da semana são somente leitura: volume de blocos registrados (inclui repetições); acerto apenas em novas com contagens exatas e n; dominados sem pais históricos; distância até prova efetivamente cadastrada. Simulados contam como dia com estudo, mas não entram nos denominadores de blocos. Hora emFeito hoje é a hora de registro/atualização em Brasília, não hora de conclusão inferida.
+
+Pausa de10min após pelo menos um bloco hoje, dispensável, em fragmento Streamlit. Guarda deadline monotônico só na sessão; não escreve estudo, não bloqueia nem altera o cronograma.
+
+Bento: colunas2:1 com gap16px; até900px uma coluna. Lateral recolhida no celular, sem largura mínima imposta ao estado fechado. Formulários e campos mantêm o foco discreto existente. Hero/lista usam11/13/20px; o apoio compacto é13px. Fontes e tokens continuam os da fase1; estado HTML mantém rótulo textual sem ligatura Material não empacotada.
+
+Evidência desta fase: docs/design/bento-fase2-entrega.md e evidencias/bento/fase2. Somente dados sintéticos e porta8602 em QA. Nome/cadastro e redesenho das outras telas permanecem fora do escopo.
+
+Variantes documentadas: raio14px de botões,34px apenas com corner-shape, fonte14px de navegação,16px de campos móveis, E5E7EB como trilho decorativo e9CA3AF como contorno decorativo de dias. O estado continua expresso por texto/símbolo, sem depender do trilho ou contorno para leitura.

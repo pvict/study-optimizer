@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from osler.adaptive_service import AdaptiveService
 from osler.storage import Repository
@@ -8,12 +9,12 @@ def test_new_topic_sections_keep_navigation_and_show_capacity_and_uncertainty(tm
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR',str(repo.root))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     assert not app.exception
     assert {'Plano de corte','Minha meta'}<={tab.label for tab in app.tabs}
     assert any('Demanda condicional' in e.value for e in app.markdown)
     assert any('Não é uma previsão de aprovação.' in e.value for e in app.info)
-    app.radio(key='adaptive_view').set_value('Ajustes').run()
+    open_view(app,adaptive='Ajustes')
     assert not app.exception
     assert app.selectbox(key='parameter_version').value==1
     assert not AdaptiveService(repo).store.events()
@@ -45,6 +46,6 @@ def test_registration_remembers_last_saved_modality_after_new_session(tmp_path,s
     service.save_entry(StudyEntry(topic.qbank.path,'2026-10-14',20,correct=20,confident_correct=20,mode='repetidas'),'last')
     monkeypatch.setenv('OSLER_DATA_DIR',str(repo.root))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Registrar resultados').run()
+    open_view(app,adaptive='Registrar resultados')
     assert not app.exception
     assert app.selectbox(key='study_mode').value=='repetidas'

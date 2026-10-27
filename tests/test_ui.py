@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 import pytest
 
@@ -6,11 +7,10 @@ from osler.storage import Repository
 
 
 def advanced(app):
-    if app.exception or not app.radio:
+    if app.exception:
         return app
-    if "Arquivos e ferramentas" in app.radio(key="main_view").options:
-        app.radio(key="main_view").set_value("Ferramentas").run()
-        app.selectbox(key="advanced_view").set_value("Dados e classificação").run()
+    open_view(app,main='Ferramentas')
+    app.selectbox(key="advanced_view").set_value("Dados e classificação").run()
     return app
 
 

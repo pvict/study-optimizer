@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 
 from osler.guide_service import GuideService
@@ -5,7 +6,7 @@ from test_assessments import setup_assessment
 
 
 def open_legacy(app,view):
-    app.radio(key='main_view').set_value('Ferramentas').run()
+    open_view(app,main='Ferramentas')
     app.selectbox(key='advanced_view').set_value(view).run()
 
 
@@ -15,7 +16,7 @@ def test_today_is_simple_and_works_without_manual_metrics(tmp_path, monkeypatch,
     app = AppTest.from_file(str(project_root/"app.py"), default_timeout=30).run()
     open_legacy(app,'Roteiro simples')
     assert not app.exception
-    assert app.radio(key="main_view").value == "Ferramentas"
+    assert app.session_state['main_view'] == "Ferramentas"
     assert len(app.tabs) == 0
     assert len(app.number_input) == 0
     assert len(app.text_input) == 0
@@ -57,7 +58,7 @@ def test_path_shortcut_opens_reduction_without_changing_an_instantiated_widget(t
     open_legacy(app,'Meu caminho')
     next(b for b in app.button if b.label == "Ver meus temas para redução").click().run()
     assert not app.exception
-    assert app.radio(key="main_view").value == "Ferramentas"
+    assert app.session_state['main_view'] == "Ferramentas"
     assert app.selectbox(key="advanced_view").value == "Planejador de Suspensões"
 
 

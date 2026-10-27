@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_planner import setup_plan
 
@@ -6,7 +7,7 @@ def test_manual_choice_needs_no_written_justification_or_duplicate_checkbox(tmp_
     repo, assessment, matching, row, planner, batch = setup_plan(tmp_path, sample_pdf)
     monkeypatch.setenv("OSLER_DATA_DIR", str(tmp_path))
     app = AppTest.from_file(str(project_root/"app.py"), default_timeout=30).run()
-    app.radio(key="main_view").set_value("Ferramentas").run()
+    open_view(app,main="Ferramentas")
     app.selectbox(key="advanced_view").set_value("Planejador de Suspensões").run()
     assert not app.exception
     assert not any("Confirmo" in c.label for c in app.checkbox)

@@ -1,3 +1,4 @@
+from conftest import open_view
 from copy import deepcopy
 import pytest
 
@@ -94,7 +95,7 @@ def test_today_and_calendar_explain_external_complement_without_late_label(tmp_p
     assert any('banco completo' in c.value and '10' in c.value for c in app.info)
     assert not any('atraso original' in c.value for c in app.caption)
     assert any(b.label=='Registrar complemento' for b in app.button)
-    app.radio(key='adaptive_view').set_value('Calendário').run()
+    open_view(app,adaptive='Calendário')
     assert not app.exception
     assert any('complemento' in c.value.lower() and 'banco completo' in c.value for c in app.caption)
     assert not any('vencimento original' in c.value for c in app.caption)

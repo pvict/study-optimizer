@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
 from osler.adaptive_service import AdaptiveService
@@ -12,6 +13,6 @@ def test_share_can_be_changed_from_today_and_settings(tmp_path,monkeypatch,proje
     assert not app.exception
     assert not app.error,[e.value for e in app.error]
     assert AdaptiveService(repo).store.profile()['profile']['new_share']==.5
-    app.radio(key='adaptive_view').set_value('Ajustes').run()
+    open_view(app,adaptive='Ajustes')
     assert not app.exception
     assert app.slider(key='settings_new_share').value==50

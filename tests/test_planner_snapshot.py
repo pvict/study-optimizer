@@ -1,3 +1,4 @@
+from conftest import open_view
 import hashlib,json
 from pathlib import Path
 import pytest
@@ -100,7 +101,7 @@ def test_snapshot_in_catalog_and_ui_does_not_inflate_period_totals(tmp_path,monk
     assert not any('PDF sem data' in w for w in warnings)
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
-    app.radio(key='adaptive_view').set_value('Temas e estatísticas').run()
+    open_view(app,adaptive='Temas e estatísticas')
     assert not app.exception
     frame=next(d.value for d in app.dataframe if 'Convicção (%)' in d.value.columns)
     assert frame['Convicção (%)'].dropna().tolist()==[73.5]

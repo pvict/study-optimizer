@@ -1,3 +1,4 @@
+from conftest import open_view
 from streamlit.testing.v1 import AppTest
 
 from osler.guide_service import GuideService
@@ -10,12 +11,12 @@ from test_classification import known
 
 def reduction_app(project_root):
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=30).run()
-    return app.radio(key='main_view').set_value('Diminuir revisões').run()
+    return open_view(app,main='Diminuir revisões')
 
 
 def legacy_reduction_app(project_root):
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=30).run()
-    app.radio(key='main_view').set_value('Ferramentas').run()
+    open_view(app,main='Ferramentas')
     return app.selectbox(key='advanced_view').set_value('Reduções anteriores').run()
 
 
@@ -80,7 +81,7 @@ def test_main_screen_exposes_reduction_without_per_topic_forms(tmp_path, monkeyp
     app = reduction_app(project_root)
     app.radio(key='ec_mode').set_value('Reduzir outras revisões').run()
     assert not app.exception
-    assert app.radio(key='main_view').value == 'Diminuir revisões'
+    assert app.session_state['main_view'] == 'Diminuir revisões'
     assert len(app.text_input) == 0
     assert len(app.number_input) == 0
     assert len(app.checkbox) == 0
@@ -97,7 +98,7 @@ def test_reduction_shortcut_keeps_the_existing_batch(tmp_path, monkeypatch, proj
     app = legacy_reduction_app(project_root)
     next(b for b in app.button if b.label == 'Acompanhar esta redução').click().run()
     assert not app.exception
-    assert app.radio(key='main_view').value == 'Ferramentas'
+    assert app.session_state['main_view'] == 'Ferramentas'
     assert app.selectbox(key='planner_batch_id').value == batch_id
     assert len(planner.list_batches()) == 1
     assert planner.get_batch(batch_id)['items'][0]['status'] == 'sugerido'

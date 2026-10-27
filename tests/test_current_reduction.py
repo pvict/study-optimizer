@@ -1,3 +1,4 @@
+from conftest import open_view
 from copy import deepcopy
 
 import pytest
@@ -410,7 +411,7 @@ def test_current_ui_shows_selective_evidence_and_records_real_manual_action(tmp_
     repo, adaptive, service, *_ = ready_service(tmp_path, sample_pdf)
     monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
     app = AppTest.from_file(str(project_root/'app.py'), default_timeout=30).run()
-    app.radio(key='main_view').set_value('Diminuir revisões').run()
+    open_view(app,main='Diminuir revisões')
     app.radio(key='ec_mode').set_value('Reduzir outras revisões').run()
     assert not app.exception
     assert any('Sugestões com os dados atuais' == s.value for s in app.subheader)
