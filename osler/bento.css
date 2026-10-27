@@ -44,8 +44,9 @@
 [data-testid="stApp"] [data-testid="stBaseButton-primary"] { background:var(--o-primary-strong); border-color:var(--o-primary-strong); color:#FFFFFF; }
 [data-testid="stApp"] [data-testid="stBaseButton-secondary"] { color:var(--o-ink); background:var(--o-card); }
 [data-testid="stApp"] button { min-width:44px; }
-[data-testid="stApp"] :is(button,a,input,textarea,summary):focus-visible,
+[data-testid="stApp"] :is(button,a,summary):focus-visible,
 [data-testid="stApp"] label:has(input:focus-visible) { outline:3px solid var(--o-primary-strong); outline-offset:3px; }
+[data-testid="stApp"] :is([data-testid="stNumberInputContainer"],[data-testid="stTextInputRootElement"],[data-testid="stTextAreaRootElement"]):focus-within { outline:none; box-shadow:none; border-color:var(--o-primary-strong); }
 [data-testid="stApp"] ::selection { color:var(--o-ink); background:var(--o-primary-tint); }
 [data-testid="stApp"] input,[data-testid="stApp"] textarea { caret-color:var(--o-primary-strong); }
 [data-testid="stApp"] .study-status { color:var(--o-ink); background:var(--a-neutral-tint); border:1px solid transparent; }

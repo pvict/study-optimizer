@@ -147,6 +147,8 @@ Na fase1 as páginas existentes continuam com seus agrupamentos, largura máxima
 
 Seletores novos são ancorados em keys ou `data-testid`; nenhum seletor de classe gerada. Foco visível3px índigo, afastamento3px. Botões nativos têm alvo mínimo44x44px, inclusive incrementos e ícones auxiliares. Campos com rótulo e borda clara; estados acompanhados por texto. O CSS não altera a família de spans de ícones Material.
 
+Campos numéricos, texto e textarea usam a borda de foco do próprio Streamlit, sem outline interno adicional. Botões, links e escolhas mantêm o foco3px de teclado. Não remover a seleção de texto nem o indicador de foco nativo do container do campo.
+
 Respeitar `prefers-reduced-motion`; remover transição e deslocamento decorativo nos componentes Bento. As regras existentes de empilhamento e tabelas continuam; composição nova em uma coluna até900px pertence à migração das telas. Testar390,768,1366 e1440px; zoom200% e teclado. Sem declaração de conformidade WCAG completa a partir de CSS/AppTest.
 
 ## Dados, evidência e limites

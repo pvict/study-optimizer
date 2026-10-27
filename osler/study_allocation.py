@@ -38,7 +38,7 @@ def category_allocation(available,states,profile,budget,day_target,today):
     def floor(t): return min(minimum,t.get('lot_questions',minimum),t.get('recommended_questions',minimum)) if t.get('allow_small_lot') else minimum
     def sized(t,limit):
         q=min(t.get('recommended_questions',minimum),t['allocation_capacity'],limit)
-        if balanced and t.get('review_kind')=='combined' and q<t['lot_questions']+t['representative_needed']:
+        if balanced and t.get('review_kind') in {'combined','lot_only'} and q<t['lot_questions']+t['representative_needed']:
             q=min(q,t['lot_questions'])
             t={**t,'review_kind':'lot_only','recommended_questions':q,'allocation_capacity':q}
         return t,q

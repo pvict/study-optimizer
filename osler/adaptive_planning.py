@@ -14,7 +14,7 @@ from .review_queue import review_queue
 from .topic_trajectory import question_dose, next_stage
 from .study_allocation import category_allocation
 from .review_policy import initial_interval,domain_evidence,review_order
-from .balanced_reviews import confirmed_deficit,coordinate_due,unresolved_linked_failure
+from .balanced_reviews import confirmed_deficit,coordinate_due,unresolved_linked_failure,daily_evidence,operational_contact_due
 
 
 def posterior(correct, n):
@@ -185,7 +185,10 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if entries: interval=spacing['interval'] if spacing['last_evidence_day'] else min(interval,spacing['interval'])
         else: interval=max(1,math.ceil(interval/(1+.5*incidence_strength)))
         if not committed: interval=initial_interval(snapshot if snapshot_current else None,profile,incidence_strength)
-        if alert and (not balanced or alert['percent']<params.raw_low_threshold): interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
+        if alert and not balanced: interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
+        if balanced:
+            latest_primary=next((e for e in reversed(daily_evidence(entries,as_of)) if e['mode']==source and e['n']>=profile.min_block),None)
+            if latest_primary and latest_primary['rate']<params.failure_threshold: interval=min(interval,params.failure_interval)
         if balanced and (manual_adverse or registered_error): interval=min(interval,params.failure_interval)
         if linked_adverse: interval=min(interval,params.first_interval)
         days_left=max(1,(_date(profile.exam_date)-day).days)
@@ -283,6 +286,11 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                 representative_today=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['day']==as_of and not e.get('review_of')))
         states[-1].update(question_dose(states[-1],profile,entries,as_of))
         states[-1]['theme_recommended_questions']=states[-1]['recommended_questions']
+        if balanced:
+            operational_due=operational_contact_due(states[-1],profile,entries,as_of)
+            if operational_due!=states[-1]['theme_review_due']:
+                states[-1]['theme_review_due']=operational_due
+                states[-1]['next_review']=min([q['due_date'] for q in pending]+([operational_due] if operational_due else []),default=None)
         from .study_capacity import practice_state
         states[-1].update(practice_state(states[-1],as_of,profile))
         states[-1]['is_new_for_day']=not(topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline or snapshot and snapshot['unique_questions'] or any(d<as_of for d in contact_dates))

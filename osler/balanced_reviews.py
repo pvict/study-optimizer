@@ -48,7 +48,7 @@ def balanced_spacing(entries,profile,as_of,incidence_strength=0):
         days.append(e['day'])
         elapsed=(_date(e['day'])-_date(last)).days if last else None
         spaced=elapsed is None or elapsed>=max(p.spaced_min_days,interval)
-        if e['rate']<p.raw_low_threshold:
+        if e['rate']<p.failure_threshold:
             streak=0; interval=p.failure_interval
         elif e['rate']>=p.intermediate_threshold and e['exact']:
             if not last or not streak or elapsed>max(profile.recent_days,2*interval):
@@ -83,7 +83,10 @@ def balanced_dose(state,profile,entries,as_of):
     rate=stats['mean']
     if latest:
         last_mean=posterior(int(latest['correct']),latest['n'])['mean'] if latest['exact'] else latest['rate']
-        rate=min(rate,last_mean)  # sucesso em repetidas não apaga dificuldade em novas
+        last_stats=posterior(int(latest['correct']),latest['n']) if latest['exact'] else None
+        clear_drop=bool(last_stats and stats.get('interval') and last_stats['interval'][1]<stats['interval'][0])
+        if latest['rate']<p.failure_threshold or clear_drop:
+            rate=min(rate,last_mean)
     gap=max(0,target-rate)/target
     uncertainty=min(1,stats['sd']/.25)
     strength=state.get('incidence_strength',0)
@@ -104,6 +107,34 @@ def balanced_dose(state,profile,entries,as_of):
     return {'recommended_questions':desired if state['total']<profile.min_block else available,
             'available_per_block':available,'complement_per_block':max(0,desired-state['total']) if state['total']<profile.min_block else 0,
             'small_bank':state['total']<profile.min_block,'dose_kind':kind,'dose_reason':reasons[kind]}
+
+
+def operational_contact_due(state,profile,entries,as_of):
+    """Retorno suficiente evita dose duplicada; não é evidência de domínio/estabilidade."""
+    due=state.get('theme_review_due')
+    if not due or state.get('manual_adverse') or state.get('registered_error'): return due
+    daily=defaultdict(list)
+    for e in entries:
+        if e['kind']=='bloco' and e['day']<=as_of and abs((_date(e['day'])-_date(due)).days)<=COORDINATION_DAYS:
+            daily[e['day']].append(e)
+    measured=[e for rows in daily.values() for e in rows if e.get('correct') is not None or e.get('percent') is not None]
+    if not measured or not any(e.get('review_of') for e in measured): return due
+    last=max(e['day'] for e in measured)
+    from .adaptive_planning import posterior
+    # Uma falha recente não é escondida por muitas repetições acertadas em outro grupo.
+    latest=defaultdict(list)
+    for e in measured:
+        if e['day']==last: latest[(e['mode'],bool(e.get('review_of')))].append(e)
+    for rows in latest.values():
+        n=sum(e['questions'] for e in rows)
+        correct=sum(e['correct'] if e.get('correct') is not None else e['questions']*e['percent']/100 for e in rows)
+        strong=all(e.get('correct') is not None for e in rows) and posterior(int(correct),n)['interval'][1]<profile.parameters.failure_threshold
+        if strong or n>=profile.min_block and correct/n<profile.parameters.failure_threshold: return due
+    n=sum(e['questions'] for e in measured)
+    correct=sum(e['correct'] if e.get('correct') is not None else e['questions']*e['percent']/100 for e in measured)
+    if n>=max(profile.min_block,state['recommended_questions']) and correct/n>=profile.parameters.failure_threshold:
+        return min(profile.exam_date,max(due,(_date(last)+timedelta(days=min(profile.parameters.first_interval,profile.max_contact_gap))).isoformat()))
+    return due
 
 
 def coordinate_due(due,pending,profile,as_of,last,protected=False):

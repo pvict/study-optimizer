@@ -20,8 +20,7 @@
 .stApp [data-testid="stButton"] button, .stApp [data-testid="stFormSubmitButton"] button {
   transition: background-color 150ms ease-out, border-color 150ms ease-out;
 }
-.stApp button:focus-visible, .stApp a:focus-visible, .stApp input:focus-visible,
-.stApp textarea:focus-visible, .stApp summary:focus-visible {
+.stApp button:focus-visible, .stApp a:focus-visible, .stApp summary:focus-visible {
   outline: 3px solid var(--study-primary-deep); outline-offset: 3px;
 }
 .stApp label:has(input:focus-visible) { outline: 3px solid var(--study-primary-deep); outline-offset: 3px; }

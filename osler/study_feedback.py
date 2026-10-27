@@ -40,7 +40,7 @@ def result_feedback(view,session_id):
         elif accuracy>=target: level,message='success',f'Acerto na meta de {target:g}% neste bloco. O intervalo depende também da amostra e dos encontros espaçados.'
         else: level,message='info',f'Acerto de {accuracy:.1f}% neste bloco, para uma meta de {target:g}%. A amostra e o histórico orientam o próximo contato; insegurança não foi tratada como erro.'
     pending=next(({'questions':q['questions'],'due_date':q['due_date']} for q in view['review_queue'] if q['session_id']==session_id),None)
-    next_contact=next_questions=dose_kind=None
+    next_contact=next_questions=dose_kind=next_kind=theme_questions=theme_contact=None
     coordinated=False
     next_action='Confira as explicações das respostas erradas e sem convicção antes do próximo contato.'
     if state and not state.get('historical_aggregate'):
@@ -48,13 +48,21 @@ def result_feedback(view,session_id):
         dose_kind=state.get('dose_kind')
         due=state.get('reschedule_date') or state.get('theme_review_due') or state.get('next_review')
         next_contact=max(due or view['date'],view['date'],view['profile'].get('start_date') or view['date'])
+        if balanced:
+            from .study_capacity import practice_state
+            from .study_models import AdaptiveProfile
+            p=AdaptiveProfile(**view['profile'])
+            theme_questions=next_questions;theme_contact=next_contact
+            due=min([q['due_date'] for q in state.get('pending_reviews',[])]+([due] if due else []),default=None)
+            next_contact=max(due or view['date'],view['date'],p.start_date or view['date'])
+            encounter=practice_state(state,next_contact,p)
+            next_questions=encounter['recommended_questions'];next_kind=encounter['review_kind']
         if next_contact>view['profile']['exam_date']: next_contact=None
-        coordinated=bool(balanced and pending and next_contact==pending['due_date'])
-        if coordinated:
-            all_due=sum(q['questions'] for q in state.get('pending_reviews',[]) if q['due_date']<=next_contact)
-            next_questions=max(next_questions,all_due+view['profile']['min_block'])
+        if theme_contact and theme_contact>view['profile']['exam_date']: theme_contact=None
+        coordinated=bool(balanced and pending and next_contact==pending['due_date'] and next_kind=='combined')
         if dose_kind=='maintenance': next_action='Faça a manutenção com uma amostra de diferentes partes do tema; use novos exemplos quando possível.'
         elif dose_kind in {'diagnostic','practice'}: next_action='No próximo bloco, explore diferentes partes do tema e informe também a convicção.'
+        if next_kind=='lot_only': next_action='Faça o retorno vinculado das respostas indicadas. Esse encontro já faz parte da carga; não exige um bloco completo adicional.'
     else:
         next_action='Este registro não tem um tema específico disponível para planejar. Consulte Temas antes de escolher o próximo bloco.'
     return {'event':event,'entry':e,'target':target,'accuracy_pct':accuracy,'conviction_pct':conviction,
@@ -62,6 +70,7 @@ def result_feedback(view,session_id):
             'mistakes':n-e['correct'] if e.get('correct') is not None else None,
             'guesses':e['correct']-e['confident_correct'] if conviction is not None else None,
             'pending':pending,'next_contact':next_contact,'next_questions':next_questions,'coordinated_return':coordinated,
+            'next_review_kind':next_kind,'theme_questions':theme_questions,'theme_contact':theme_contact,
             'planner_supply':planner_supply(state,next_questions,0,view['date']) if state and next_questions is not None else None,
             'dose_kind':dose_kind,'next_action':next_action,'level':level,'message':message,
             'small_block':e['kind']=='bloco' and n<view['profile']['min_block']}

@@ -91,7 +91,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
                 item['forecast_basis']='known_return' if item.get('review_kind')=='lot_only' else 'next_contact'
                 item['conditional']=offset>0
                 if item.get('review_kind')=='lot_only': item['stage']='Retorno de questões'
-            if item['questions']>=profile.min_block and not already_recorded: contact_counts[t['topic_id']]+=1
+            if item['questions']>=profile.min_block and not already_recorded and item.get('review_kind')!='lot_only': contact_counts[t['topic_id']]+=1
             free=item['questions']
             for q in t.get('pending_reviews',[]):
                 record=pending[q['session_id']]
@@ -105,7 +105,10 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             if spacing_scenario=='progressive':
                 advance_projected_spacing(t,profile,day,item['questions'],lot_only=item.get('review_kind')=='lot_only')
                 item['assumed_interval_after']=t.get('review_interval_days',7)
-            if item.get('review_kind')!='lot_only':
+            covers_budget=bool(profile.review_strategy=='balanced_v2' and t.get('theme_review_due') and
+                abs((_date(day)-_date(t['theme_review_due'])).days)<=2 and
+                item['questions']>=t.get('theme_recommended_questions',profile.min_block))
+            if item.get('review_kind')!='lot_only' or covers_budget:
                 t['theme_review_due']=None if next_contact_only else (_date(day)+timedelta(days=t.get('review_interval_days',7))).isoformat()
                 if next_contact_only: t['awaiting_result']=True
             future_returns=[q['due_date'] for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]

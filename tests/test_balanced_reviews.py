@@ -93,7 +93,7 @@ def test_small_known_lot_gets_its_real_size_without_inflating_to_ten():
 def test_combined_lot_and_theme_count_once_with_measurable_complement():
     p=profile(); original=block(); t=state([original],'2026-10-15',p)
     plan=allocate_day([t],p,None,'normal',[original],'2026-10-15',question_target=30)
-    assert plan['items'][0]['questions']>=14  # quatro vinculadas + ao menos dez representativas
+    assert plan['items'][0]['questions']==max(4,t['theme_recommended_questions'])  # orçamento compartilhado, sem piso extra
     linked=block('2026-10-15',n=4,correct=4,confident=4,mode='repetidas',review_of=original['session_id'])
     updated=state([original,linked],'2026-10-15',p)
     after=allocate_day([updated],p,None,'normal',[original,linked],'2026-10-15',question_target=30)
@@ -160,7 +160,7 @@ def test_combined_capacity_matches_real_lot_plus_representative_requirement():
     p=profile(workload_mode='adaptive',max_questions=40)
     t=state([block(confident=1)],'2026-10-15',p)
     _,_,meta=capacity_policy([t],p,'2026-10-15',40,40)
-    assert meta['due_questions']==t['recommended_questions']==28
+    assert meta['due_questions']==t['recommended_questions']==18  # lote real; sem acrescentar dez automaticamente
 
 
 def test_large_lot_can_be_partially_reviewed_in_a_small_budget():
@@ -181,8 +181,8 @@ def test_lot_completed_yesterday_is_credited_in_nearby_theme_complement():
     p=profile(max_questions=10,new_share=0); original=block()
     linked=block('2026-10-15',n=4,correct=4,confident=4,mode='repetidas',review_of=original['session_id'])
     t=state([original,linked],'2026-10-16',p)
-    assert t['recommended_questions']==10
+    assert t['recommended_questions']==t['theme_recommended_questions']-4
     from osler.study_calendar import forecast_calendar
     calendar=forecast_calendar([state([original],'2026-10-15',p)],p,'2026-10-15',2,[original],{},next_contact_only=True)
     assert calendar[0]['items'][0]['questions']==4
-    assert calendar[1]['items'][0]['questions']==10
+    assert calendar[1]['items'][0]['questions']==t['recommended_questions']

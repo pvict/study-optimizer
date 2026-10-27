@@ -68,16 +68,21 @@ def render_result_feedback(view,session_id):
     st.write(feedback['next_action'])
     if feedback['next_questions'] is not None:
         from .study_components import render_planner_supply
-        st.markdown(f"**Próximo bloco de referência: {feedback['next_questions']} questões.**")
+        label='Próximo retorno dirigido' if feedback.get('next_review_kind')=='lot_only' else 'Próximo bloco de referência'
+        st.markdown(f"**{label}: {feedback['next_questions']} questões.**")
         render_planner_supply(feedback)
         if feedback['next_contact']:
             st.write('Próximo contato indicado: '+_date_label(feedback['next_contact'])+'.')
         else: st.caption('Não há contato indicado dentro da preparação. Confira a data da prova em Ajustes.')
+        if feedback.get('theme_contact') and feedback['theme_contact']!=feedback['next_contact']:
+            st.caption(f"Revisão geral do tema: {feedback['theme_questions']} questões · {_date_label(feedback['theme_contact'])}. Os retornos dessa data entram no mesmo orçamento, sem acréscimo obrigatório.")
     pending=feedback['pending']
     if pending:
         if feedback.get('coordinated_return'):
             st.info(f"Retorno coordenado em {_date_label(pending['due_date'])}: as {pending['questions']} respostas ainda sem convicção entram no mesmo bloco de {feedback['next_questions']} questões no total. Registre o lote vinculado e o complemento separadamente para preservar as contagens.")
-        else: st.info(f"{pending['questions']} respostas deste registro ainda sem convicção · retorno em {_date_label(pending['due_date'])}. Esse lote fica separado da revisão completa do tema.")
+        else:
+            extra='Registre pelo lote vinculado; a agenda combina os encontros próximos no mesmo orçamento.' if view['profile'].get('review_strategy')=='balanced_v2' else 'Esse lote fica separado da revisão completa do tema.'
+            st.info(f"{pending['questions']} respostas deste registro ainda sem convicção · retorno em {_date_label(pending['due_date'])}. "+extra)
     elif e['kind']=='bloco' and feedback['conviction_pct'] is None:
         st.caption('Sem a contagem de convicção, não foi criado um lote de erros e chutes para este bloco.')
     st.caption('A quantidade é recalculada com seus registros; consulte as vagas no Calendário. Um único bloco não comprova domínio do tema.')

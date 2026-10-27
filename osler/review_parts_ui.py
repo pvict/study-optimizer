@@ -6,7 +6,7 @@ from .balanced_reviews import review_parts
 def render_review_parts(item,day,go_record,go_review,prefix):
     parts=review_parts(item,day)
     st.caption(f"{item['questions']} questões no total: {parts['lot_questions']} em retornos conhecidos"+
-        (f" + {parts['complement']} para conferir o tema." if parts['complement'] else '. O lote não substitui a medição geral do tema.'))
+        (f" + {parts['complement']} para conferir o tema." if parts['complement'] else '. Retorno dirigido; não comprova domínio geral do tema.'))
     for lot in parts['lots']:
         st.button(f"Registrar lote de {lot['questions']} respostas",key=prefix+'_lot_'+lot['session_id'],
             on_click=go_review,args=(lot,),width='stretch')

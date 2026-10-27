@@ -38,7 +38,7 @@ def test_balanced_feedback_uses_accuracy_goal_and_identifies_shared_lot():
     assert 'Convicção abaixo da meta' not in feedback['message']
     assert feedback['coordinated_return']
     assert feedback['pending']['questions']==4
-    assert feedback['next_questions']>=14 and feedback['next_questions']<20
+    assert feedback['next_questions']==max(t['theme_recommended_questions'],4) and feedback['next_questions']<20
     assert feedback['next_contact']=='2026-10-15'
 
 
