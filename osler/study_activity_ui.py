@@ -67,7 +67,9 @@ def render_result_feedback(view,session_id):
     st.subheader('Próximos passos para este tema')
     st.write(feedback['next_action'])
     if feedback['next_questions'] is not None:
+        from .study_components import render_planner_supply
         st.markdown(f"**Próximo bloco de referência: {feedback['next_questions']} questões.**")
+        render_planner_supply(feedback)
         if feedback['next_contact']:
             st.write('Próximo contato indicado: '+_date_label(feedback['next_contact'])+'.')
         else: st.caption('Não há contato indicado dentro da preparação. Confira a data da prova em Ajustes.')

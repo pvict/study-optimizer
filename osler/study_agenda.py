@@ -68,7 +68,8 @@ class StudyAgenda:
                 actual[key]=actual.get(key,0)+e['questions']
                 credited[key]=credited.get(key,0)+view['plan'].get('allocation_credits',{}).get(s['session_id'],e['questions'])
         payload={'kind':'daily_schedule','plan':{'date':view['date'],'items':[
-            {'topic_id':i['topic_id'],'path':i['path'],'questions':i['questions']+actual.get(tuple(normalize_path(i['path'])),0)} for i in view['plan']['items']]}}
+            {'topic_id':i['topic_id'],'path':i['path'],'questions':i['questions']+actual.get(tuple(normalize_path(i['path'])),0),
+             **({'planner_supply':i['planner_supply']} if i.get('planner_supply') else {})} for i in view['plan']['items']]}}
         payload.update(event_cutoff=max((s['id'] for s in view['sessions']),default=0),
             actual_at_capture={i['topic_id']:actual.get(tuple(normalize_path(i['path'])),0) for i in view['plan']['items']},
             planned_totals={i['topic_id']:i['questions']+credited.get(tuple(normalize_path(i['path'])),0) for i in view['plan']['items']},

@@ -11,6 +11,7 @@ from .study_swap_ui import render_swap_controls
 from .final_review_ui import render_exam_dates,render_final_review,render_mock_days
 from .mock_schedule_ui import render_mock_schedule
 from .review_parts_ui import render_review_parts
+from .study_components import render_planner_supply
 
 
 def _select_day(day):
@@ -45,8 +46,10 @@ def _day_summary(day,plan,context,today):
     else: st.markdown(f"**{plan['questions']} questões**")
     count=len(plan.get('delayed_topics',[])) if plan.get('historical') else len(context['backlog']) if day==today else 0
     if count: st.html(f'<div class="calendar-badge calendar-late">{count} atrasados</div>')
-    booked=sum(bool(i.get('rescheduled')) and not i.get('swap_return') for i in plan['items'])
+    booked=sum(bool(i.get('rescheduled')) and not i.get('swap_return') and not (i.get('planner_supply') or {}).get('external_only') for i in plan['items'])
     if booked: st.html(f'<div class="calendar-badge calendar-booked">{booked} recuperações</div>')
+    external=sum(bool((i.get('planner_supply') or {}).get('external_only')) for i in plan['items'])
+    if external: st.caption(f'{external} complemento(s) no banco completo')
     moved=sum(bool(i.get('swap_return')) for i in plan['items'])
     if moved: st.html(f'<div class="calendar-badge calendar-booked">{moved} remanejamentos</div>')
     if day>today and plan.get('topic_backlog'):
@@ -169,7 +172,9 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
             if item.get('forecast_basis')=='next_contact' and selected>today.isoformat(): left.caption('Depois deste bloco, data e quantidade da próxima revisão serão recalculadas.')
             if item.get('preventive_priority'): left.caption('Plano preventivo'+(f" · antecipada em {item['anticipated_days']}dia(s)" if item.get('anticipated_days') else ''))
             if item.get('swap_return'): left.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
+            elif (item.get('planner_supply') or {}).get('external_only'): left.caption('Complemento no banco completo')
             elif item.get('rescheduled'): left.caption('Recuperação · vencimento original '+item['original_due'])
+            with left: render_planner_supply(item)
             left.caption(' › '.join(item['path'][:-1]))
             if selected==today.isoformat():
                 mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'

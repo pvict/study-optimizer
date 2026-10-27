@@ -7,7 +7,7 @@ from .planner_service import today_local
 from .topic_picker_ui import pick_topic
 from .study_models import AdaptiveProfile
 from .study_trajectory_ui import trajectory_detail
-from .study_components import block_heading,block_context
+from .study_components import block_heading,block_context,render_planner_supply
 from .study_activity_ui import render_day_activity
 from .study_feedback import day_activity
 from .study_swap_ui import render_swap_controls,render_swap_history
@@ -120,10 +120,12 @@ def render_study_day(service,go_record,go_review,go_edit=None):
                     block_heading(item)
                     st.caption(' › '.join(item['path'][:-1]))
                     block_context(item)
+                    render_planner_supply(item)
                     render_error_context(service,item['path'],day)
                     if item.get('review_kind')=='lot_only': st.caption('Retorno de respostas sem convicção · a revisão completa do tema mantém sua própria data.')
                     if item.get('preventive_priority'): st.caption('Prioridade do plano preventivo')
                     if item.get('swap_return'): st.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
+                    elif (item.get('planner_supply') or {}).get('external_only'): st.caption('Complemento no banco completo')
                     elif item.get('rescheduled'): st.caption('Recuperação agendada · atraso original desde '+item['original_due'])
                     if item['added_by_user']: st.caption(f"Adicionado por você · {item['extra_pending']} questões extras neste bloco · só hoje")
                     elif item['priority']=='urgente': st.caption('Prioridade urgente · comece por aqui')
@@ -141,7 +143,7 @@ def render_study_day(service,go_record,go_review,go_edit=None):
                             st.button('Registrar complemento',key='study_complement_'+item['topic_id'],on_click=go_record,
                                       args=(item['topic_id'],complement,'mistas'),width='stretch')
                     else:
-                        st.button('Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if index==1 else 'secondary',
+                        st.button('Registrar complemento' if (item.get('planner_supply') or {}).get('external_only') else 'Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if index==1 else 'secondary',
                                   on_click=go_record,args=(item['topic_id'],item['questions'],mode))
                     with st.expander('Ver próximas revisões'):
                         st.write(item['reason'])

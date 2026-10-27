@@ -9,6 +9,24 @@ from .planning import _date,_number
 SEMANTICS={'questions':'unique','accuracy':'latest_confident_including_reviews','contact':'any_question_including_reviews'}
 
 
+def planner_supply(topic,required,completed=0,as_of=None):
+    """Cobertura por quantidade; não limita a dose nem identifica questões realizadas."""
+    snapshot=topic.get('planner_snapshot')
+    if not snapshot or as_of and snapshot['observed_date']>as_of: return None
+    total=snapshot['available_questions']
+    for value,name in ((total,'Questões no Planner'),(required,'Questões recomendadas'),(completed,'Questões registradas')):
+        _number(value,name,integer=True)
+    covered=min(required,total)
+    remaining=max(0,required-completed)
+    planner_remaining=max(0,covered-completed)
+    external=max(0,required-covered)
+    return {'recommended':required,'planner_total':total,'planner_part':covered,'external_part':external,
+            'completed':completed,'remaining':remaining,'planner_remaining':planner_remaining,
+            'external_remaining':max(0,remaining-planner_remaining),
+            'external_only':bool(external and remaining and completed>=covered),
+            'observed_date':snapshot['observed_date']}
+
+
 def load_planner_contexts(repo,datasets,report_id,as_of):
     result,warnings={},[]
     for ds in sorted(datasets,key=lambda d:(d['observed_date'],d['id'])):

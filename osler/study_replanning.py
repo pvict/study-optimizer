@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import timedelta
 from .models import normalize_path
 from .planning import _date
+from .planner_snapshot import planner_supply
 
 MODES={'balanced':'Distribuir na carga atual','reviews':'Priorizar revisões por alguns dias',
        'extra':'Acrescentar questões temporariamente','custom':'Escolher datas por tema'}
@@ -19,17 +20,28 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None):
         e=s['entry']
         if e['kind']=='bloco': done[(e['day'],tuple(normalize_path(e['path'])))]+=e['questions']
     missed=defaultdict(list)
+    covered_days=defaultdict(list)
+    by_path={tuple(normalize_path(t['path'])):t for t in states}
     for day,plan in latest.items():
         for t in plan['items']:
             key=tuple(normalize_path(t['path']))
-            left=max(0,t['questions']-done[(day,key)])
+            captured=t.get('planner_supply')
+            supply=captured or planner_supply(by_path.get(key,{}),t['questions'],done[(day,key)],day)
+            # O complemento externo segue recomendado; indisponibilidade não é atraso do aluno.
+            left=max(0,min(t['questions'],supply['planner_total'])-done[(day,key)]) if supply else max(0,t['questions']-done[(day,key)])
+            if captured and captured['external_part'] and not left: covered_days[key].append(day)
             if left: missed[key].append((day,left))
     result=[]
     for state in states:
         key=tuple(normalize_path(state['path']))
         failures=missed[key]
         # Um encontro útil posterior recupera planos anteriores; não acumular dívida de repetições.
-        recovered=max(state.get('spacing',{}).get('block_days',[]),default=None)
+        recovered=max(state.get('spacing',{}).get('block_days',[])+covered_days[key],default=None)
+        required=max(state['recommended_questions'],max((n for day,n in failures),default=0))
+        supply=planner_supply(state,required,0,as_of)
+        if supply and supply['external_part']:
+            covered=[day for (day,path),n in done.items() if path==key and n>=supply['planner_part']]
+            recovered=max(covered+([recovered] if recovered else []),default=None)
         failures=[(day,n) for day,n in failures if not recovered or day>=recovered]
         due=state.get('next_review') if state.get('review_committed',True) or state.get('pending_reviews') else None
         due=due if due and due<as_of else None

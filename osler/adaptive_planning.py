@@ -454,6 +454,15 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             extra['extra_pending']=extra['questions']
             items.append(extra)
     total=sum(i['questions'] for i in items)
+    from .planner_snapshot import planner_supply
+    bookings={r['topic_id']:r for r in reservations or []}
+    for item in items:
+        row=bookings.get(item['topic_id']) if item.get('rescheduled') or item.get('daily_proposal_preserved') else None
+        completed=sum(e['questions'] for e in today if e['kind']=='bloco' and normalize_path(e['path'])==normalize_path(item['path']))
+        required=item['questions']+completed
+        if row and 'questions' in row:
+            required=row['questions'];completed=max(0,required-row['remaining'])
+        item['planner_supply']=planner_supply(item,required,completed,as_of)
     order={'urgente':0,'alta':1,'normal':2}
     items.sort(key=lambda t:(not t.get('rescheduled',False),*review_order(t,as_of)))
     capacity['unused_questions']=max(0,target-done-total)

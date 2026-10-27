@@ -1,5 +1,6 @@
 """Leitura de atividade e retorno do bloco, sem criar resultados ou reservas."""
 from .models import normalize_path
+from .planner_snapshot import planner_supply
 
 
 def day_activity(view):
@@ -61,5 +62,6 @@ def result_feedback(view,session_id):
             'mistakes':n-e['correct'] if e.get('correct') is not None else None,
             'guesses':e['correct']-e['confident_correct'] if conviction is not None else None,
             'pending':pending,'next_contact':next_contact,'next_questions':next_questions,'coordinated_return':coordinated,
+            'planner_supply':planner_supply(state,next_questions,0,view['date']) if state and next_questions is not None else None,
             'dose_kind':dose_kind,'next_action':next_action,'level':level,'message':message,
             'small_block':e['kind']=='bloco' and n<view['profile']['min_block']}
