@@ -1,7 +1,7 @@
 """Triagem inicial descritiva: exposição e segurança não são estabilidade calibrada."""
 from math import ceil
 
-POLICY_VERSION='4.3'
+POLICY_VERSION='4.4'
 
 
 def initial_interval(snapshot,profile,incidence_strength):
@@ -27,9 +27,20 @@ def domain_evidence(seen,snapshot,confirmed_mastery,low_accuracy,target=90):
 
 
 def review_order(state,day):
-    # Compromissos vencidos precedem candidatos. Na fila inicial, valor esperado de prática pesa antes da idade.
+    # Compromissos reais precedem candidatos. Histórico com contato conhecido
+    # ganha proteção ao atingir o limite de afastamento, sem virar atraso fictício.
     due=state.get('allocation_due',state.get('next_review'))
     committed=state.get('review_committed',True) or bool(state.get('pending_reviews'))
     hard_due=bool(committed and due and due<=day)
-    return (not hard_due,{'urgente':0,'alta':1,'normal':2}[state['priority']] if hard_due else 0,
-            due if hard_due else '9999-12-31',not state.get('manual_adverse',False),-state['score'],state['path'])
+    deadline=state.get('initial_contact_deadline')
+    stale_initial=bool(not committed and deadline and deadline<=day)
+    adverse=bool(state.get('manual_adverse') or state.get('registered_error'))
+    # Bônus operacional proporcional à incidência: não é perda de memória
+    # estimada nem evidência estatística. Um tema remoto de baixa incidência
+    # não passa automaticamente à frente de uma dificuldade muito relevante.
+    score=state['score']+(state['importance'] if stale_initial else 0)
+    group=0 if hard_due else 1 if adverse else 2
+    return (group,{'urgente':0,'alta':1,'normal':2}[state['priority']] if hard_due else 0,
+            due if hard_due else '9999-12-31',not state.get('manual_adverse',False),
+            state.get('anticipated_days',0)>0,not state.get('preventive_priority',False),
+            -score,state['path'])

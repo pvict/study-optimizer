@@ -273,6 +273,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                        'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,'minimum_block':profile.min_block,
                        'retention_due':retention_due,'theme_review_due':theme_due,
                        'review_committed':committed,'review_origin':'retorno de respostas' if pending else 'acompanhamento de cartões' if topic.get('cards_reduced_day') else 'blocos registrados' if committed else 'fila inicial',
+                       'initial_contact_deadline':(_date(last)+timedelta(days=profile.max_contact_gap)).isoformat() if not committed and seen and last else None,
                        'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse or registered_error),profile.target_accuracy),
                        'importance':importance,'incidence_strength':incidence_strength,'incidence_known':topic['topic_id'] in incidence.get('known_topic_ids',[]),'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
                        'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,'registered_error':registered_error,
@@ -298,7 +299,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         states[-1].update({'review_number':number,'stage':stage})
     # Destaque operacional da fila inicial limitado à capacidade aproximada de uma semana.
     # Necessidade de reforço continua no domínio/low_accuracy; não converte todo o acervo em urgência.
-    initial=sorted([t for t in states if not t['review_committed'] and t['status']!='sem_registro'],key=lambda t:(not t['manual_adverse'],-t['score'],t['path']))
+    initial=sorted([t for t in states if not t['review_committed'] and t['status']!='sem_registro'],key=lambda t:review_order(t,as_of))
     weekly_slots=max(0,round(base_profile.max_topics*(1-base_profile.new_share)*7))
     for rank,t in enumerate(initial,1):
         t.update(initial_rank=rank,initial_focus=rank<=weekly_slots,
@@ -425,9 +426,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
                if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and
                t['total']>0 and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,min(practice_minimum(t,minimum),t['recommended_questions']) if t.get('allow_small_lot') else practice_minimum(t,minimum))]
-    if any(t.get('preventive_priority') for t in available):
-        ranks={'urgente':0,'alta':1,'normal':2}
-        available.sort(key=lambda t:(ranks[t['priority']],t.get('anticipated_days',0)>0,not t.get('preventive_priority',False),-t['score']))
+    available.sort(key=lambda t:review_order(t,as_of))
     virtual=[{'path':r.get('swap_quota_path',r['path']),'questions':r['questions']} for r in recovered+base_pins]
     selected,counts,distribution=category_allocation(available,states,replace(allocation_profile,max_topics=max(0,profile.max_topics-len(recovered)-len(base_pins))),budget,question_target if question_target is not None else target,allocation_today+virtual)
     for adjustment in quota_adjustments:

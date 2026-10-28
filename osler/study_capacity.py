@@ -3,6 +3,7 @@ from dataclasses import replace
 from datetime import timedelta
 from .planning import _date
 from .study_allocation import topic_is_new,practice_minimum
+from .review_policy import review_order
 
 HORIZON=14
 
@@ -46,6 +47,7 @@ def capacity_policy(states,profile,day,budget,target,limits=None):
     meta={'mode':profile.workload_mode,'reference_share':profile.new_share,'effective_share':profile.new_share,
           'deferred_admissions':0,'horizon_days':HORIZON}
     if profile.workload_mode!='adaptive' or budget<=0: return states,profile,meta
+    states=sorted(states,key=lambda t:review_order(t,day))
     start=_date(day)
     limits=limits or [(target,profile.max_topics)]*HORIZON
     loads=[0]*HORIZON; slots=[0]*HORIZON
