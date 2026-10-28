@@ -8,6 +8,8 @@ from .study_activity_ui import render_result_feedback
 from .study_errors_ui import render_quick_error
 from .bento import area_slug,AREA_LABELS,eyebrow
 from .balanced_reviews import review_parts
+from .topic_catalog import is_practice_topic
+from .study_components import render_bank_scope
 
 
 def entry_validation(entry):
@@ -80,10 +82,10 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         st.session_state['adaptive_topic']=next((t['topic_id'] for t in topics if t.get('is_leaf',True)),next(iter(lookup)))
     editing=st.session_state.get('study_edit')
     old=lookup.get(st.session_state.get('adaptive_topic')) if editing else None
-    if old and not old.get('is_leaf',True):
+    if old and not is_practice_topic(old):
         chosen=old
         st.caption('Corrigindo registro agregado antigo: '+ ' › '.join(old['path'])+'. O caminho será preservado; novos blocos usam temas específicos.')
-    elif lookup.get(st.session_state.get('adaptive_topic'),{}).get('is_leaf',True):
+    elif is_practice_topic(lookup.get(st.session_state.get('adaptive_topic'),{})):
         with st.expander('Trocar tema'):
             chosen=pick_topic(topics,'record',st.session_state.get('adaptive_topic'))
     else: chosen=pick_topic(topics,'record',st.session_state.get('adaptive_topic'))
@@ -93,6 +95,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     st.html(eyebrow(AREA_LABELS[slug],slug))
     st.subheader(chosen['path'][-1])
     st.caption(' › '.join(chosen['path'][:-1]))
+    render_bank_scope(chosen,service.store.profile()['profile']['min_block'])
     if st.session_state.get('study_review_of'): st.info('Revisão vinculada a uma pendência. Só acertos com convicção saem dessa fila; o restante retorna em 7 dias.')
     kind=st.segmented_control('O que você está registrando?',['bloco','acumulado','contato'],format_func={'bloco':'Um bloco que fiz','acumulado':'Um total acumulado anterior','contato':'Estudei sem fazer questões'}.get,key='study_kind',default='bloco',required=True,width='stretch')
     with st.expander('Outras formas de registrar'):
@@ -114,7 +117,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
             st.caption('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
         else: n,correct,percent,confident=0,None,None,None
         cards_created=0
-        if kind=='bloco' and chosen.get('is_leaf',True):
+        if kind=='bloco' and is_practice_topic(chosen):
             with st.expander('Flashcards criados neste bloco (opcional)'):
                 cards_created=st.number_input('Quantos flashcards de erros você criou?',0,5000,0,key='study_cards_created')
                 st.caption('Conte apenas os cards novos que você criou neste bloco, não os que revisou. Eles entram automaticamente na fila deste tema; a meta diária de cards não muda.')

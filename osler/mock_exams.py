@@ -168,7 +168,8 @@ def _entries(service, exam_key, exam):
     for row in exam.topics:
         key = tuple(normalize_path(row['path']))
         matches = by_path.get(key, [])
-        if len(matches)!=1 or not matches[0].get('is_leaf', True):
+        from .topic_catalog import is_practice_topic
+        if len(matches)!=1 or not is_practice_topic(matches[0]):
             raise ValueError('Escolha temas específicos reconhecidos de forma única no catálogo atual.')
         entry = StudyEntry(matches[0]['path'], exam.day, row['questions'], correct=row['correct'], source=f'Simulado {exam.name}')
         entry.validate()

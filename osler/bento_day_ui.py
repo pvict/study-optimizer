@@ -11,7 +11,7 @@ from .planner_service import today_local
 from .study_dashboard import date_label,hero_state,pause_remaining,week_summary
 from .study_feedback import day_activity
 from .study_activity_ui import render_day_activity
-from .study_components import render_planner_supply
+from .study_components import render_planner_supply,render_bank_scope
 from .study_navigation_ui import go_view
 from .study_swap_ui import render_swap_history
 from .study_models import AdaptiveProfile
@@ -74,6 +74,7 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
             minutes=ceil(n*view['plan']['effective_profile']['minutes_per_question'])
             st.caption(f'≈ {minutes} min · estimativa a partir dos seus blocos')
         render_planner_supply(item)
+        render_bank_scope(item,view['profile']['min_block'])
         notices=[]
         if item.get('review_kind')=='lot_only':notices.append('Retorno de respostas sem convicção · a revisão completa mantém sua própria data.')
         if item.get('preventive_priority'):notices.append('Prioridade do plano preventivo')

@@ -172,6 +172,11 @@ def render_topic_table(service,go_record):
                 return
         st.session_state['statistics_next_contacts']=cached
     rows=apply_next_contacts(rows,cached['forecast'])
+    coverage=cached['forecast'].get('coverage')
+    if coverage:
+        st.caption(f"Próximo contato com data: {coverage['scheduled']} de {coverage['total']} temas no horizonte da preparação. As datas acompanham seus próximos resultados.")
+        if coverage['scheduled']<coverage['total']:
+            st.warning('Há temas sem encaixe com a carga, os dias de descanso e a divisão atuais. A cobertura completa exige reorganizar esses limites; não foi criada uma data fictícia.')
     n=sum(r['Questões com acertos exatos'] for r in rows)
     correct=sum(r['Acertos'] for r in rows)
     with st.container(key='topic_summary'):

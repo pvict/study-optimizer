@@ -161,6 +161,8 @@ Campos numéricos, texto e textarea usam a borda de foco do próprio Streamlit, 
 
 Hoje reserva76px de topo no desktop e72px até900px para o cabeçalho fixo nativo de60px, incluindo lateral recolhida. O menu alinha também o wrapper interno nativo e textos quebrados à esquerda.
 
+Cobertura: o mínimo habitual de questões admite exceção para acervo positivo menor. Temas específicos com conteúdo próprio além dos filhos são praticáveis, sem reclassificar is_leaf da fonte; a ficha informa escopo abrangente e sobreposição. Registro no pai não atualiza filhos automaticamente. Contagens importadas sobrepostas não são somadas à base global. A tabela informa quantas unidades têm data prevista; nunca criar data fictícia para ocultar falta de capacidade. Evidência: docs/design/2026-10-28-cobertura-sem-exclusao.md.
+
 Respeitar `prefers-reduced-motion`; remover transição e deslocamento decorativo nos componentes Bento. As regras existentes de empilhamento e tabelas continuam; composição nova em uma coluna até900px pertence à migração das telas. Testar390,768,1366 e1440px; zoom200% e teclado. Sem declaração de conformidade WCAG completa a partir de CSS/AppTest.
 
 ## Dados, evidência e limites

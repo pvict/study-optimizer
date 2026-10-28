@@ -112,7 +112,8 @@ class ErrorStore:
         topics = self.catalog(today_local().isoformat(), include_parents=True)[0] if callable(self.catalog) else self.catalog
         path = normalize_path(error.path)
         matches = [t for t in topics if normalize_path(t['path']) == path]
-        if len(matches) != 1 or not matches[0].get('is_leaf', True):
+        from .topic_catalog import is_practice_topic
+        if len(matches) != 1 or not is_practice_topic(matches[0]):
             raise ValueError('Escolha um tema específico reconhecido de forma única no relatório atual.')
 
     def _append(self, error, error_key, expected_version, action):

@@ -17,7 +17,10 @@ def forecast_topic_contacts(service,view):
         for item in plan['items']:
             contacts.setdefault(item['topic_id'],{'date':plan['date'],'stage':item['stage'],'questions':item['questions']})
     if token!=service.agenda.token(): raise ValueError('O plano mudou. Atualize a tabela para calcular as próximas revisões.')
-    return {'contacts':contacts,'end':calendar[-1]['date'],'finished':False}
+    ids={t['topic_id'] for t in view['planning_states']}
+    return {'contacts':contacts,'end':calendar[-1]['date'],'finished':False,
+            'coverage':{'scheduled':len(ids&contacts.keys()),'total':len(ids)},
+            'unassigned_ids':sorted(ids-contacts.keys())}
 
 
 def apply_next_contacts(rows,forecast):

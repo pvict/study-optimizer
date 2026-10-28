@@ -2,7 +2,7 @@
 from dataclasses import replace
 from datetime import timedelta
 from .planning import _date
-from .study_allocation import topic_is_new
+from .study_allocation import topic_is_new,practice_minimum
 
 HORIZON=14
 
@@ -76,18 +76,26 @@ def capacity_policy(states,profile,day,budget,target,limits=None):
     meta['effective_share']=effective.new_share
     quota=[new_questions,max(0,budget-new_questions-loads[0])]
     admitted=set()
+    def admit(t,left):
+        if t['topic_id'] in admitted or t.get('review_committed',True): return 0
+        due=t.get('allocation_due',t.get('next_review'))
+        if due and due>day:return 0
+        q=min(dose(t),left)
+        if q<practice_minimum(t,profile.min_block) or slots[0]>=profile.max_topics:return 0
+        offsets=occurrences(t,True)
+        if any(loads[i]+(q if i==0 else dose(t))>limits[i][0] or slots[i]>=limits[i][1] for i in offsets):return 0
+        admitted.add(t['topic_id'])
+        for i in offsets:loads[i]+=q if i==0 else dose(t);slots[i]+=1
+        return q
     for group in (0,1):
         left=quota[group]
         for t in states:
-            if t.get('review_committed',True) or topic_is_new(t)!=(group==0): continue
-            due=t.get('allocation_due',t.get('next_review'))
-            if due and due>day: continue
-            q=min(dose(t),left)
-            if q<profile.min_block or slots[0]>=profile.max_topics: continue
-            offsets=occurrences(t,True)
-            if any(loads[i]+(q if i==0 else dose(t))>limits[i][0] or slots[i]>=limits[i][1] for i in offsets): continue
-            admitted.add(t['topic_id']); left-=q
-            for i in offsets: loads[i]+=q if i==0 else dose(t); slots[i]+=1
+            if topic_is_new(t)==(group==0):left-=admit(t,left)
+    # Mesma cessão de sobra já usada no alocador: uma quota sem candidatos
+    # não deixa vagas ociosas enquanto outros temas aguardam admissão.
+    if 0<profile.new_share<1:
+        left=max(0,budget-loads[0])
+        for t in states:left-=admit(t,left)
     kept=[t for t in states if t.get('review_committed',True) or t['topic_id'] in admitted or t.get('manual_adverse')]
     kept_ids={t['topic_id'] for t in kept}
     meta['deferred_admissions']=sum(not t.get('review_committed',True) and t['topic_id'] not in kept_ids and

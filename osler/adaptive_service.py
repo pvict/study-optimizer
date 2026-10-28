@@ -21,7 +21,7 @@ from .study_storage import StudyStore
 from .reduction_storage import ReductionStore
 from .planner_storage import PlannerStore
 from .planning import _date
-from .topic_catalog import planning_frontier
+from .topic_catalog import planning_frontier,mark_practice_units,is_practice_topic
 from .review_queue import review_queue
 from .study_agenda import StudyAgenda
 from .study_replanning import effective_routine
@@ -53,7 +53,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         if not q: return [],{'qbank':None,'flashcards':None}
         counts=Counter(tuple(normalize_path(t.path)) for t in q.records)
         fcounts=Counter(tuple(normalize_path(t.path)) for t in f.records) if f else {}
-        flash={tuple(normalize_path(t.path)):t for t in f.records if (t.is_leaf or include_parents) and fcounts[tuple(normalize_path(t.path))]==1} if f else {}
+        flash={tuple(normalize_path(t.path)):t for t in f.records if fcounts[tuple(normalize_path(t.path))]==1} if f else {}
         topics=[]
         planner,planner_warnings=load_planner_contexts(self.repository,self.guide.datasets(),q.file_sha256,as_of)
         manual={}
@@ -73,7 +73,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                 elif event['kind']=='reabrir': reduced.pop(t['topic_id'],None)
         for row in q.records:
             key=tuple(normalize_path(row.path))
-            if not (row.is_leaf or include_parents) or counts[key]!=1 or len(row.path)!=row.level+1 or row.total<=0: continue
+            if counts[key]!=1 or len(row.path)!=row.level+1 or row.total<=0: continue
             card=flash.get(key)
             topics.append({'topic_id':row.topic_id,'path':row.path,'total':row.total,'answered_pdf':row.studied,
                            'pdf_accuracy':{'value':row.acerto_pdf.value,'operator':row.acerto_pdf.operator,'raw':row.acerto_pdf.raw},
@@ -82,7 +82,8 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                            'planner_snapshot':planner.get(key)})
         sources={'qbank':q.file_sha256,'flashcards':f.file_sha256 if f else None}
         if planner_warnings: sources['planner_warnings']=planner_warnings
-        return topics,sources
+        topics=mark_practice_units(topics)
+        return [t for t in topics if include_parents or is_practice_topic(t)],sources
 
     def _validate_entry(self,entry,by_path=None):
         entry.validate()
@@ -92,7 +93,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
             by_path={tuple(normalize_path(t['path'])):t for t in catalog}
         match=by_path.get(tuple(normalize_path(entry.path)))
         if match is None: raise ValueError('Tema não reconhecido de forma única no relatório atual. Use o caminho completo.')
-        if entry.cards_created and not match.get('is_leaf',True):
+        if entry.cards_created and not is_practice_topic(match):
             raise ValueError('Associe os flashcards criados a um tema específico, não a um grupo ou grande área.')
         return replace(entry,path=match['path'])
 
@@ -184,7 +185,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         if not profile.institution_weights and guide.institutions:
             profile=replace(profile,institution_weights={name:1 for name in guide.institutions})
         all_topics,sources=self.catalog(as_of,include_parents=True)
-        topics=[t for t in all_topics if t.get('is_leaf',True)]
+        topics=[t for t in all_topics if is_practice_topic(t)]
         sessions=self.store.active(as_of)
         dated=sorted(sessions,key=lambda s:(s['entry']['day'],s['id']))
         measured=[e['entry']['minutes']/e['entry']['questions'] for e in dated

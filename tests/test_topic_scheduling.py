@@ -14,13 +14,13 @@ def test_small_leaf_keeps_specific_identity_without_parent_child_overlap():
     assert all(t['is_leaf'] and not t['rollup'] for t in frontier)
 
 
-def test_count_plan_has_useful_minimum_blocks_and_keeps_daily_quantity():
+def test_count_plan_keeps_daily_quantity_and_limits_small_blocks_to_small_banks():
     p=AdaptiveProfile()
     states=topic_states([topic('Tiny',total=1),topic('A'),topic('B'),topic('C')],[],[],{},'2026-10-15',p)
     result=allocate_day(states,p,None,'normal',[],'2026-10-15',question_target=60)
     assert result['questions']==60
-    assert all(i['questions']>=10 for i in result['items'])
-    assert 'Tiny' not in [i['topic_id'] for i in result['items']]
+    assert all(i['questions']>=10 or i['total']<10 and i['questions']==i['total'] for i in result['items'])
+    assert next(i for i in result['items'] if i['topic_id']=='Tiny')['questions']==1
 
 
 def test_spacing_grows_on_confident_success_and_resets_after_errors():

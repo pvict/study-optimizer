@@ -2,13 +2,14 @@
 from math import log
 from .models import normalize_path
 from .study_allocation import topic_is_new
+from .topic_catalog import is_practice_topic
 
 PRIORITY={'urgente':0,'alta':1,'normal':2}
 
 
 def replacement_candidates(original,states,excluded,day):
     manual=[t for t in states if t['topic_id'] not in excluded|{original['topic_id']} and
-            t.get('is_leaf',True) and not t.get('historical_aggregate') and t['total']>=original['questions'] and
+            is_practice_topic(t) and not t.get('historical_aggregate') and t['total']>=original['questions'] and
             not (t.get('review_kind')=='lot_only' and sum(q['questions'] for q in t.get('pending_reviews',[]) if q['due_date']<=day)>original['questions'])]
     similar=[t for t in manual if topic_is_new(t)==topic_is_new(original) and
              abs(PRIORITY[t['priority']]-PRIORITY[original['priority']])<=1 and

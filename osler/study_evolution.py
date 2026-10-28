@@ -3,11 +3,12 @@ from bisect import bisect_right
 from collections import defaultdict
 from .models import normalize_path
 from .planning import _date
+from .topic_catalog import is_practice_topic
 
 
 def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30):
     _date(as_of)
-    topics=[t for t in states if t.get('is_leaf',True) and not t.get('historical_aggregate')]
+    topics=[t for t in states if is_practice_topic(t) and not t.get('historical_aggregate')]
     ids={t['topic_id'] for t in topics}
     by_path={tuple(normalize_path(t['path'])):t['topic_id'] for t in topics}
     records=[e['entry'] for e in sessions if e['entry']['day']<=as_of]
@@ -29,8 +30,8 @@ def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30):
         snapshot=t.get('planner_safety') or t.get('planner_snapshot') or {}
         if snapshot.get('observed_date','')>as_of: snapshot={}
         n=snapshot.get('unique_questions',t.get('answered_pdf',0)) or 0
-        imported_unique+=n
-        if n and snapshot.get('confident_accuracy_pct') is not None:
+        if not t.get('non_additive'):imported_unique+=n
+        if n and not t.get('non_additive') and snapshot.get('confident_accuracy_pct') is not None:
             safety_n+=n; safety_sum+=n*snapshot['confident_accuracy_pct']; safety_topics+=1
             if snapshot.get('observed_date'): safety_dates.add(snapshot['observed_date'])
         if n or t.get('answered_pdf',0): covered.add(t['topic_id'])
@@ -70,6 +71,7 @@ def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30):
     achievements=[{'id':key,'title':title,'earned':earned,'earned_date':date,
                    'projected_date':None if earned else projected,'description':description} for key,title,earned,date,projected,description in milestones]
     return {'as_of':as_of,'total_topics':total,'actual_attempts':actual,'actual_days':len(days),'imported_unique':imported_unique,
+            'non_additive_topics':sum(bool(t.get('non_additive')) for t in topics),
             'imported_safety':{'topics':safety_topics,'questions_per_topic_sum':safety_n,'weighted_pct':safety_sum/safety_n if safety_n else None,'dates':sorted(safety_dates)},
             'points':points,'history':history,'topics':evidence,'covered_now':points[0]['covered'],
             'covered_ids_now':sorted(covered_now),

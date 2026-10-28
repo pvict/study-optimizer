@@ -128,6 +128,8 @@ def render_evolution(service):
     if not attention: st.caption('Nenhum ponto de atenção identificado pelos dados disponíveis. Isso não substitui novas medições de rendimento.')
     with st.expander('Temas e premissas em detalhe'):
         st.caption(f"Base atual: {number(snapshot['actual_attempts'])} respostas em blocos no app. Soma das contagens de questões distintas por tema nos arquivos: {number(snapshot['imported_unique'])}. Não há identificação global das questões entre temas.")
+        if snapshot.get('non_additive_topics'):
+            st.caption('Temas com histórico abrangendo subtemas aparecem na cobertura e em suas fichas; suas contagens importadas e convicção não foram somadas novamente aos totais dos filhos.')
         if attention: st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Situação':r['kind'],'Motivo':r['reason'],
                                                 'Última medida (%)':100*r['rate'] if r['rate'] is not None else None,
                                                 'Fonte da medida':r['rate_source'],'Caminho':' › '.join(r['path'])} for r in attention]),hide_index=True,width='stretch')

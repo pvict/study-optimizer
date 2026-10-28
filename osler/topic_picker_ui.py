@@ -1,6 +1,7 @@
 """Busca digitada e caminho progressivo, com escolhas explícitas do geral ao específico."""
 import streamlit as st
 from .models import normalize_path
+from .topic_catalog import is_practice_topic
 
 
 def reset_picker(key):
@@ -9,7 +10,7 @@ def reset_picker(key):
 
 
 def pick_topic(topics,key,selected_id=None):
-    topics=[t for t in topics if t.get('is_leaf',True)]
+    topics=[t for t in topics if is_practice_topic(t)]
     if not topics: return None
     if st.session_state.get(key+'_requested')!=selected_id:
         reset_picker(key)

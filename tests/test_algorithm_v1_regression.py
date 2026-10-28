@@ -40,6 +40,14 @@ def outputs(case):
             'questions':plan['questions'],'target_questions':plan['target_questions'],'distribution':plan['distribution']}
 
 
-def test_parameters_v1_reproduces_lote_b_exactly():
+def test_parameters_v1_keep_lote_b_statistical_evidence_and_intervals():
     expected=json.loads((Path(__file__).parent/'fixtures/algorithm_v1_baseline.json').read_text(encoding='utf-8'))
-    assert {case['name']:outputs(case) for case in cases()}==expected
+    for case in cases():
+        actual=outputs(case);original=expected[case['name']]
+        # A política4.3 inclui o acervo C de5 questões antes excluído. O golden
+        # original fica imutável para proteger estimativas, intervalos e metas.
+        assert actual['states']==original['states']
+        assert actual['target_questions']==original['target_questions']
+        assert actual['questions']<=actual['target_questions']
+        totals={t['topic_id']:t['total'] for t in case['topics']}
+        assert all(i['questions']>=10 or i['questions']==totals[i['topic_id']]<10 for i in actual['items'])

@@ -6,6 +6,11 @@ def topic_is_new(t):
     return t.get('is_new_for_day',t['status']=='sem_registro')
 
 
+def practice_minimum(topic,minimum):
+    """Acervo pequeno positivo é uma exceção ao piso, não motivo para excluir o tema."""
+    return min(minimum,topic['total'])
+
+
 def _fill(selected,counts,target,capped=False):
     while sum(counts.get(t['topic_id'],0) for t in selected)<target:
         candidates=[t for t in selected if counts.get(t['topic_id'],0)<min(t['allocation_capacity'],t.get('recommended_questions',t['allocation_capacity']))] if capped else [t for t in selected if counts.get(t['topic_id'],0)<t['allocation_capacity']]
@@ -35,7 +40,9 @@ def category_allocation(available,states,profile,budget,day_target,today):
     pools=[[t for t in available if topic_is_new(t)],[t for t in available if not topic_is_new(t)]]
     balanced=profile.review_strategy=='balanced_v2'
     minimum=profile.min_block if balanced else min(profile.min_block,budget)
-    def floor(t): return min(minimum,t.get('lot_questions',minimum),t.get('recommended_questions',minimum)) if t.get('allow_small_lot') else minimum
+    def floor(t):
+        bank_floor=practice_minimum(t,minimum)
+        return min(bank_floor,t.get('lot_questions',bank_floor),t.get('recommended_questions',bank_floor)) if t.get('allow_small_lot') else bank_floor
     def sized(t,limit):
         q=min(t.get('recommended_questions',minimum),t['allocation_capacity'],limit)
         if balanced and t.get('review_kind') in {'combined','lot_only'} and q<t['lot_questions']+t['representative_needed']:

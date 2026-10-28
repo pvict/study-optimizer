@@ -12,7 +12,7 @@ from .planning import _date, _number
 from .topic_spacing import spacing_state, learning_state
 from .review_queue import review_queue
 from .topic_trajectory import question_dose, next_stage
-from .study_allocation import category_allocation
+from .study_allocation import category_allocation,practice_minimum
 from .review_policy import initial_interval,domain_evidence,review_order
 from .balanced_reviews import confirmed_deficit,coordinate_due,unresolved_linked_failure,daily_evidence,operational_contact_due
 
@@ -424,7 +424,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in candidates
                if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and
-               (t['total']>=profile.min_block or t.get('allow_small_lot')) and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,min(minimum,t['recommended_questions']) if t.get('allow_small_lot') else minimum)]
+               t['total']>0 and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,min(practice_minimum(t,minimum),t['recommended_questions']) if t.get('allow_small_lot') else practice_minimum(t,minimum))]
     if any(t.get('preventive_priority') for t in available):
         ranks={'urgente':0,'alta':1,'normal':2}
         available.sort(key=lambda t:(ranks[t['priority']],t.get('anticipated_days',0)>0,not t.get('preventive_priority',False),-t['score']))

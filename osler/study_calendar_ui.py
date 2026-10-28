@@ -11,7 +11,7 @@ from .study_swap_ui import render_swap_controls
 from .final_review_ui import render_exam_dates,render_final_review,render_mock_days
 from .mock_schedule_ui import render_mock_schedule
 from .review_parts_ui import render_review_parts
-from .study_components import render_planner_supply
+from .study_components import render_planner_supply,render_bank_scope
 
 
 def _select_day(day):
@@ -174,7 +174,9 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
             if item.get('swap_return'): left.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
             elif (item.get('planner_supply') or {}).get('external_only'): left.caption('Complemento no banco completo')
             elif item.get('rescheduled'): left.caption('Recuperação · vencimento original '+item['original_due'])
-            with left: render_planner_supply(item)
+            with left:
+                render_planner_supply(item)
+                render_bank_scope(item,current_view['profile']['min_block'])
             left.caption(' › '.join(item['path'][:-1]))
             if selected==today.isoformat():
                 mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'

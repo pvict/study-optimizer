@@ -5,6 +5,13 @@ import streamlit as st
 STATE_LABELS={'dominado':'Dominado','aprendendo':'Aprendendo','alerta':'Em alerta'}
 
 
+def render_bank_scope(item,minimum):
+    if 0<item['total']<minimum:
+        st.caption(f"Acervo pequeno: {item['total']} "+('questão disponível' if item['total']==1 else 'questões disponíveis')+'. O tema recebe vaga mesmo abaixo do bloco mínimo; essa amostra não comprova domínio.')
+    if item.get('partial_subdivision'):
+        st.caption('Tema completo, incluindo subtemas. Não some as contagens entre eles. Este registro atualiza apenas o tema selecionado.')
+
+
 def render_planner_supply(item):
     supply=item.get('planner_supply')
     if not supply: return
