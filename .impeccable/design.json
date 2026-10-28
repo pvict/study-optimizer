@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-27T23:34:13.667588+00:00",
-  "title": "Design System: Osler — Bento, navegação e Hoje",
+  "generatedAt": "2026-10-28T12:00:00-03:00",
+  "title": "Design System: Osler — Bento, Hoje, Temas e Registro",
   "extensions": {
     "colorMeta": {
       "primary": {
@@ -279,7 +279,7 @@
   ],
   "narrative": {
     "northStar": "Clareza para estudar, um bloco de cada vez.",
-    "overview": "Fundação visual local, navegação única e Hoje em Bento; cálculos e demais composições preservados.",
+    "overview": "Fundação visual local, navegação única, Hoje, Temas e Registro em Bento; cálculos e fontes preservados.",
     "keyCharacteristics": [
       "Português simples",
       "Tema claro, sem cards pretos",

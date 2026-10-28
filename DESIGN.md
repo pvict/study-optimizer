@@ -1,6 +1,6 @@
 ---
-name: Osler — Bento, navegação e Hoje
-description: Fundação visual local e composição Bento de Hoje; navegação lateral única.
+name: Osler — Bento, Hoje, Temas e Registro
+description: Fundação local, navegação lateral única e composição Bento de Hoje, Temas e Registro.
 colors:
   primary: "#4F46E5"
   primary-deep: "#4338CA"
@@ -189,3 +189,13 @@ Bento: colunas2:1 com gap16px; até900px uma coluna. Lateral recolhida no celula
 Evidência desta fase: docs/design/bento-fase2-entrega.md e evidencias/bento/fase2. Somente dados sintéticos e porta8602 em QA. Nome/cadastro e redesenho das outras telas permanecem fora do escopo.
 
 Variantes documentadas: raio14px de botões,34px apenas com corner-shape, fonte14px de navegação,16px de campos móveis, E5E7EB como trilho decorativo e9CA3AF como contorno decorativo de dias. O estado continua expresso por texto/símbolo, sem depender do trilho ou contorno para leitura.
+
+## Fase3 — Temas e Registro
+
+Temas mantém Tabela como entrada e oferece Lista em cards de duas colunas,12 por página e uma coluna até900px. Busca e filtros nativos conservam chaves; atalhos neutros por estado e pills por área com contagens. Cards mostram tema específico, acerto exato na modalidade identificada com n, convicção principal com fonte, meta e próxima revisão do calendário. Em Todas, o card usa novas para o acerto; a tabela e os totais mantêm o recorte original. PDF, retrato Osler, acumulado e tentativas nunca são somados como evidência independente. Ausência é traço; zero informado continua zero.
+
+Registrar é um card central de no máximo680px. Escolha de tema recolhida quando há tema específico, tipo do registro visível, três contagens em linha ou empilhadas até900px. Erro do modelo aparece junto ao campo, preservando valores. Aproximado, metadados, cards criados, importação e correção continuam disponíveis. Após salvar: toast, total real do dia, Próximo bloco e Voltar ao plano. Próximo usa o primeiro item atual e a alocação existente de lotes, sem gravar estudo nem perder review_of. Sem meta, o resumo informa essa ausência.
+
+Abas Erros, Plano de corte e Minha meta preservadas. Erros paginados12; atalho por tema limpa motivo residual. Corte, confiança da fonte e Wilson são dados cadastrados/observados; nenhuma previsão de aprovação. CSV consolidado permanece com fontes separadas. Feedback do registro usa superfície e texto neutros, sem alterar sua mensagem ou regra.
+
+Escala dos cards11/13/20px; padding24 e gap16; fontes e tokens da fundação. Estado neutro, cor apenas da área nos elementos previstos. Detector manual desta fase listou Inter, exigida pelo briefing, e retornou código1 no conjunto misto Python/CSS: não é prova de cobertura completa do código Python. Evidência e limitações: docs/design/bento-fase3-entrega.md. Fases4–5 continuam pendentes.

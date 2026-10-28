@@ -61,20 +61,31 @@ def render_errors(service):
     if message := st.session_state.pop('study_error_failure', None):
         st.error(message)
     opened = store.active(today_local().isoformat())
-    st.caption(f"{len(opened)} " + ('erro aberto.' if len(opened) == 1 else 'erros abertos.'))
     if opened:
         catalog, _ = service.catalog(today_local().isoformat())
         names = {tuple(normalize_path(t['path'])): t['path'] for t in catalog}
         paths = sorted({tuple(e['path']) for e in opened})
-        selected = st.selectbox('Filtrar por tema', [None, *paths],
-                                format_func=lambda p: 'Todos os temas' if p is None else ' › '.join(names.get(p, p)), key='study_errors_topic')
-        with st.expander('Mais filtros'):
-            cause = st.selectbox('Motivo do erro', [None, *CAUSES], format_func=lambda c: 'Todos os motivos' if c is None else CAUSES[c], key='study_errors_cause')
+        with st.container(key='bento-errors-filters'):
+            st.caption(f"{len(opened)} " + ('erro aberto.' if len(opened) == 1 else 'erros abertos.'))
+            selected = st.selectbox('Filtrar por tema', [None, *paths],
+                                    format_func=lambda p: 'Todos os temas' if p is None else ' › '.join(names.get(p, p)), key='study_errors_topic')
+            with st.expander('Mais filtros'):
+                cause = st.selectbox('Motivo do erro', [None, *CAUSES], format_func=lambda c: 'Todos os motivos' if c is None else CAUSES[c], key='study_errors_cause')
         filtered = [e for e in opened if (selected is None or tuple(e['path']) == selected) and (cause is None or e['cause'] == cause)]
+        filters = (selected, cause)
+        pages = max(1, (len(filtered) + 11) // 12)
+        if st.session_state.get('study_errors_page_filters') != filters:
+            st.session_state['study_errors_page'] = 1
+        st.session_state['study_errors_page_filters'] = filters
+        st.session_state['study_errors_page'] = min(max(1, st.session_state.get('study_errors_page', 1)), pages)
+        page = int(st.number_input('Página de erros', 1, pages, key='study_errors_page')) if pages > 1 else 1
         if not filtered:
-            st.info('Nenhum erro aberto com estes filtros.')
-        for error in filtered:
-            with st.container(border=True):
+            with st.container(key='bento-errors-empty'):
+                st.info('Nenhum erro aberto com estes filtros.')
+        else:
+            st.caption(f'{len(filtered)} erros · página {page} de {pages}')
+        for error in filtered[(page-1)*12:page*12]:
+            with st.container(key='bento-error-'+error['error_key']):
                 st.write(' › '.join(names.get(tuple(error['path']), error['path'])))
                 st.caption(error['day'] + ' · ' + CAUSES[error['cause']] + (' · Crítico' if error['critical'] else ''))
                 if error['note']:
@@ -87,7 +98,8 @@ def render_errors(service):
                 right.button('Desconsiderar erro', key='void_error_' + error['error_key'],
                              on_click=_close_error, args=(store, error['error_key'], error['version'], 'void'), width='stretch')
     else:
-        st.info('Nenhum erro aberto. Depois de salvar um bloco, use “Anotar um erro deste bloco” se precisar.')
+        with st.container(key='bento-errors-empty'):
+            st.info('Nenhum erro aberto. Depois de salvar um bloco, use “Anotar um erro deste bloco” se precisar.')
     events = store.events()
     if events:
         st.download_button('Exportar erros e histórico (CSV)', store.export_csv(), file_name='erros-estudo.csv', mime='text/csv', key='study_errors_csv')

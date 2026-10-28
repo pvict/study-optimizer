@@ -9,17 +9,16 @@ import streamlit as st
 from .adaptive_service import AdaptiveService
 from .guide_settings_ui import render_guide_settings
 from .planner_service import today_local
-from .study_models import StudyEntry, AdaptiveProfile
+from .study_models import AdaptiveProfile
 from .study_day_ui import render_study_day
 from .study_tables_ui import render_topic_table
-from .topic_picker_ui import pick_topic, reset_picker
+from .topic_picker_ui import reset_picker
 from .study_calendar_ui import render_calendar
 from .exam_goals_ui import render_exam_goals
 from .exam_goals import ExamGoals
 from .study_evolution_ui import render_evolution
-from .study_activity_ui import render_result_feedback
 from .review_strategy_ui import render_review_strategy
-from .study_errors_ui import render_quick_error,render_errors
+from .study_errors_ui import render_errors
 from .mock_exams_ui import render_mock_exams,render_mock_settings
 from .final_review_ui import render_exam_weights
 from .goal_risk_ui import render_goal_risk
@@ -93,14 +92,14 @@ def render_adaptive(repo):
         elif view=='Registrar resultados':
             with st.container(key='study_registration'): _register(service)
         elif view=='Temas e estatísticas':
-            stats,errors,cut,goal=st.tabs(['Desempenho dos temas','Erros abertos','Plano de corte','Minha meta'])
+            stats,errors,cut,goal=st.tabs(['Desempenho dos temas','Erros abertos','Plano de corte','Minha meta'],key='topics_tabs',on_change='rerun')
             with stats: render_topic_table(service,_go_record)
             with errors: render_errors(service)
             with cut: render_triage(service)
             with goal: render_goal_risk(service)
-            with st.expander('Exportar histórico para análise externa'):
+            with st.container(key='bento-topics-export'):
+                st.download_button('Exportar CSV consolidado',consolidated_csv(service,today_local().isoformat()),'historico-consolidado.csv','text/csv',key='consolidated_export')
                 st.caption('Fontes e versões em linhas separadas. Não some os denominadores entre PDFs, acumulados, blocos e simulados.')
-                st.download_button('Baixar CSV consolidado',consolidated_csv(service,today_local().isoformat()),'historico-consolidado.csv','text/csv',key='consolidated_export')
         elif view=='Evolução': render_evolution(service)
         elif view=='Simulados': render_mock_exams(service)
         else:
@@ -121,108 +120,9 @@ def render_adaptive(repo):
 
 
 def _register(service):
-    if 'study_mode' not in st.session_state:
-        previous=[r for r in service.store.active(today_local().isoformat()) if r['entry']['kind']=='bloco']
-        st.session_state['study_mode']=max(previous,key=lambda r:r['id'])['entry']['mode'] if previous else 'novas'
-        st.session_state['last_study_mode']=st.session_state['study_mode']
-    saved=st.session_state.get('study_saved')
-    if saved:
-        st.subheader('Registro concluído')
-        st.write(saved['topic'])
-        question_view=service.overview(today_local().isoformat())
-        render_result_feedback(question_view,saved.get('session_id'))
-        from .error_cards_service import ErrorCardsService
-        queue=ErrorCardsService(service.repository).overview(question_view=question_view)
-        event=next((r for r in service.store.active(today_local().isoformat()) if r['session_id']==saved.get('session_id')),None)
-        if event and event['entry'].get('cards_created',0):
-            count=event['entry']['cards_created']
-            if saved['session_id'] in queue['created_session_ids']:
-                st.success(f'{count} flashcards criados neste bloco foram incluídos na sua fila de cards de erros. A carga diária foi mantida.')
-            else:st.caption(f'{count} flashcards criados neste bloco já estão abrangidos pelo retrato de cards importado; não foram somados outra vez.')
-        render_quick_error(service,saved.get('session_id'))
-        st.button('Voltar ao plano',key='study_back_to_plan',type='primary',on_click=_back_to_plan)
-        st.button('Registrar outro estudo',key='study_another_entry',on_click=_go_record,args=(saved['topic_id'],20))
-        return
-    topics,_=service.catalog(today_local().isoformat(),include_parents=True)
-    if not topics:
-        st.info('Importe um relatório Qbank em Ferramentas para reconhecer os temas. Nenhum indicador por subtema é obrigatório.')
-        return
-    lookup={t['topic_id']:t for t in topics}
-    if st.session_state.get('adaptive_topic') not in lookup: st.session_state['adaptive_topic']=next(iter(lookup))
-    editing=st.session_state.get('study_edit')
-    old=lookup.get(st.session_state.get('adaptive_topic')) if editing else None
-    if old and not old.get('is_leaf',True):
-        chosen=old
-        st.caption('Corrigindo registro agregado antigo: '+ ' › '.join(old['path'])+'. O caminho será preservado; novos blocos usam temas específicos.')
-    elif st.session_state.get('study_n') and lookup.get(st.session_state.get('adaptive_topic'),{}).get('is_leaf',True):
-        with st.expander('Trocar tema'):
-            chosen=pick_topic(topics,'record',st.session_state.get('adaptive_topic'))
-    else: chosen=pick_topic(topics,'record',st.session_state.get('adaptive_topic'))
-    if not chosen: return
-    selected=chosen['topic_id']
-    st.subheader(chosen['path'][-1])
-    st.caption(' › '.join(chosen['path'][:-1]))
-    if st.session_state.get('study_review_of'): st.info('Revisão vinculada a uma pendência. Só acertos com convicção saem dessa fila; o restante retorna em 7 dias.')
-    with st.expander('Outras formas de registrar'):
-        kind=st.radio('O que você está registrando?',['bloco','acumulado','contato'],format_func={'bloco':'Um bloco que fiz','acumulado':'Um total acumulado anterior','contato':'Estudei sem fazer questões'}.get,horizontal=True,key='study_kind')
-        method=st.radio('Como informar o rendimento?',['acertos','percentual'],format_func={'acertos':'Quantidade de acertos','percentual':'Só tenho o percentual aproximado'}.get,horizontal=True,key='study_method') if kind!='contato' else 'acertos'
-        if kind=='acumulado': st.caption('Este total ficará separado dos blocos e PDFs para evitar contar o mesmo estudo duas vezes.')
-    editing=st.session_state.get('study_edit')
-    if editing or st.session_state.get('study_review_of'): st.button('Registrar outro estudo',on_click=_go_record,args=(selected,20))
-    if editing: st.caption('Correção de um lançamento: a versão anterior será preservada.')
-    with st.form('study_entry'):
-        if kind!='contato':
-            left,right=st.columns(2)
-            n=left.number_input('Quantas questões você fez?',min_value=1,max_value=1000000,value=20,key='study_n')
-            correct=right.number_input('Quantas acertou?',min_value=0,max_value=1000000,value=None,key='study_correct') if method=='acertos' else None
-            percent=right.number_input('Percentual aproximado de acerto',min_value=0.,max_value=100.,value=None,key='study_percent') if method=='percentual' else None
-            confident=st.number_input('Desses acertos, quantos foram com convicção?',min_value=0,max_value=1000000,value=None,key='study_confident') if method=='acertos' else None
-            st.caption('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
-        else: n,correct,percent,confident=0,None,None,None
-        cards_created=0
-        if kind=='bloco' and chosen.get('is_leaf',True):
-            cards_created=st.number_input('Quantos flashcards de erros você criou?',0,5000,0,key='study_cards_created')
-            st.caption('Conte apenas os cards novos que você criou neste bloco, não os que revisou. Eles entram automaticamente na fila deste tema; a meta diária de cards não muda.')
-        with st.expander('Data, modalidade e detalhes'):
-            day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date',format='DD/MM/YYYY',help='O dia de estudo vai das 04h até antes das 04h do dia seguinte, no horário de Brasília. Registros anteriores mantêm a data informada.')
-            mode=st.selectbox('Essas questões eram',['novas','repetidas','mistas'],format_func={'novas':'Novas para mim','repetidas':'Questões que já fiz antes','mistas':'Mistura ou não sei separar'}.get,key='study_mode') if kind!='contato' else 'mistas'
-            duration=st.number_input('Minutos gastos neste estudo',min_value=0.1,max_value=1440.,value=None,key='study_duration')
-            last=st.text_input('Último contato conhecido no acumulado (AAAA-MM-DD)',key='study_last_contact') if kind=='acumulado' else None
-        submitted=st.form_submit_button('Salvar resultado e atualizar meu plano',type='primary')
-    if submitted:
-        entry=StudyEntry(lookup[selected]['path'],day.isoformat(),int(n),int(correct) if correct is not None else None,percent,kind,mode,duration,last or None,
-                         confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'),
-                         cards_created=int(cards_created))
-        sid=editing['session_id'] if editing else st.session_state.setdefault('study_entry_id',uuid.uuid4().hex)
-        service.save_entry(entry,sid,editing['version'] if editing else 0)
-        st.session_state['last_study_mode']=entry.mode
-        st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected,'session_id':sid}
-        for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of','study_cards_created']: st.session_state.pop(key,None)
-        st.session_state['adaptive_notice']='Resultado salvo. O plano, os alertas e a evolução foram atualizados.'
-        st.rerun()
-    with st.expander('Importar vários resultados de uma vez'):
-        st.write('CSV/TSV de blocos ou acumulados, ou tabela colada. Use id_sessao para identificar cada lançamento; reimportar o mesmo arquivo não duplica o histórico. Acertos e percentual são alternativas.')
-        template='id_sessao;tema;data;tipo;modalidade;questoes;acertos;percentual;minutos;ultimo_contato;versao;acertos_conviccao;revisao_de;cards_criados\n'
-        st.download_button('Baixar cabeçalho da tabela',template.encode('utf-8-sig'),'resultados_modelo.csv','text/csv')
-        upload=st.file_uploader('Resultados CSV ou TSV',type=['csv','tsv'],key='study_upload')
-        pasted=st.text_area('Ou cole a tabela de resultados',key='study_paste')
-        if st.button('Importar resultados',disabled=not upload and not pasted.strip()):
-            text=upload.getvalue().decode('utf-8-sig') if upload else pasted
-            count=service.import_text(text)
-            st.session_state['adaptive_notice']=f'{count} lançamentos processados. Reenvios idênticos foram reconhecidos.'
-            st.rerun()
-    with st.expander('Corrigir ou desconsiderar um lançamento'):
-        active=service.store.active(today_local().isoformat())
-        if active:
-            by_id={s['session_id']:s for s in active}
-            chosen=st.selectbox('Registro',list(by_id),format_func=lambda key:f"{by_id[key]['entry']['day']} · {' → '.join(by_id[key]['entry']['path'])} · {by_id[key]['entry']['questions']} questões")
-            event=by_id[chosen]
-            st.caption('Desconsiderar remove a contribuição do cálculo, preservando o histórico.')
-            st.button('Editar este lançamento',on_click=_edit,args=(event,))
-            if st.button('Desconsiderar este lançamento'):
-                service.store.void(chosen,event['version'])
-                st.session_state['adaptive_notice']='Lançamento desconsiderado. O histórico foi preservado.'
-                st.rerun()
+    from .study_registration_ui import render_registration
+    with st.container(key='bento-record'):
+        render_registration(service,_go_record,_go_review,_back_to_plan,_edit)
 
 
 def _edit(event):

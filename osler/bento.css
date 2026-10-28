@@ -148,3 +148,47 @@
   [class*="st-key-bento-hero-"], [class*="st-key-bento-state-"] { min-height:0; }
   .st-key-bento_header .o-date { margin-left:0; }
 }
+
+/* Fase3: consulta de temas e registro. Estado é neutro; área só nos dados. */
+[data-testid="stMainBlockContainer"]:has(:is(.st-key-bento-topics-filters,.st-key-bento-record)) { padding:32px; max-width:1240px; }
+.st-key-bento-topics-filters { gap:12px; }
+.st-key-bento-topics-filters [data-testid="stVerticalBlock"] { gap:12px; }
+.st-key-topic_states { padding:0; }
+.st-key-topic_filters { padding:0; border:0; }
+[data-testid="stApp"] .st-key-topic_states button { background:var(--a-neutral-tint); color:var(--o-ink); border:1px solid transparent; border-radius:var(--o-pill); }
+[data-testid="stApp"] .st-key-topic_states [data-testid="stBaseButton-primary"] { background:var(--o-ink); border-color:var(--o-ink); color:var(--o-card); }
+.st-key-topic_states button p { white-space:normal; font-size:13px; line-height:18px; }
+.st-key-bento-topics-filters :is([data-testid="stPills"],[data-testid="stRadio"]) { margin:0; }
+.st-key-bento_topics_grid { gap:16px; }
+.st-key-bento_topics_grid [data-testid="stHorizontalBlock"] { gap:16px; align-items:stretch; }
+.st-key-bento_topics_grid [data-testid="stColumn"] > [data-testid="stVerticalBlock"] { height:100%; }
+[class*="st-key-bento-topic-"] { height:100%; gap:12px; }
+[data-testid="stHtml"] .o-topic-meta { display:flex; justify-content:space-between; flex-wrap:wrap; align-items:center; gap:8px; }
+[class*="st-key-bento-topic-"] h3 { margin:16px 0 8px; padding:0; overflow-wrap:anywhere; }
+[class*="st-key-bento-topic-"] .o-chip { font-size:11px; }
+[class*="st-key-bento-topic-"] button p { font-size:13px; line-height:18px; }
+[class*="st-key-list_record_"] { margin-top:auto; }
+[data-testid="stHtml"] :is(.o-topic-path,.o-topic-results p) { margin:0; font:400 13px/18px var(--o-font); color:var(--o-ink-2); overflow-wrap:anywhere; }
+[data-testid="stHtml"] .o-topic-results { display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:16px; }
+[data-testid="stHtml"] .o-topic-results strong { color:var(--o-ink); font-weight:650; }
+[class*="st-key-bento-topic-"] [data-testid="stExpander"] { background:transparent; }
+.st-key-study_registration { max-width:680px; margin-inline:auto; }
+.st-key-bento-record { gap:16px; }
+.st-key-bento-record h3 { margin:0; padding:0; overflow-wrap:anywhere; }
+.st-key-bento-record [data-testid="stForm"] { border:0; padding:0; }
+.st-key-bento-record [data-testid="stWidgetLabel"] p { font-size:13px; line-height:18px; }
+.st-key-bento-record [data-testid="stNumberInputContainer"] { background:var(--o-bg); border:1px solid var(--o-ink-3); border-radius:var(--o-radius-sm); }
+.st-key-bento-record [data-testid="stNumberInputContainer"]:focus-within { border-color:var(--o-primary-strong); outline:none; box-shadow:none; }
+.st-key-bento-record [data-testid="stForm"] [data-testid="stHorizontalBlock"] { align-items:flex-start; gap:16px; }
+.st-key-bento-record [data-testid="stForm"] [data-testid="stWidgetLabel"] { min-height:44px; align-items:flex-start; }
+.st-key-bento-record [data-testid="stExpander"] { background:transparent; }
+.st-key-bento-record [data-testid="stAlertContainer"] { background:var(--a-neutral-tint); color:var(--o-ink); }
+.st-key-bento-record [data-testid="stAlertContainer"] :is(p,svg) { color:var(--o-ink); }
+.st-key-bento-record [data-testid="stHtml"] .o-record-saved { padding:16px; border-radius:var(--o-radius-md); background:var(--o-primary-tint); color:var(--o-primary-strong); }
+.st-key-bento-record [data-testid="stHtml"] .o-record-saved p { margin:4px 0 0; font-size:13px; line-height:18px; color:var(--o-primary-strong); }
+@media (max-width:900px) {
+  [data-testid="stMainBlockContainer"]:has(:is(.st-key-bento-topics-filters,.st-key-bento-record)) { padding:72px 20px 24px; }
+  .st-key-bento_topics_grid [data-testid="stHorizontalBlock"],.st-key-bento-record [data-testid="stForm"] [data-testid="stHorizontalBlock"] { flex-direction:column; }
+  .st-key-bento_topics_grid [data-testid="stColumn"],.st-key-bento-record [data-testid="stForm"] [data-testid="stColumn"] { width:100%; flex:1 1 100%; }
+  .st-key-bento-record [data-testid="stForm"] [data-testid="stWidgetLabel"] { min-height:0; }
+}
