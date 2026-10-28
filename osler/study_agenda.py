@@ -107,5 +107,14 @@ class StudyAgenda:
             used=sum(s['entry']['questions'] for s in sessions if s['entry']['kind']=='bloco' and
                      s.get('first_event_id',s.get('id',0))>item['cutoff'] and s['entry']['day']>=item['created_day'] and tuple(normalize_path(s['entry']['path']))==key)
             item['remaining']=max(0,item['questions']-used)
+        from .planner_completion import active_completions
+        completions=active_completions(records,sessions,as_of)
+        for item in rows.values():
+            closed=next((r for r in completions if r['topic_id']==item['topic_id'] and
+                         item['plan_id']<r['id'] and item['date']<=r['day']),None)
+            if closed:
+                item['planner_completed_day']=closed['day']
+                if as_of>closed['day']:item['remaining']=0
         return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'triage_policies':triage_policies,'swaps':swaps,
+                'planner_completions':completions,
                 'history':[r for r in records if r.get('kind','').startswith('reschedule.')]}

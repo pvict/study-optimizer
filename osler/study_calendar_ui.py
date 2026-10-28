@@ -112,7 +112,7 @@ def render_calendar(service,go_record,go_review=None):
                         _date_button(day,plan,selected)
                         _day_summary(day,plan,context,today)
     with st.container(key='calendar_selected_detail'):
-        _render_selected_day(service,go_record,go_review,today,start_date,selected,by_date[selected])
+        _render_selected_day(service,go_record,go_review,today,start_date,selected,by_date[selected],context['view'])
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,context['view'],selected)
     with st.expander('Programar ou mudar datas dos simulados'):
@@ -127,7 +127,7 @@ def render_calendar(service,go_record,go_review=None):
         render_mock_days(service)
 
 
-def _render_selected_day(service,go_record,go_review,today,start_date,selected,plan):
+def _render_selected_day(service,go_record,go_review,today,start_date,selected,plan,current_view):
     strategy=service.store.profile()['profile'].get('review_strategy')
     st.subheader('Blocos de '+ '/'.join(reversed(selected.split('-'))))
     override=plan.get('routine_override',{})
@@ -186,6 +186,11 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
                     left.caption('O complemento do bloco pode ser registrado na tela Hoje.')
                 else: right.button('Registrar',key='calendar_record_'+item['topic_id'],on_click=go_record,args=(item['topic_id'],item['questions'],mode))
                 render_swap_controls(service,selected,item,'calendar')
+                from .planner_completion_ui import render_completion_choice
+                render_completion_choice(service,current_view,item,'calendar_')
+    if selected==today.isoformat():
+        from .planner_completion_ui import render_completions
+        render_completions(service,current_view)
     if not plan['items']:
         st.info('Descanso programado.' if plan['kind']=='descanso' else 'Os blocos deste dia serão recalculados após os próximos resultados. A ausência de uma previsão não significa que o dia esteja livre.' if plan.get('forecast_mode')=='next_contact' and selected>today.isoformat() else 'Dia sem blocos previstos. Pode ser descanso ou intervalo entre revisões.')
     snapshot=st.session_state.setdefault('calendar_snapshot_'+selected,service.store.day(selected,service.store.profile()['profile']['max_questions']))

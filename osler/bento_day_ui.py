@@ -166,6 +166,8 @@ def render_today(service,go_record,go_review,go_edit=None):
     with st.spinner('Preparando seu plano…'):
         view=service.overview(day)
         service.remember_day(view)
+        if service.agenda.token()!=view['planning_token']:
+            view=service.overview(day)
     plan=view['plan'];state=hero_state(view);activity=day_activity(view)
     exam=principal_exam(AdaptiveProfile(**view['profile']),ExamGoals(service.repository).active(),day)
     exam=exam['target'] if exam else None
@@ -191,8 +193,11 @@ def render_today(service,go_record,go_review,go_edit=None):
                 items=plan['items'][1:] if state=='study' else plan['items']
                 for item in items:_block(service,view,item,day,go_record,go_review)
                 if not items:st.caption('O próximo bloco está destacado acima.' if state=='study' else 'Nenhum outro bloco para hoje.')
-                if plan['kind']!='descanso' and view['states'] and plan['questions']<max(0,plan['target_questions']-plan['done_questions']):
+                freed=sum(r['skipped_questions'] for r in plan.get('planner_completions',[]))
+                if plan['kind']!='descanso' and view['states'] and plan['questions']<max(0,plan['target_questions']-plan['done_questions']-freed):
                     st.info('Parte da meta não pôde ser distribuída com os temas e limites atuais. Adicione outro tema ou ajuste o número de temas em Ajustes.')
+            from .planner_completion_ui import render_completions
+            render_completions(service,view)
         with support:
             if st.session_state.get('bento_pause_day')!=day:
                 st.session_state['bento_pause_day']=day

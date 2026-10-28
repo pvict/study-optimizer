@@ -82,7 +82,7 @@
 }
 
 /* Fase2: navegação nativa única e composição de Hoje. */
-[data-testid="stMainBlockContainer"]:has(.st-key-bento_header) { padding:32px; max-width:1240px; }
+[data-testid="stMainBlockContainer"]:has(.st-key-bento_header) { padding:76px 32px 32px; max-width:1240px; }
 [data-testid="stSidebar"][data-collapsed="false"] { min-width:240px; max-width:240px; }
 [data-testid="stSidebarHeader"] { padding:8px 12px; height:44px; min-height:44px; }
 [data-testid="stApp"] [data-testid="stSidebarContent"] { padding-inline:0; }
@@ -93,6 +93,10 @@
 .st-key-bento_sidebar [data-testid="stCaptionContainer"] p { font-size:11px; font-weight:700; letter-spacing:.08em; }
 .st-key-bento_sidebar [data-testid="stBaseButton-secondary"] { border-color:transparent; background:transparent; justify-content:flex-start; padding-inline:12px; border-radius:14px; }
 .st-key-bento_sidebar [data-testid="stBaseButton-secondary"] p { font-size:14px; font-weight:600; }
+.st-key-bento_sidebar button { text-align:left; justify-content:flex-start; }
+.st-key-bento_sidebar button > div { width:100%; justify-content:flex-start; }
+.st-key-bento_sidebar button [data-has-shortcut] { width:100%; justify-content:flex-start; }
+.st-key-bento_sidebar [data-testid="stMarkdownContainer"] { text-align:left; }
 .st-key-bento_sidebar [class*="st-key-nav_active_"] [data-testid="stBaseButton-secondary"] { background:var(--o-primary-tint); color:var(--o-primary-strong); }
 .st-key-bento_sidebar [data-testid="stBaseButton-secondary"]:hover { background:var(--o-bg); }
 .st-key-bento_sidebar .o-brand { display:flex; align-items:center; gap:10px; margin-bottom:12px; }

@@ -75,6 +75,8 @@ def _block_controls(service,view,item,day,go_record,go_review,hero=False):
         action.button('Registrar complemento' if (item.get('planner_supply') or {}).get('external_only') else 'Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if hero else 'secondary',
                   on_click=go_record,args=(item['topic_id'],item['questions'],mode))
     render_swap_controls(service,day,item,button_container=swap_button)
+    from .planner_completion_ui import render_completion_choice
+    render_completion_choice(service,view,item)
     with st.expander('Ver próximas revisões'):
         if not hero: st.caption(' › '.join(item['path'][:-1])+' · '+item['stage'])
         render_error_context(service,item['path'],day)

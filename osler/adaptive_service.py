@@ -261,6 +261,8 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                      'effective_profile':effective.to_dict(),
                      'session_versions':[(s['session_id'],s['version']) for s in sessions],
                      'incidence_contexts':incidence['contexts']})
+        from .planner_completion import apply_completions
+        apply_completions(plan,agenda,as_of)
         exact=[e['entry'] for e in sessions if e['entry']['kind']=='bloco' and e['entry']['mode']=='novas' and e['entry']['correct'] is not None]
         n=sum(e['questions'] for e in exact)
         portfolio={'new_questions':n,'new_correct':sum(e['correct'] for e in exact),
@@ -311,6 +313,14 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
     def remember_day(self,view):
         if view['date']!=today_local().isoformat(): raise ValueError('Somente o plano de hoje pode ser guardado como proposta diária.')
         return self.agenda.remember(view)
+
+    def skip_planner_complement(self,day,topic_id,expected_token):
+        from .planner_completion import skip_complement
+        return skip_complement(self,day,topic_id,expected_token)
+
+    def restore_planner_complement(self,day,decision_id,expected_token):
+        from .planner_completion import restore_complement
+        return restore_complement(self,day,decision_id,expected_token)
 
     def replanning(self,as_of=None):
         from .study_replanning import collect_backlog

@@ -159,6 +159,8 @@ Seletores novos são ancorados em keys ou `data-testid`; nenhum seletor de class
 
 Campos numéricos, texto e textarea usam a borda de foco do próprio Streamlit, sem outline interno adicional. Botões, links e escolhas mantêm o foco3px de teclado. Não remover a seleção de texto nem o indicador de foco nativo do container do campo.
 
+Hoje reserva76px de topo no desktop e72px até900px para o cabeçalho fixo nativo de60px, incluindo lateral recolhida. O menu alinha também o wrapper interno nativo e textos quebrados à esquerda.
+
 Respeitar `prefers-reduced-motion`; remover transição e deslocamento decorativo nos componentes Bento. As regras existentes de empilhamento e tabelas continuam; composição nova em uma coluna até900px pertence à migração das telas. Testar390,768,1366 e1440px; zoom200% e teclado. Sem declaração de conformidade WCAG completa a partir de CSS/AppTest.
 
 ## Dados, evidência e limites
