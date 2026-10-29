@@ -32,14 +32,14 @@ def journey_svg(context,selected,mobile=False):
     for i,(label,day) in enumerate(nodes):
         p=point_at(snapshot,day); x=18 if mobile else 26+i*832/last; y=28+70*i if mobile else 28
         real=day==today; active=day==selected
-        parts.append(f'<circle cx="{x}" cy="{y}" r="7" fill="'+('#2563eb' if real or active else '#ffffff')+'" stroke="#1d4ed8" stroke-width="2"/>')
+        parts.append(f'<circle cx="{x}" cy="{y}" r="7" fill="'+('#0066CC' if real or active else '#ffffff')+'" stroke="#005BB5" stroke-width="2"/>')
         tx=42 if mobile else x; ty=y-2 if mobile else 63
         label_text=label+' · '+day[8:10]+'/'+day[5:7] if mobile else label
-        parts.append(f'<text x="{tx}" y="{ty}" fill="#172b4d" font-size="16" font-weight="600">{escape(label_text)}</text>')
+        parts.append(f'<text x="{tx}" y="{ty}" fill="#1D1D1F" font-size="16" font-weight="600">{escape(label_text)}</text>')
         if not mobile: parts.append(f'<text x="{tx}" y="87" fill="#52627a" font-size="14">{date_label(day)}</text>')
         detail=f"{number(p['attempts'])} respostas · {p['coverage_pct']:.0f}% dos temas" if mobile else f"{number(p['attempts'])} respostas no app"
-        parts.append(f'<text x="{tx}" y="{ty+22 if mobile else 112}" fill="#172b4d" font-size="14">{escape(detail)}</text>')
-        if not mobile: parts.append(f'<text x="{tx}" y="135" fill="#172b4d" font-size="14">{p["coverage_pct"]:.0f}% dos temas</text>')
+        parts.append(f'<text x="{tx}" y="{ty+22 if mobile else 112}" fill="#1D1D1F" font-size="14">{escape(detail)}</text>')
+        if not mobile: parts.append(f'<text x="{tx}" y="135" fill="#1D1D1F" font-size="14">{p["coverage_pct"]:.0f}% dos temas</text>')
         parts.append(f'<text x="{tx}" y="{ty+41 if mobile else 158}" fill="#52627a" font-size="13">'+('Realizado e documentado' if real else 'Previsto no cenário')+'</text>')
     return ''.join(parts)+'</svg>'
 

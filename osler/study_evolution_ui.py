@@ -32,7 +32,7 @@ def progress_chart(context,selected,coverage=False):
     chart=alt.Chart(frame).mark_line(strokeWidth=3).encode(
         x=alt.X('Data:T',title=None,axis=alt.Axis(format='%d/%m',labelAngle=0,tickCount=5)),
         y=alt.Y('Valor:Q',title=title,scale=alt.Scale(domain=domain,zero=True)),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Realizado','Previsto'],range=['#172b4d','#2563eb']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Realizado','Previsto'],range=['#1D1D1F','#0066CC']),legend=alt.Legend(orient='bottom',title=None)),
         strokeDash=alt.StrokeDash('Série:N',scale=alt.Scale(domain=['Realizado','Previsto'],range=[[],[6,4]]),legend=None),
         tooltip=[alt.Tooltip('Data:T',format='%d/%m/%Y'),alt.Tooltip('Valor:Q',format='.1f' if coverage else ',.0f',title=title),'Série:N'])
     observed=chart.mark_point(filled=True,size=35).transform_filter(alt.datum['Série']=='Realizado')
@@ -60,7 +60,7 @@ def _performance(context,selected):
     chart=alt.Chart(pd.DataFrame(rows)).mark_line(point=True,strokeWidth=2).encode(
         x=alt.X('Data:T',title=None,axis=alt.Axis(format='%d/%m',tickCount=5)),
         y=alt.Y('Percentual:Q',title='Acerto e convicção (%)',scale=alt.Scale(domain=[0,100])),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Convicção em novas','Cenário condicional'],range=['#172b4d','#166534','#2563eb']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Convicção em novas','Cenário condicional'],range=['#1D1D1F','#166534','#0066CC']),legend=alt.Legend(orient='bottom',title=None)),
         strokeDash=alt.StrokeDash('Série:N',scale=alt.Scale(domain=['Acerto em novas','Convicção em novas','Cenário condicional'],range=[[],[],[6,4]]),legend=None),
         tooltip=[alt.Tooltip('Data:T',format='%d/%m/%Y'),alt.Tooltip('Percentual:Q',format='.1f'),'Série:N','Questões:Q']).properties(height=280)
     st.altair_chart(chart.configure_view(stroke=None),width='stretch')

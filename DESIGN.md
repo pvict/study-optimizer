@@ -2,33 +2,33 @@
 name: Osler — Bento, estudo e acompanhamento
 description: Interface Bento local de estudo, acompanhamento, flashcards, arquivos e ajustes.
 colors:
-  primary: "#4F46E5"
-  primary-deep: "#4338CA"
-  page: "#F6F7FB"
+  primary: "#0066CC"
+  primary-deep: "#005BB5"
+  page: "#F5F5F7"
   surface: "#FFFFFF"
   soft: "#F3F4F6"
-  ink: "#111827"
-  muted: "#4B5563"
-  ink-tertiary: "#6B7280"
-  line: "rgba(17,24,39,.08)"
-  field-line: "#6B7280"
+  ink: "#1D1D1F"
+  muted: "#515154"
+  ink-tertiary: "#68686D"
+  line: "rgba(29,29,31,.12)"
+  field-line: "#85858A"
   field-bg: "#FFFFFF"
-  selected: "#EEF2FF"
-  selection: "#EEF2FF"
-  success: "#111827"
+  selected: "#EAF3FF"
+  selection: "#EAF3FF"
+  success: "#1D1D1F"
   success-bg: "#F3F4F6"
-  warning: "#111827"
+  warning: "#1D1D1F"
   warning-bg: "#F3F4F6"
-  danger: "#111827"
+  danger: "#1D1D1F"
   danger-bg: "#F3F4F6"
   track: "#E5E7EB"
   neutral-outline: "#9CA3AF"
-  sand: "#F5F1EA"
-  sand-ink: "#5B4A32"
-  clinica-fill: "#4F46E5"
-  clinica-tint: "#EEF2FF"
-  clinica-ink: "#3730A3"
-  clinica-solid: "#4338CA"
+  sand: "#F0F1F3"
+  sand-ink: "#515154"
+  clinica-fill: "#0066CC"
+  clinica-tint: "#EAF3FF"
+  clinica-ink: "#005BB5"
+  clinica-solid: "#005BB5"
   cirurgia-fill: "#FF6B6B"
   cirurgia-tint: "#FFF1F0"
   cirurgia-ink: "#B42318"
@@ -45,21 +45,21 @@ colors:
   preventiva-tint: "#FFFBEB"
   preventiva-ink: "#92400E"
   preventiva-solid: "#92400E"
-  neutral-fill: "#6B7280"
+  neutral-fill: "#68686D"
   neutral-tint: "#F3F4F6"
   neutral-ink: "#374151"
   neutral-solid: "#374151"
 typography:
   body:
-    fontFamily: '"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif'
+    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Inter",sans-serif'
     fontSize: "15px"
     lineHeight: "22px"
     fontWeight: 400
   headline:
-    fontSize: "32px"
-    lineHeight: "38px"
+    fontSize: "30px"
+    lineHeight: "36px"
     fontWeight: 700
-    letterSpacing: "-.022em"
+    letterSpacing: "-.025em"
   headline-narrow:
     fontSize: "24px"
     lineHeight: "30px"
@@ -94,10 +94,10 @@ typography:
     lineHeight: "34px"
     fontWeight: 700
 rounded:
-  button: "14px"
-  squircle: "34px"
-  card: "24px"
-  medium: "16px"
+  button: "10px"
+  squircle: "26px"
+  card: "20px"
+  medium: "12px"
   small: "12px"
   pill: "999px"
 spacing:
@@ -112,6 +112,9 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.pill}"
 ---
+
+As decisões atuais da seção **Direção Apple — 29/10/2026** prevalecem sobre as notas históricas das fases anteriores.
+
 
 # Design System: Osler — Bento (fases 1–5)
 
@@ -235,3 +238,9 @@ Mesmo raio24, padding24, gap16 e escala compacta28/34; empilhamento até900px, c
 Simulados acrescenta duas abas nativas, Treinos por área e Correção. Preserva tokens, fonte local, lateral e superfícies Bento. O primeiro passo é configurar o rodízio; depois aparecem agenda, mudanças por ocorrência e registro curto do resultado. Correção oferece busca digitada/hierárquica pelo tema específico, quantidade opcional de erros e prévia datada antes de reservar a prática. Fontes e regras avançadas ficam recolhidas.
 
 Hoje mostra o treino reservado e o dia de correção junto ao plano; Calendário identifica ambos sem inventar estudo concluído. Tabelas têm rolagem própria e controles conservam os alvos nativos de teclado/toque. QA sintético com Edge em 1440, 1366, 768 e 390px, sem estouro horizontal do documento ou exceções nas 16 combinações de tela/tamanho. Capturas não equivalem a teste em aparelho físico. Método e limites em docs/research/treinos-e-correcao-de-simulados.md.
+
+## Direção Apple — 29/10/2026
+
+Interface de produtividade com superfícies neutras, lateral cinza e seleção discreta. Azul acessível nas ações principais e progresso real; cores das áreas restritas a rótulos e dados. Tipografia de sistema (Segoe UI no Windows, sistema Apple quando disponível), sem baixar SF Pro. Abas segmentadas, alvos de 44px, feedback imediato ao pressionar, foco de teclado visível e transições curtas. Movimento reduzido elimina transformações; contraste aumentado reforça bordas; transparência reduzida torna o cabeçalho sólido. Nenhuma alteração de cálculo ou dados.
+
+Backup remoto: tag `backup/pre-apple-ui-2026-10-29`. Apple Design prevalece sobre as escolhas aleatórias de paleta/tipo da skill Taste; dela foram usados os princípios de composição, dados honestos e revisão em navegador.

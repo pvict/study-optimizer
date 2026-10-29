@@ -79,7 +79,7 @@ def _accuracy_chart(model):
     chart=alt.Chart(pd.DataFrame(rows)).mark_line(point=alt.OverlayMarkDef(filled=True,size=45),strokeWidth=2).encode(
         x=alt.X('Semana:T',title=None,axis=alt.Axis(format='%d/%m',tickCount=4,labelAngle=0)),
         y=alt.Y('Percentual:Q',title='Acertos (%)',scale=alt.Scale(domain=[0,100])),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Acerto com convicção'],range=['#111827','#4F46E5']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Acerto com convicção'],range=['#111827','#0066CC']),legend=alt.Legend(orient='bottom',title=None)),
         strokeDash=alt.StrokeDash('Série:N',scale=alt.Scale(domain=['Acerto em novas','Acerto com convicção'],range=[[],[5,3]]),legend=None),
         tooltip=[alt.Tooltip('Semana:T',format='%d/%m/%Y'),alt.Tooltip('Percentual:Q',format='.1f'),'Amostra:Q','Série:N'])
     st.altair_chart(_chart_style(chart),width='stretch')
@@ -91,7 +91,7 @@ def _volume_chart(model):
     chart=alt.Chart(pd.DataFrame(rows)).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
         x=alt.X('Semana:T',title=None,axis=alt.Axis(format='%d/%m',tickCount=4,labelAngle=0)),
         xOffset='Série:N',y=alt.Y('Questões:Q',title='Questões'),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Registradas','Referência atual'],range=['#4F46E5','#D1D5DB']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Registradas','Referência atual'],range=['#0066CC','#D1D5DB']),legend=alt.Legend(orient='bottom',title=None)),
         tooltip=[alt.Tooltip('Semana:T',format='%d/%m/%Y'),'Questões:Q','Série:N'])
     st.altair_chart(_chart_style(chart),width='stretch')
 

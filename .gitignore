@@ -57,3 +57,7 @@ Thumbs.db
 
 # Capturas de validação ficam locais; preservadas para inspeção, fora do Git.
 /evidencias/
+
+# Sessões e direção geradas por ferramentas de revisão visual
+/.taste-skill/
+/.playwright-cli/

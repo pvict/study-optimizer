@@ -33,7 +33,7 @@ MODULES = ('mock_schedule_ui', 'mock_exams_ui', 'study_evolution_ui', 'study_cal
 def contrast_report(output):
     """WCAG/sRGB dos pares de texto declarados no CSS, sem estimar por imagem."""
     tokens = dict(re.findall(r'--([\w-]+)\s*:\s*(#[0-9A-Fa-f]{6})',
-                             (ROOT / 'osler/bento.css').read_text(encoding='utf-8')))
+                             (ROOT / 'osler/bento.css').read_text(encoding='utf-8').split('@media (prefers-contrast:more)')[0]))
     def luminance(color):
         channels = [int(color[i:i+2], 16)/255 for i in (1, 3, 5)]
         linear = [v/12.92 if v <= .04045 else ((v+.055)/1.055)**2.4 for v in channels]

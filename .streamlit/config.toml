@@ -16,11 +16,11 @@ toolbarMode = "minimal"
 
 [theme]
 base = "light"
-primaryColor = "#4F46E5"
-backgroundColor = "#F6F7FB"
-secondaryBackgroundColor = "#F3F4F6"
-textColor = "#111827"
-font = '"SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, Inter, "Segoe UI", system-ui, sans-serif'
+primaryColor = "#0066CC"
+backgroundColor = "#F5F5F7"
+secondaryBackgroundColor = "#EEEEF0"
+textColor = "#1D1D1F"
+font = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Inter, sans-serif'
 
 [[theme.fontFaces]]
 family = "Inter"
