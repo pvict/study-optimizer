@@ -148,6 +148,11 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         baseline=max(baselines,key=lambda e:e['day']) if baselines else None
         manual=topic.get('manual_context') or {}
         manual_adverse=manual.get('erros_criticos') is True or manual.get('erros_recorrentes') is True
+        difficulty_day=manual.get('data_observacao')
+        reported_difficulty=bool(manual.get('dificuldade')=='alta' and difficulty_day and
+            0<=(day-_date(difficulty_day)).days<=min(profile.recent_days,profile.max_contact_gap) and
+            not any(e['kind']=='bloco' and e['day']>difficulty_day and e['questions']>=profile.min_block and
+                    e.get('correct') is not None and not e.get('review_of') for e in entries))
         manual_percent=manual.get('acerto_recente') if manual.get('acerto_recente') is not None else manual.get('acerto_primeira_tentativa')
         manual_baseline={'questions':manual.get('questoes_distintas') or 0,'correct':None,'percent':manual_percent} if manual_percent is not None and manual.get('questoes_distintas') else None
         primary=fresh or mixed or ([baseline] if baseline and baseline['mode']!='repetidas' else [])
@@ -190,6 +195,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
             latest_primary=next((e for e in reversed(daily_evidence(entries,as_of)) if e['mode']==source and e['n']>=profile.min_block),None)
             if latest_primary and latest_primary['rate']<params.failure_threshold: interval=min(interval,params.failure_interval)
         if balanced and (manual_adverse or registered_error): interval=min(interval,params.failure_interval)
+        if reported_difficulty: interval=min(interval,params.first_interval)
         if linked_adverse: interval=min(interval,params.first_interval)
         days_left=max(1,(_date(profile.exam_date)-day).days)
         interval=min(interval,max(1,days_left//4))
@@ -213,6 +219,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                         safety_alert and snapshot['unique_questions']>=10 and safety_rate<.6 and (incidence_strength>=.1 or not incidence['contexts']))
         below_goal=confirmed_deficit(performance,profile.target_accuracy/100,profile.min_block) if balanced else observed is not None and performance['reported_n']>=10 and observed<profile.target_accuracy/100
         evidence_priority='urgente' if adverse_urgent else 'alta' if (alert or safety_alert or below_goal or linked_adverse) else 'normal'
+        if reported_difficulty and evidence_priority=='normal':evidence_priority='alta'
         temporal_priority='urgente' if committed and age is not None and age>=2*interval else 'alta' if reduced_due or overdue or pending_due else 'normal'
         priority=min((evidence_priority,temporal_priority),key={'urgente':0,'alta':1,'normal':2}.get)
         status='sem_registro' if not seen else 'diagnostico' if not primary or last is None else 'revisao'
@@ -232,6 +239,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if pending_due: reason=f'Revisar {pending_due} respostas ainda sem convicção, com retorno marcado'
         if safety_alert and not pending_due: reason=f"Reforçar segurança acumulada da Osler ({100*safety_rate:.1f}% em {snapshot['unique_questions']} questões distintas; retrato de {snapshot['observed_date']})"
         if manual_adverse: reason='Reforçar erros críticos ou recorrentes informados por você'
+        elif reported_difficulty: reason='Dificuldade alta relatada em '+difficulty_day+'; retomar e medir o rendimento'
         if linked_adverse: reason='Há erros em retornos vinculados ainda não recuperados; eles não entram na taxa de questões novas'
         theme_contacts=[e['day'] for e in entries if e['kind']!='acumulado' and not e.get('review_of')]+[e['last_contact'] for e in entries if e.get('last_contact') and not e.get('review_of')]
         if known: theme_contacts.append(known)
@@ -260,6 +268,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if safety_alert and safety_rate<.6: phase='alerta'
         if not committed and seen and not low_accuracy and not reduced_due: phase='aprendendo'
         if manual_adverse or registered_error: phase='alerta'
+        if reported_difficulty: phase='alerta'
         new_since_pdf=sum(e['questions'] for e in entries if e['kind']=='bloco' and e['mode']=='novas' and (not topic['report_date'] or e['day']>topic['report_date']))
         available=max(0,topic['total']-topic['answered_pdf']-new_since_pdf)
         balance_uncertain=not bool(topic['report_date'])
@@ -277,6 +286,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                        'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse or registered_error),profile.target_accuracy),
                        'importance':importance,'incidence_strength':incidence_strength,'incidence_known':topic['topic_id'] in incidence.get('known_topic_ids',[]),'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
                        'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,'registered_error':registered_error,
+                       'reported_difficulty':reported_difficulty,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
                        'incidence_warnings':incidence['warnings'],'incidence_coverage':incidence['coverage']})
         if balanced:
@@ -298,13 +308,13 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         number,stage=next_stage(states[-1],as_of)
         states[-1].update({'review_number':number,'stage':stage})
     # Destaque operacional da fila inicial limitado à capacidade aproximada de uma semana.
-    # Necessidade de reforço continua no domínio/low_accuracy; não converte todo o acervo em urgência.
+    # O foco ajuda a navegar; não pode apagar uma evidência adversa já calculada.
     initial=sorted([t for t in states if not t['review_committed'] and t['status']!='sem_registro'],key=lambda t:review_order(t,as_of))
     weekly_slots=max(0,round(base_profile.max_topics*(1-base_profile.new_share)*7))
     for rank,t in enumerate(initial,1):
+        focus='alta' if rank<=weekly_slots else 'normal'
         t.update(initial_rank=rank,initial_focus=rank<=weekly_slots,
-                 priority='urgente' if t['manual_adverse'] else 'alta' if rank<=weekly_slots else 'normal',
-                 evidence_priority='urgente' if t['manual_adverse'] else 'alta' if rank<=weekly_slots else 'normal')
+                 priority=min((t['evidence_priority'],focus),key={'urgente':0,'alta':1,'normal':2}.get))
     for t in states:
         if t['registered_error']:
             t['priority']=min((t['priority'],'alta'),key={'urgente':0,'alta':1,'normal':2}.get)
@@ -410,7 +420,13 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     extra_counts={t['topic_id']:t['questions'] for t in extras}
     minimum=min(profile.min_block,budget)
     from .study_capacity import capacity_policy
-    candidates,allocation_profile,capacity=capacity_policy(capacity_states if capacity_states is not None else states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits)
+    allocated_questions={}
+    for item in recovered+base_pins+extras:
+        allocated_questions[item['topic_id']]=allocated_questions.get(item['topic_id'],0)+item['questions']
+    candidates,allocation_profile,capacity=capacity_policy(capacity_states if capacity_states is not None else states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits,
+        eligible_ids={t['topic_id'] for t in states if t['topic_id'] not in recovery_ids|excluded|swapped_ids and
+                      (not t.get('reschedule_date') or t['reschedule_date']<=as_of)},
+        allocated_questions=allocated_questions,available_slots=max(0,profile.max_topics-len(recovered)-len(base_pins)))
     if swaps:
         latest=max(swaps,key=lambda r:r.get('id',0))
         if 'allowed_peers' in latest:
@@ -421,7 +437,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             allocation_profile=replace(profile,new_share=share)
             capacity.update(effective_share=share,user_swaps=True,deferred_admissions=0)
     candidate_ids={t['topic_id'] for t in candidates}
-    candidates=[t for t in states if t['topic_id'] in candidate_ids]
+    candidates=[{**t,'intake_protected':t['topic_id']==capacity.get('protected_intake_topic')} for t in states if t['topic_id'] in candidate_ids]
     available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in candidates
                if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and

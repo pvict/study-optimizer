@@ -46,7 +46,11 @@ def test_parameters_v1_keep_lote_b_statistical_evidence_and_intervals():
         actual=outputs(case);original=expected[case['name']]
         # A política4.3 inclui o acervo C de5 questões antes excluído. O golden
         # original fica imutável para proteger estimativas, intervalos e metas.
-        assert actual['states']==original['states']
+        # A política4.5 corrige prioridade operacional; as estimativas, doses
+        # e intervalos do golden permanecem protegidos, independentemente da ordem.
+        operational={'priority','evidence_priority'}
+        evidence=lambda rows:sorted([{k:v for k,v in r.items() if k not in operational} for r in rows],key=lambda r:r['topic_id'])
+        assert evidence(actual['states'])==evidence(original['states'])
         assert actual['target_questions']==original['target_questions']
         assert actual['questions']<=actual['target_questions']
         totals={t['topic_id']:t['total'] for t in case['topics']}

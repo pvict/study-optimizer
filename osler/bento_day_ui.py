@@ -232,6 +232,8 @@ def render_today(service,go_record,go_review,go_edit=None):
             if plan.get(key):st.caption(f'{label}: {plan[key]}')
         capacity=plan.get('capacity',{})
         if capacity.get('mode')=='adaptive' and capacity['effective_share']<capacity['reference_share']:st.caption('Hoje, mais espaço para revisões. Sua divisão de referência continua salva; o ajuste é recalculado a cada dia.')
+        if capacity.get('intake_future_pressure'):st.caption('Retomadas antigas ganharam espaço na carga de hoje. A previsão de capacidade futura está apertada; os próximos blocos serão recalculados com seus resultados.')
+        if capacity.get('initial_capacity_shortfall'):st.caption(f"A carga atual não comporta retomar todo o histórico em {view['profile']['max_contact_gap']} dias. O app prioriza os contatos por evidência, incidência e tempo sem contato; esse prazo não está garantido para todos os temas.")
         if capacity.get('unused_questions'):st.caption(f"{capacity['unused_questions']} questões da meta ficaram livres: respeitamos a dose dos blocos e a capacidade de repetir. Você pode usar Adiantar revisões.")
         override=plan.get('routine_override',{})
         if override.get('mode')=='reviews':st.info('Novos temas pausados hoje pelo plano temporário. Gerencie em Calendário → Reorganizar atrasos.')

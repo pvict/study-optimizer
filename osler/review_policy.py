@@ -1,7 +1,8 @@
 """Triagem inicial descritiva: exposição e segurança não são estabilidade calibrada."""
 from math import ceil
+from .planning import _date
 
-POLICY_VERSION='4.4'
+POLICY_VERSION='4.5'
 
 
 def initial_interval(snapshot,profile,incidence_strength):
@@ -34,13 +35,16 @@ def review_order(state,day):
     hard_due=bool(committed and due and due<=day)
     deadline=state.get('initial_contact_deadline')
     stale_initial=bool(not committed and deadline and deadline<=day)
-    adverse=bool(state.get('manual_adverse') or state.get('registered_error'))
+    adverse=bool(state.get('manual_adverse') or state.get('registered_error') or state.get('reported_difficulty'))
     # Bônus operacional proporcional à incidência: não é perda de memória
     # estimada nem evidência estatística. Um tema remoto de baixa incidência
     # não passa automaticamente à frente de uma dificuldade muito relevante.
-    score=state['score']+(state['importance'] if stale_initial else 0)
+    # Envelhecimento contínuo da fila, reavaliado em cada dia da previsão.
+    # Não estima esquecimento: preserva o peso institucional e o intervalo já calculados.
+    wait=max(0,(_date(day)-_date(deadline)).days) if stale_initial else 0
+    score=state['score']+(state['importance']*(1+wait/max(1,state.get('review_interval_days',7))) if stale_initial else 0)
     group=0 if hard_due else 1 if adverse else 2
     return (group,{'urgente':0,'alta':1,'normal':2}[state['priority']] if hard_due else 0,
             due if hard_due else '9999-12-31',not state.get('manual_adverse',False),
-            state.get('anticipated_days',0)>0,not state.get('preventive_priority',False),
+            not state.get('intake_protected',False),state.get('anticipated_days',0)>0,not state.get('preventive_priority',False),
             -score,state['path'])

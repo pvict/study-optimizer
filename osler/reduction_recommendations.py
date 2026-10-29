@@ -60,6 +60,8 @@ def current_recommendations(states, sessions, as_of, recent_days=90):
         created = sum(e.get('cards_created', 0) for e in path_entries
                       if _recent(e['day'], day, NEW_CARDS_PROTECTION_DAYS))
         reasons = []
+        if state.get('reported_difficulty'):
+            reasons.append('Você relatou dificuldade alta recentemente: preserve os cartões deste tema até medir o rendimento.')
         if state.get('manual_adverse') or state.get('registered_error') or state.get('open_error_count') or state.get('linked_adverse'):
             reasons.append('Há erros abertos, críticos, recorrentes ou retornos ainda não recuperados.')
         if state.get('dose_kind') == 'reinforcement':
