@@ -90,6 +90,7 @@ def area_styles():
     return '\n'.join(
         f'.st-key-bento-hero-{slug}{{background:var(--a-{slug}-tint);border-color:color-mix(in srgb,var(--a-{slug}-fill) 30%,transparent)}}\n'
         f'.st-key-bento-hero-{slug} [data-testid="stBaseButton-primary"]{{background:var(--a-{slug}-solid);border-color:var(--a-{slug}-solid);color:#fff}}\n'
+        f'[data-testid="stHtml"] .o-calendar-area--{slug}{{color:var(--a-{slug}-ink);background:var(--a-{slug}-tint)}}\n'
         f'[data-testid="stHtml"] .o-eyebrow--{slug}{{color:var(--a-{slug}-ink);background:var(--a-{slug}-tint)}}\n'
         f'[data-testid="stHtml"] .o-bar-fill--{slug}{{background:var(--a-{slug}-fill)}}'
         for slug in AREA_LABELS)

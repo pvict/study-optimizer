@@ -45,7 +45,23 @@ def journey_svg(context,selected,mobile=False):
 
 
 def journey_html(context,selected):
-    return '<div class="evo-journey"><div class="evo-wide">'+journey_svg(context,selected)+'</div><div class="evo-narrow">'+journey_svg(context,selected,True)+'</div></div>'
+    """Marcos em HTML nativo: st.html remove SVG e deixava a jornada vazia."""
+    snapshot=context['snapshot']; today=context['as_of']; end=context['end']
+    end_label='Fim da preparação' if context['exam_in_horizon'] else 'Horizonte disponível'
+    candidates=[('Hoje',today)]+[(label,(_date(today)+timedelta(days=n)).isoformat()) for label,n in [('2 semanas',14),('1 mês',30),('3 meses',90)] if (_date(today)+timedelta(days=n)).isoformat()<end]+[(end_label,end)]
+    seen=set(); nodes=[]
+    for label,day in candidates:
+        if day not in seen: nodes.append((label,day)); seen.add(day)
+    if today<selected<end and selected not in seen:
+        nodes.append(('Data escolhida',selected));nodes.sort(key=lambda node:node[1])
+    pieces=['<div class="evo-journey"><ol class="o-journey-nodes" aria-label="Marcos realizados e previstos no cenário">']
+    for label,day in nodes:
+        point=point_at(snapshot,day);real=day==today
+        pieces.append('<li'+(' aria-current="step"' if day==selected else '')+'><strong>'+escape(label)+
+            '</strong><time datetime="'+escape(day)+'">'+escape(date_label(day))+'</time><p>'+escape(number(point['attempts']))+
+            ' respostas no app</p><p>'+f"{point['coverage_pct']:.0f}% dos temas"+'</p><small>'+
+            ('Realizado e documentado' if real else 'Previsto no cenário')+'</small></li>')
+    return ''.join(pieces)+'</ol></div>'
 
 
 def achievement_html(achievements):

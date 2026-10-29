@@ -72,6 +72,17 @@ def _performance(context,selected):
 
 
 def render_evolution(service):
+    from .evolution_history_ui import render_history
+    section=st.segmented_control('Ver evolução',['Histórico','Cenários'],default='Histórico',key='evolution_section',selection_mode='single')
+    if section=='Cenários':
+        with st.container(key='bento-evolution-scenario'):
+            st.caption('Planejamento condicional. As projeções abaixo não são estudo realizado nem previsão de nota na prova.')
+            _render_scenario(service)
+    else:
+        render_history(service)
+
+
+def _render_scenario(service):
     profile=service.store.profile()['profile']; today=today_local()
     end=max(today.isoformat(),min(profile['exam_date'],(today+timedelta(days=547)).isoformat()))
     options=['2 semanas','1 mês','3 meses','6 meses','Fim da preparação' if profile['exam_date']<=end else 'Horizonte disponível','Escolher data']

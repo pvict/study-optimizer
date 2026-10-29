@@ -38,6 +38,7 @@ def test_switching_spacing_scenario_recalculates_but_period_uses_cache(tmp_path,
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=120)
     app.session_state['adaptive_view']='Evolução'; app.run()
+    app.segmented_control(key='evolution_section').set_value('Cenários').run()
     assert app.radio(key='evolution_spacing').value=='progressive'
     assert len(calls)==1
     app.radio(key='evolution_period').set_value('3 meses').run()
@@ -52,6 +53,7 @@ def test_evolution_navigation_dates_charts_and_empty_performance(tmp_path,sample
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=120).run()
     open_view(app,adaptive='Evolução')
+    app.segmented_control(key='evolution_section').set_value('Cenários').run()
     assert not app.exception
     assert app.radio(key='evolution_period').value=='1 mês'
     assert any('previsto' in e.value.lower() for e in app.caption)
@@ -89,6 +91,7 @@ def test_evolution_custom_date_is_clamped_after_exam_setting_changes(tmp_path,sa
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=120)
     app.session_state['adaptive_view']='Evolução'; app.run()
+    app.segmented_control(key='evolution_section').set_value('Cenários').run()
     app.radio(key='evolution_period').set_value('Escolher data').run()
     app.date_input(key='evolution_date').set_value(date(2027,11,30)).run()
     service.store.save_profile(AdaptiveProfile(exam_date='2026-10-20'),0)

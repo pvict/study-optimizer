@@ -42,7 +42,7 @@ def test_status_filters_and_list_actions_use_the_correct_specific_topic(tmp_path
 def test_calendar_agenda_and_grid_keep_the_same_day_selection(tmp_path,monkeypatch,project_root,sample_pdf):
     _,app=open_app(tmp_path,monkeypatch,project_root,sample_pdf)
     open_view(app,adaptive='Calendário')
-    assert not app.exception and app.radio(key='calendar_mode').value=='Agenda'
+    assert not app.exception and app.radio(key='calendar_mode').value=='Semana'
     target='2026-10-16'
     app.button(key='calendar_cell_'+target).click().run()
     assert not app.exception and app.session_state['calendar_selected']==target

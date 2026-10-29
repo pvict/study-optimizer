@@ -1,6 +1,6 @@
 ---
-name: Osler — Bento, Hoje, Temas e Registro
-description: Fundação local, navegação lateral única e composição Bento de Hoje, Temas e Registro.
+name: Osler — Bento, estudo e acompanhamento
+description: Fundação local e composição Bento de Hoje, Temas, Registro, Calendário, Simulados e Evolução.
 colors:
   primary: "#4F46E5"
   primary-deep: "#4338CA"
@@ -89,6 +89,10 @@ typography:
     fontSize: "40px"
     lineHeight: "44px"
     fontWeight: 700
+  metric-compact:
+    fontSize: "28px"
+    lineHeight: "34px"
+    fontWeight: 700
 rounded:
   button: "14px"
   squircle: "34px"
@@ -109,13 +113,13 @@ components:
     rounded: "{rounded.pill}"
 ---
 
-# Design System: Osler — Bento (fases 1–2)
+# Design System: Osler — Bento (fases 1–4)
 
 ## Direção e escopo
 
 **Clareza para estudar, um bloco de cada vez.** Interface Operate local para preparação de residência, em português simples, no computador e no celular. O briefing aprovado é `docs/redesign/PROMPT-CODEX-REDESIGN-BENTO-OSLER.md`; suas regras e valores vencem sugestões genéricas das skills.
 
-As fases1–2 estão aplicadas: fundação de cor/tipografia, menu lateral único e Hoje em Bento. Temas/Registrar, Calendário/Simulados/Evolução e ferramentas mantêm sua composição até as fases3–5. Nenhuma regra de estudo, prioridade ou gravação muda.
+As fases1–4 estão aplicadas: fundação, navegação lateral, Hoje, Temas/Registrar e Calendário/Simulados/Evolução. Flashcards, Arquivos e Ajustes seguem para a fase5. O redesign não altera regras de estudo, prioridade ou gravação.
 
 Fontes normativas: `osler/bento.css` (tokens e base), `osler/bento.py` (primitivas puras e variações fixas), `osler/study.css` (estrutura existente), carregados nesta ordem por `study_style.py`. `.streamlit/config.toml` alinha o tema nativo e serve a fonte local. O sidecar `.impeccable/design.json` espelha estes valores; não cria rampas adicionais.
 
@@ -166,6 +170,16 @@ Cobertura: o mínimo habitual de questões admite exceção para acervo positivo
 Respeitar `prefers-reduced-motion`; remover transição e deslocamento decorativo nos componentes Bento. As regras existentes de empilhamento e tabelas continuam; composição nova em uma coluna até900px pertence à migração das telas. Testar390,768,1366 e1440px; zoom200% e teclado. Sem declaração de conformidade WCAG completa a partir de CSS/AppTest.
 
 ## Dados, evidência e limites
+
+Na fase4, Calendário abre na Semana quando ainda não há preferência salva. Navegação mensal mantém o dia quando possível, respeitando os limites do seletor. Sete colunas no desktop e duas até760px. Hoje tem contorno e a seleção tem fundo índigo claro; previsão tem borda tracejada e rótulo. "Com registro" indica estudo lançado, sem alegar meta diária concluída. A faixa Reorganizar e as opções de prevenção preservam prévias, aplicar e desfazer; atalhos abrem seu destino automaticamente.
+
+Simulados mantém Programação/Resultados: resumo antes do formulário, métricas informadas e amostra perto do percentual. Corte exige vínculo e instituição compatível; somente nota com escala informada é comparada. Barras por área trazem Wilson95% descritivo, sem inferir temas ou nota de prova.
+
+Evolução abre em Histórico (registros reais) e preserva Cenários como navegação secundária. A amostra de acerto usa apenas novas com acertos exatos; convicção usa o subconjunto com convicção informada, incluindo zero. Volume inclui blocos novos/repetidos/mistos. Referência semanal aplica a rotina atual somente aos dias decorridos, com legenda explícita de que metas históricas podem ter sido outras. Não converter arquivo importado em tentativas novas nem projetar ganho de nota no histórico.
+
+Métricas compactas de acompanhamento usam28/34px, peso700, com labels/apoio13/18px. A fonte do valor alcança o parágrafo interno nativo do Streamlit. A jornada dos Cenários usa lista HTML estática e adaptável, pois st.html sanitiza SVG; cada marco mantém data e rótulo realizado/previsto. O helper SVG antigo continua disponível por compatibilidade.
+
+As quatro larguras desta fase são1440,1366,768 e390px. Dados e servidores de QA são sintéticos, temporários, na8602. Evidências, rubrica e limites: docs/design/bento-fase4-entrega.md.
 
 Uso local, sem acesso à conta Osler. Suspensão/reativação manuais. Questões novas, repetidas, mistas, simulados, PDFs e cards continuam separados; todo percentual exige amostra ou rótulo correspondente. Data de PDF não vira contato e percentual revisado não vira acerto. Meta90% não é previsão de nota ou aprovação.
 

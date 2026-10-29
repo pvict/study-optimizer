@@ -1,7 +1,9 @@
 """Calendário em cards semanais/mensais e detalhe do dia, com previsão identificada."""
 import calendar
 from datetime import timedelta,date
+from html import escape
 import streamlit as st
+from .bento import area_slug,eyebrow,chip
 from .planner_service import today_local
 from .study_replanning import past_calendar
 from .study_replanning_ui import render_replanning
@@ -14,6 +16,50 @@ from .review_parts_ui import render_review_parts
 from .study_components import render_planner_supply,render_bank_scope
 
 
+_MONTHS=('Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro')
+_DAY_LABELS={'feito':'Com registro','hoje':'Hoje','previsao':'Previsão','simulado':'Simulado','descanso':'Descanso','semplano':'Sem plano'}
+
+
+def _month_label(day):
+    return f'{_MONTHS[day.month-1]} {day.year}'
+
+
+def _shift_month(day,offset,minimum=None,maximum=None):
+    """Navegação de apresentação, preservando o dia dentro do mês e do horizonte."""
+    year,month=divmod(day.year*12+day.month-1+offset,12)
+    result=date(year,month+1,min(day.day,calendar.monthrange(year,month+1)[1]))
+    if minimum is not None:result=max(minimum,result)
+    if maximum is not None:result=min(maximum,result)
+    return result
+
+
+def _day_state(day,plan,today):
+    if plan is None:return 'semplano'
+    mode=plan.get('routine_override',{}).get('mode')
+    if mode in {'mock_reserved','mock_day'}:return 'simulado'
+    if plan.get('not_started'):return 'semplano'
+    done=plan.get('done_questions')
+    if day<=today and done is not None and done>0:return 'feito'
+    if mode=='final_rest' or plan.get('kind')=='descanso':return 'descanso'
+    if day==today:return 'hoje'
+    if day>today and (plan.get('items') or (plan.get('questions') or 0)>0):return 'previsao'
+    return 'semplano'
+
+
+def _day_area_chips(plan):
+    areas=[]
+    for item in (plan or {}).get('items',[]):
+        path=item.get('path') or []
+        if path and path[0] not in areas:areas.append(path[0])
+        if len(areas)==2:break
+    return ''.join('<span class="o-calendar-area o-calendar-area--'+area_slug([area])+'">'+escape(area)+'</span>' for area in areas)
+
+
+def _move_month(offset,minimum,maximum):
+    st.session_state['calendar_reference']=_shift_month(st.session_state['calendar_reference'],offset,minimum,maximum)
+    _reference_changed()
+
+
 def _select_day(day):
     st.session_state['calendar_selected']=day
 
@@ -23,6 +69,11 @@ def _reference_changed():
 
 
 def _day_summary(day,plan,context,today):
+    state=_day_state(day,plan,today)
+    markers=' o-calendar-today' if day==today else ''
+    if day.isoformat()==st.session_state.get('calendar_selected',st.session_state.get('calendar_reference',today).isoformat()):markers+=' o-calendar-selected'
+    label='Hoje' if day==today and state=='feito' else _DAY_LABELS[state]
+    st.html('<div class="o-calendar-state'+markers+'">'+label+'</div>')
     for e in context.get('exam_dates',[]):
         if e['date']==day.isoformat(): st.caption(e['label']+' · '+e['institution'])
     if plan is None:
@@ -30,34 +81,27 @@ def _day_summary(day,plan,context,today):
         return
     if plan.get('routine_override',{}).get('mode')=='mock_reserved':
         done=day.isoformat() in context.get('mock_result_days',set())
-        st.markdown('**Simulado realizado**' if done else '**Simulado programado**')
+        st.caption('Simulado realizado' if done else 'Simulado programado')
         st.caption('Resultado registrado em Simulados' if done else 'Meta normal dispensada · resultado ainda não registrado')
         return
     if plan.get('routine_override',{}).get('mode')=='mock_day':
-        st.markdown('**Simulado realizado**'); return
+        st.caption('Simulado realizado'); return
     if plan.get('not_started'):
         st.caption('Antes do início · sem meta')
         return
     if plan.get('historical'):
-        st.caption(f"{plan['done_questions']} feitas" if plan['done_questions'] else 'Sem estudo registrado')
-    elif plan['kind']=='descanso': st.markdown('**Descanso**')
-    elif day>today and plan.get('forecast_mode')=='next_contact':
-        st.markdown(f"**{plan['questions']} questões previstas**" if plan['questions'] else '**A recalcular**')
-    else: st.markdown(f"**{plan['questions']} questões**")
-    count=len(plan.get('delayed_topics',[])) if plan.get('historical') else len(context['backlog']) if day==today else 0
-    if count: st.html(f'<div class="calendar-badge calendar-late">{count} atrasados</div>')
-    booked=sum(bool(i.get('rescheduled')) and not i.get('swap_return') and not (i.get('planner_supply') or {}).get('external_only') for i in plan['items'])
-    if booked: st.html(f'<div class="calendar-badge calendar-booked">{booked} recuperações</div>')
-    external=sum(bool((i.get('planner_supply') or {}).get('external_only')) for i in plan['items'])
-    if external: st.caption(f'{external} complemento(s) no banco completo')
-    moved=sum(bool(i.get('swap_return')) for i in plan['items'])
-    if moved: st.html(f'<div class="calendar-badge calendar-booked">{moved} remanejamentos</div>')
+        done=plan.get('done_questions')
+        st.caption('Quantidade não informada' if done is None else f'{done} questões registradas' if done else 'Sem estudo registrado')
+    elif state=='descanso':st.caption('Meta dispensada')
+    else:
+        questions=plan.get('questions')
+        st.caption('Quantidade não informada' if questions is None else f'{questions} questões previstas' if day>today and questions else 'A recalcular' if day>today else f'{questions} questões no plano')
+        if state=='feito':st.caption(f"{plan['done_questions']} questões registradas")
+    areas=_day_area_chips(plan)
+    if areas:st.html('<div class="o-calendar-areas">'+areas+'</div>')
     if day>today and plan.get('topic_backlog'):
         st.caption(f"{plan['topic_backlog']} revisões a encaixar")
         if plan.get('capacity',{}).get('mode')!='adaptive': st.button('Ver revisões',key='calendar_risks_'+day.isoformat(),on_click=open_prevention,args=(day.isoformat(),),width='stretch')
-    if plan.get('pending_planned'): st.caption(f"{plan['pending_planned']} retornos de 7 dias")
-    if plan.get('pending_backlog'): st.caption(f"{plan['pending_backlog']} pendências sem vaga")
-    if plan['items']: st.caption(plan['items'][0]['path'][-1]+(f" +{len(plan['items'])-1} temas" if len(plan['items'])>1 else ''))
 
 
 def _date_button(day,plan,selected):
@@ -69,19 +113,28 @@ def _date_button(day,plan,selected):
 def render_calendar(service,go_record,go_review=None):
     today=today_local()
     start_date=service.store.profile()['profile'].get('start_date')
-    if start_date: st.caption('Início do cronograma: '+ '/'.join(reversed(start_date.split('-'))))
-    st.caption('Próximos encontros por tema. As revisões seguintes serão recalculadas com seus resultados; retornos de questões já registrados continuam na agenda.')
     service.remember_day(service.overview(today.isoformat()))
     context=service.replanning()
     context['mock_result_days']=service.recorded_mock_days()
     context['exam_dates']=service.exam_dates()
-    if any(t.get('review_committed') is False for t in context['view']['planning_states']):
-        st.caption('O histórico importado forma uma fila de prioridades. Os primeiros contatos são distribuídos dentro da sua carga; não são dívidas de estudo. Alertas abaixo se referem a revisões já previstas neste cenário.')
-    top=st.columns([1,1])
-    mode=top[0].radio('Visão',['Agenda','Semana','Mês'],horizontal=True,key='calendar_mode')
     initial=min(max(today,date.fromisoformat(start_date)),today+timedelta(days=547)) if start_date else today
-    if start_date and date.fromisoformat(start_date)>today+timedelta(days=547): st.caption('O início está além do horizonte atual de18meses. O calendário ainda não programa blocos nesse período.')
-    reference=top[1].date_input('Ir para uma data',value=initial,min_value=today-timedelta(days=90),max_value=today+timedelta(days=547),key='calendar_reference',on_change=_reference_changed,format='DD/MM/YYYY')
+    minimum,maximum=today-timedelta(days=90),today+timedelta(days=547)
+    if start_date and date.fromisoformat(start_date)>maximum: st.caption('O início está além do horizonte atual de 18 meses. O calendário ainda não programa blocos nesse período.')
+    st.session_state.setdefault('calendar_reference',initial)
+    with st.container(key='bento-calendar-toolbar'):
+        previous,title,following,vision,picker=st.columns([.65,2,.65,3.2,2.4],vertical_alignment='center',gap='small')
+        reference=st.session_state['calendar_reference']
+        previous.button('Anterior',key='calendar_previous_month',icon=':material/chevron_left:',help='Mês anterior',on_click=_move_month,args=(-1,minimum,maximum),disabled=reference==minimum)
+        title.html('<h3 class="o-calendar-month">'+_month_label(reference)+'</h3>')
+        following.button('Próximo',key='calendar_next_month',icon=':material/chevron_right:',help='Próximo mês',on_click=_move_month,args=(1,minimum,maximum),disabled=reference==maximum)
+        mode=vision.radio('Visão',['Agenda','Semana','Mês'],index=1,horizontal=True,key='calendar_mode')
+        reference=picker.date_input('Ir para uma data',min_value=minimum,max_value=maximum,key='calendar_reference',on_change=_reference_changed,format='DD/MM/YYYY')
+    with st.container(key='bento-calendar-replanning'):
+        count=len(context['backlog'])
+        label=f'{count} '+('tema pede nova data' if count==1 else 'temas pedem nova data')
+        with st.expander('Reorganizar · '+label):
+            if count:st.caption('Temas atrasados nesta agenda podem receber novas datas. A prévia não altera seus resultados.')
+            render_replanning(service,context)
     end=min(today+timedelta(days=547),reference.replace(day=calendar.monthrange(reference.year,reference.month)[1])+timedelta(days=7))
     plans=service.calendar(max(1,(end-today).days+1))
     by_date={p['date']:p for p in plans}
@@ -90,15 +143,16 @@ def render_calendar(service,go_record,go_review=None):
         if key in by_date:
             by_date[key]['routine_override']=override
     days=[reference-timedelta(days=reference.weekday())+timedelta(days=i) for i in range(7)] if mode!='Mês' else list(calendar.Calendar().itermonthdates(reference.year,reference.month))
-    st.caption(reference.strftime('%m/%Y')+' · escolha um dia para ver os blocos')
+    st.caption('Escolha um dia para ver os blocos. Previsões mudam com seus resultados.')
     render_exam_dates(service,days[0].isoformat(),days[-1].isoformat())
     selected=st.session_state.get('calendar_selected',reference.isoformat())
     if selected not in by_date: selected=reference.isoformat()
+    st.session_state['calendar_selected']=selected
     if mode=='Agenda':
         with st.container(key='calendar_agenda'):
             for day in days:
                 plan=by_date.get(day.isoformat())
-                with st.container(border=True):
+                with st.container(border=True,key='bento-calendar-day-'+_day_state(day,plan,today)+'-'+day.isoformat()):
                     left,right=st.columns([1,3])
                     with left: _date_button(day,plan,selected)
                     with right: _day_summary(day,plan,context,today)
@@ -108,19 +162,21 @@ def render_calendar(service,go_record,go_review=None):
                 columns=st.columns(7,gap='small')
                 for column,day in zip(columns,days[start:start+7]):
                     plan=by_date.get(day.isoformat())
-                    with column.container(border=True):
+                    with column.container(border=True,key='bento-calendar-day-'+_day_state(day,plan,today)+'-'+day.isoformat()):
                         _date_button(day,plan,selected)
                         _day_summary(day,plan,context,today)
     with st.container(key='calendar_selected_detail'):
-        _render_selected_day(service,go_record,go_review,today,start_date,selected,by_date[selected],context['view'])
+        if selected in by_date:_render_selected_day(service,go_record,go_review,today,start_date,selected,by_date[selected],context['view'])
+        else:st.info('Fora do período disponível. Escolha outra data no calendário.')
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,context['view'],selected)
     with st.expander('Programar ou mudar datas dos simulados'):
         render_mock_schedule(service)
-    with st.container(key='calendar_management'):
-        st.subheader('Organizar as próximas revisões')
-        st.caption(f"{len(context['backlog'])} temas com atraso confirmado · opções de recuperação e prevenção abaixo.")
-        render_replanning(service,context)
+    with st.expander('Mais opções do calendário',expanded=bool(st.session_state.get('prevention_enabled'))),st.container(key='calendar_management'):
+        if start_date:st.caption('Início do cronograma: '+ '/'.join(reversed(start_date.split('-'))))
+        st.caption('As revisões seguintes serão recalculadas com seus resultados; retornos de questões já registrados continuam na agenda.')
+        if any(t.get('review_committed') is False for t in context['view']['planning_states']):
+            st.caption('O histórico importado forma uma fila de prioridades. Os primeiros contatos são distribuídos dentro da sua carga; não são dívidas de estudo. Alertas se referem a revisões já previstas neste cenário.')
         render_prevention(service)
         render_capacity_summary(service,max(reference.isoformat(),today.isoformat(),start_date or today.isoformat()))
         render_final_review(service)
@@ -149,8 +205,9 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         return
     if plan.get('historical'):
         if not plan['has_plan']: st.info('Dia sem plano salvo. Não presumimos quais temas você deveria ter feito.')
-        st.caption(f"{plan['done_questions']} questões realmente registradas nesse dia.")
-        for row in plan.get('delayed_topics',[]): st.warning(row['path'][-1]+f" · {row['days_late']}dias de atraso · reorganize pela seção de atrasos abaixo.")
+        done=plan.get('done_questions')
+        st.caption('Quantidade registrada não informada.' if done is None else f'{done} questões realmente registradas nesse dia.')
+        for row in plan.get('delayed_topics',[]): st.warning(row['path'][-1]+f" · {row['days_late']} dias de atraso · abra Reorganizar acima para mudar a data.")
         return
     if selected>today.isoformat() and plan.get('forecast_mode')=='next_contact':
         st.caption('Datas e quantidades previstas para o próximo bloco de cada tema. Os encontros seguintes dependem do resultado; não são compromissos repetidos automaticamente.')
@@ -165,10 +222,19 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
     if plan.get('pending_backlog'): st.warning(f"{plan['pending_backlog']} questões de revisão vencidas ainda não cabem nesta programação. Aumente a meta, acrescente um bloco ou redistribua os próximos dias.")
     if plan.get('topic_backlog'): st.caption(f"{plan['topic_backlog']} temas com revisão prevista ainda aguardam vaga. As datas são prioridades de planejamento, não garantia de execução dentro da carga escolhida.")
     for item in plan['items']:
-        with st.container(border=True):
+        slug=area_slug(item['path'])
+        with st.container(key='bento-calendar-block-'+slug+'-'+item['topic_id']):
             left,right=st.columns([3,1])
-            left.markdown('**'+item['path'][-1]+f" · {item['questions']} questões**")
-            left.caption(item['stage'])
+            with left:
+                state='sem_registro' if item.get('status')=='sem_registro' else item.get('learning_state')
+                text=(eyebrow(item['path'][0]+' · '+str(item['questions'])+' questões',slug)
+                      +'<div class="o-block-title"><h3>'+escape(item['path'][-1])+'</h3></div>'
+                      +'<p class="o-path">'+escape(' › '.join(item['path'][:-1]))+'</p>'
+                      +'<div class="o-block-context">'+chip(item['stage']))
+                if state:text+=chip('',state)
+                text+='</div>'
+                if item.get('reason'):text+='<p class="o-reason">'+escape(item['reason'])+'</p>'
+                st.html(text)
             if item.get('forecast_basis')=='next_contact' and selected>today.isoformat(): left.caption('Depois deste bloco, data e quantidade da próxima revisão serão recalculadas.')
             if item.get('preventive_priority'): left.caption('Plano preventivo'+(f" · antecipada em {item['anticipated_days']}dia(s)" if item.get('anticipated_days') else ''))
             if item.get('swap_return'): left.caption('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
@@ -177,7 +243,6 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
             with left:
                 render_planner_supply(item)
                 render_bank_scope(item,current_view['profile']['min_block'])
-            left.caption(' › '.join(item['path'][:-1]))
             if selected==today.isoformat():
                 mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
                 if strategy=='balanced_v2' and item.get('review_kind') in {'lot_only','combined'} and go_review:

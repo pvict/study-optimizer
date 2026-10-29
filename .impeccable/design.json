@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-28T12:00:00-03:00",
-  "title": "Design System: Osler — Bento, Hoje, Temas e Registro",
+  "generatedAt": "2026-10-28T18:04:06-03:00",
+  "title": "Design System: Osler — Bento, estudo e acompanhamento",
   "extensions": {
     "colorMeta": {
       "primary": {
@@ -189,10 +189,14 @@
       "body": {
         "displayName": "SF Pro / Inter local",
         "purpose": "Pilha local; sem fonte remota nem redistribuição SF Pro."
+      },
+      "metric-compact": {
+        "displayName": "Métrica compacta",
+        "purpose": "28/34px no acompanhamento, com label e apoio13/18px."
       }
     },
     "bento": {
-      "phase": 2,
+      "phase": 4,
       "source": "osler/bento.css",
       "tokens": {
         "--o-font": "\"SF Pro Display\",\"SF Pro Text\",-apple-system,BlinkMacSystemFont,\"Inter\",\"Segoe UI\",system-ui,sans-serif",
@@ -240,11 +244,16 @@
         "--a-neutral-ink": "#374151",
         "--a-neutral-solid": "#374151"
       },
-      "applied": "cores e tipografia globais",
-      "deferred": "composição e navegação das fases2–5",
+      "applied": "fundação, navegação, Hoje, Temas, Registro, Calendário, Simulados e Evolução",
+      "deferred": "Flashcards, Arquivos, Ajustes e acabamento da fase5",
       "surfaces": [
         "navegação lateral",
-        "Hoje"
+        "Hoje",
+        "Temas",
+        "Registro",
+        "Calendário",
+        "Simulados",
+        "Evolução"
       ]
     },
     "shadows": [
@@ -279,7 +288,7 @@
   ],
   "narrative": {
     "northStar": "Clareza para estudar, um bloco de cada vez.",
-    "overview": "Fundação visual local, navegação única, Hoje, Temas e Registro em Bento; cálculos e fontes preservados.",
+    "overview": "Estudo e acompanhamento em Bento, com dados reais e cenários identificados; regras e fontes preservadas.",
     "keyCharacteristics": [
       "Português simples",
       "Tema claro, sem cards pretos",
