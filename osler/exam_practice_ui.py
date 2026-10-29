@@ -56,7 +56,7 @@ def render_area_practice(service):
             st.caption('Com dois treinos, as sugestões ficam separadas por três e quatro dias. Você pode mover cada data depois. Nenhum peso de instituição é alterado.')
             submitted=st.form_submit_button('Ver prévia do rodízio',key='area_preview')
         if submitted:
-            try: st.session_state['area_apply_preview']=service.preview_area_schedule(first.isoformat(),end.isoformat(),frequency,int(questions),[i.strip() for i in institutions.splitlines() if i.strip()],request.get('exceptions',{}))
+            try: st.session_state['area_apply_preview']=service.preview_area_schedule(first.isoformat(),end.isoformat(),frequency,int(questions),[i.strip() for i in institutions.splitlines() if i.strip()],request.get('exceptions',{}),request.get('topic_dates',{}))
             except ValueError as exc: st.error(str(exc))
     if old:
         st.subheader('Próximos treinos')
@@ -79,18 +79,64 @@ def render_area_practice(service):
                     try: st.session_state['area_apply_preview']=service.preview_area_schedule(**{**request,'exceptions':changes})
                     except ValueError as exc: st.error(str(exc))
     preview=st.session_state.get('area_apply_preview')
+    if preview and ('topic_options' not in preview or 'topic_dates' not in preview.get('request',{})):
+        st.session_state.pop('area_apply_preview',None)
+        preview=None
+        st.info('O agendamento foi atualizado. Gere uma nova prévia para encaixar os conflitos automaticamente.')
     if preview:
         with st.container(border=True,key='bento-area-preview'):
             st.subheader('Confira antes de aplicar')
             st.write(f"{preview['request']['questions']} questões por treino serão reservadas dentro da meta de cada dia. Os temas comuns usam o restante. Resultados anteriores ficam preservados.")
-            st.dataframe(pd.DataFrame([{'Data':_day(r['date']),'Instituição':r['institution'],'Área':r['area'],'Situação':r.get('reason','Programado') if r['date'] else 'Removido'} for r in preview['occurrences']]),hide_index=True,width='stretch')
+            st.caption('Conflitos são encaixados em até sete dias da sugestão, respeitando capacidade e compromissos protegidos. Entre datas igualmente próximas, a agenda favorece menor pressão de revisões prioritárias. Confira o impacto antes de aplicar.')
+            st.dataframe(pd.DataFrame([{'Sugestão original':_day(r['original_date']),'Data prevista':_day(r['date']),'Instituição':r['institution'],'Área':r['area'],'Situação':r.get('reason','Data escolhida' if r.get('status')=='manual' else 'Programado') if r['date'] else 'Removido'} for r in preview['occurrences']]),hide_index=True,width='stretch')
             blocked=sum(r.get('status')=='blocked' for r in preview['occurrences'])
-            if blocked: st.warning(f'{blocked} treinos conflitam com compromissos protegidos. Eles não reservam questões; mova-os para uma data livre.')
+            moved=sum(r.get('status')=='moved' for r in preview['occurrences'])
+            if moved: st.info(f'{moved} treinos encaixados automaticamente em datas livres. A agenda salva só muda ao aplicar.')
+            if blocked: st.warning(f'{blocked} treinos sem vaga próxima. Ajuste as datas abaixo ou a carga e o período; a aplicação ficará bloqueada.')
+            _edit_area_preview(service,preview)
             with st.expander('Impacto nos próximos temas'):
                 st.caption(f"Comparação dos próximos {preview['window_days']} dias. Datas mais distantes serão recalculadas com o desempenho, sem presumir melhora.")
-                st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Antes':_day(r['before_date']) if r['before_date'] else 'A definir','Depois':_day(r['after_date']) if r['after_date'] else 'Fora desta prévia'} for r in preview['topic_changes']]),hide_index=True,width='stretch')
-            _apply(service,preview,'area_apply','apply_area_schedule','Aplicar rodízio')
+                st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Prioridade':r['priority'],'Antes':_day(r['before_date']) if r['before_date'] else 'A definir','Depois':_day(r['after_date']) if r['after_date'] else 'Fora desta prévia'} for r in preview['topic_changes']]),hide_index=True,width='stretch')
+            if not blocked: _apply(service,preview,'area_apply','apply_area_schedule','Aplicar rodízio')
     _area_result(service)
+
+
+def _edit_area_preview(service,preview):
+    """Edits only regenerate a preview; the single apply remains transactional."""
+    today=today_local()
+    def recalculate(request):
+        try:
+            st.session_state['area_apply_preview']=service.preview_area_schedule(**request)
+            st.rerun()
+        except ValueError as exc: st.error(str(exc))
+    with st.expander('Ajustar um treino nesta prévia'):
+        recorded={r['exam'].get('practice_id') for r in MockExams(service.repository).active()}
+        choices={r['id']:r for r in preview['occurrences'] if (r['date'] or r['original_date'])>=today.isoformat() and r['id'] not in recorded}
+        if choices:
+            _valid_choice('area_preview_train',choices)
+            key=st.selectbox('Treino a ajustar',list(choices),format_func=lambda k:_day(choices[k]['date'])+' · '+choices[k]['institution']+' · '+choices[k]['area'],key='area_preview_train')
+            row=choices[key]
+            day=st.date_input('Data do treino',value=max(today,date.fromisoformat(row['date'] or row['original_date'])),min_value=today,max_value=date.fromisoformat(preview['request']['end']),key='area_preview_date_'+key,format='DD/MM/YYYY')
+            if st.button('Recalcular com esta data',key='area_preview_move'):
+                recalculate({**preview['request'],'exceptions':{**preview['request']['exceptions'],key:day.isoformat()}})
+    with st.expander('Ajustar a data de um tema nesta prévia'):
+        options={r['topic_id']:r for r in preview['topic_options']}
+        if not options:
+            st.caption('Não há temas comuns previstos neste horizonte.')
+            return
+        st.caption('Escolha um tema e recalcule sua reserva. A dose precisa caber inteira; simulados, descanso e resultados são preservados. A escolha manual pode mudar a divisão entre novos e revisões, sem aumentar a meta. Adiar pode aumentar o tempo sem contato.')
+        _valid_choice('area_preview_topic',options)
+        key=st.selectbox('Tema',list(options),format_func=lambda k:' › '.join(options[k]['path']),key='area_preview_topic')
+        item=options[key]
+        current=preview['request']['topic_dates'].get(key,item['date'])
+        st.caption(f"Prioridade: {item['priority']} · {item['questions']} questões · Antes do rodízio: {_day(item['date'])}")
+        last=min(date.fromisoformat(preview['request']['end']),today+timedelta(days=preview['window_days']-1))
+        day=st.date_input('Data do tema',value=date.fromisoformat(current),min_value=today,max_value=last,key='area_preview_topic_date_'+key,format='DD/MM/YYYY')
+        if st.button('Recalcular data do tema',key='area_preview_topic_move'):
+            recalculate({**preview['request'],'topic_dates':{**preview['request']['topic_dates'],key:day.isoformat()}})
+        if key in preview['request']['topic_dates'] and st.button('Voltar à prioridade automática',key='area_preview_topic_reset'):
+            recalculate({**preview['request'],'topic_dates':{k:v for k,v in preview['request']['topic_dates'].items() if k!=key}})
+        if preview['rows']: st.dataframe(_rows(preview['rows']),hide_index=True,width='stretch')
 
 
 def _area_result(service):

@@ -48,6 +48,11 @@ def main():
                             if tab:
                                 page.get_by_role('tab',name=tab,exact=True).click()
                                 page.wait_for_timeout(150)
+                            if tab=='Treinos por área':
+                                page.get_by_text('Configurar o rodízio',exact=True).click()
+                                page.get_by_role('button',name='Ver prévia do rodízio',exact=True).click()
+                                page.get_by_text('Confira antes de aplicar',exact=True).wait_for()
+                                page.get_by_text('Ajustar a data de um tema nesta prévia',exact=True).click()
                             metrics=_metrics(page)
                             if metrics['exceptions']:raise RuntimeError(metrics['exceptions'])
                             if metrics['documentWidth']>width+2 or metrics['mainWidth']>metrics['mainClientWidth']+2:raise RuntimeError(f'Overflow em {name}/{tab}/{width}')

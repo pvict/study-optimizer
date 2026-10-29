@@ -407,7 +407,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
         remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
-        group_budget=remaining_budget if row.get('daily_proposal') or row.get('swap_return') or row.get('final_review') or row.get('correction') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        group_budget=remaining_budget if row.get('manual_date') or row.get('daily_proposal') or row.get('swap_return') or row.get('final_review') or row.get('correction') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
         q=min(row['remaining'],t['total'],group_budget,remaining_budget)
         if q:
             group_targets[group]=max(0,group_targets[group]-q)
@@ -415,7 +415,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
                               'added_by_user':False,'rescheduled':not row.get('daily_proposal',False),'daily_proposal_preserved':bool(row.get('daily_proposal')),'reschedule_date':row['date'],'original_due':row['original_due'],
                               'swap_return':row.get('swap_return'),
                               'correction':bool(row.get('correction')),'source_exam_key':row.get('source_exam_key'),
-                              'reason':'Prática dos temas errados no simulado' if row.get('correction') else 'Bloco já previsto para hoje; as questões excedentes não o substituem' if row.get('daily_proposal') else 'Recuperação reagendada; atraso original preservado'})
+                              'reason':'Prática dos temas errados no simulado' if row.get('correction') else 'Data escolhida na prévia do rodízio' if row.get('manual_date') else 'Bloco já previsto para hoje; as questões excedentes não o substituem' if row.get('daily_proposal') else 'Recuperação reagendada; atraso original preservado'})
     budget-=sum(r['questions'] for r in recovered)
     recovery_ids={r['topic_id'] for r in recovered}
     extra_counts={t['topic_id']:t['questions'] for t in extras}

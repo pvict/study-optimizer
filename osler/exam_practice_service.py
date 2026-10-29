@@ -73,62 +73,131 @@ class ExamPracticeServiceMixin:
                 row.update(status='blocked',reason='Conflito com prova, simulado completo ou programação protegida; mova este treino.')
         return record
 
-    def preview_area_schedule(self,first,end,frequency,questions,institutions,exceptions=None):
+    def preview_area_schedule(self,first,end,frequency,questions,institutions,exceptions=None,topic_dates=None):
         current=today_local().isoformat(); token=self.agenda.token(); old=self.area_schedule()
         p=AdaptiveProfile(**self.store.profile()['profile'])
         if end>p.exam_date or end>(_date(current)+timedelta(days=547)).isoformat(): raise ValueError('Use datas até a prova e até 18 meses à frente.')
         if first<max(current,p.start_date or current) and (not old or first!=old['request']['first']): raise ValueError('Comece a partir de hoje e do início da preparação.')
-        request=dict(first=first,end=end,frequency=frequency,questions=questions,institutions=institutions,exceptions=exceptions or {})
+        if topic_dates is not None and (not isinstance(topic_dates,dict) or any(not isinstance(k,str) or not isinstance(v,str) for k,v in topic_dates.items())):
+            raise ValueError('Informe os temas e suas datas na prévia.')
+        if exceptions is not None and not isinstance(exceptions,dict): raise ValueError('Informe as mudanças por ocorrência.')
+        old_dates=(old or {}).get('request',{}).get('topic_dates',{})
+        sessions=self.store.active(current)
+        previous_rows={r['topic_id']:r for r in self.agenda.active(sessions,current)['rows'] if old and r['plan_id']==old['id']}
+        outstanding=set(previous_rows)
+        topic_dates={k:v for k,v in (topic_dates or {}).items() if not (old_dates.get(k)==v and (v<current or k not in outstanding))}
+        request=dict(first=first,end=end,frequency=frequency,questions=questions,institutions=institutions,exceptions=exceptions or {},topic_dates=topic_dates or {})
         reconfigured=bool(old and any(request[k]!=old['request'][k] for k in ('first','end','frequency','questions','institutions')))
         if reconfigured:
             valid_ids={r['id'] for r in area_rotation(first,end,frequency,questions,institutions)}
             request['exceptions']={k:v for k,v in request['exceptions'].items() if k in valid_ids}
-        occurrences=area_rotation(**request)
+        occurrences=area_rotation(first,end,frequency,questions,institutions)
+        if set(request['exceptions'])-{r['id'] for r in occurrences}: raise ValueError('Ocorrência desconhecida.')
+        manual_dates=[]
+        for row in occurrences:
+            if row['id'] not in request['exceptions']: continue
+            day=request['exceptions'][row['id']]
+            if day is not None:
+                _date(day)
+                if not first<=day<=end: raise ValueError('Mova o treino dentro do período da série.')
+                manual_dates.append(day)
+            row['date']=day
+        if len(manual_dates)!=len(set(manual_dates)): raise ValueError('Dois treinos manuais não podem ocupar a mesma data.')
         results=MockExams(self.repository).active(); protected={r['exam']['practice_id'] for r in results if r['exam'].get('practice_id')}
         if old:
             after={r['id']:r for r in occurrences}
             for row in old['occurrences']:
                 if (row['date'] or row['original_date'])<current or row['id'] in protected:
-                    fields=('id','original_date','date','questions','area','institution')
                     if row['id'] in (exceptions or {}) and exceptions[row['id']]!=row['date']:
-                        raise ValueError('Preserve treinos passados e com resultado. Mude apenas as próximas ocorrências.')
-                    if not reconfigured and (not after.get(row['id']) or any(after[row['id']][k]!=row[k] for k in fields)):
                         raise ValueError('Preserve treinos passados e com resultado. Mude apenas as próximas ocorrências.')
                     after[row['id']]=dict(row)
             occurrences=sorted(after.values(),key=lambda r:(r['original_date'],r['id']))
-        sessions=self.store.active(current)
         base=self.agenda.active(sessions,current,excluded_plan_ids=[old['id']] if old else [])
         settings=self.store.days(); exams={r['date'] for r in self.exam_dates() if r['kind']=='exam_date'}
+        from .study_calendar import forecast_calendar
+        horizon=min(90,max(1,(_date(end)-_date(current)).days+1))
+        def project(agenda):
+            ov=self.overview(current,_agenda_override=agenda)
+            return forecast_calendar(ov['planning_states'],p,current,horizon,sessions,settings,ov['plan'],agenda,next_contact_only=True)
+        baseline=project(base)
+        # Operational pressure, not a retention probability: retain the existing
+        # incidence/performance ranking and avoid displacing urgent blocks.
+        pressure={d['date']:sum(i['questions']*{'urgente':4,'alta':2}.get(i['priority'],1) for i in d['items']) for d in baseline}
+        def unavailable(day,dose=questions):
+            cfg=settings.get(day,{'kind':'normal','questions':p.max_questions})
+            if day in exams: return 'prova'
+            if cfg['kind']=='descanso': return 'descanso'
+            if base['overrides'].get(day,{}).get('mode') in EXCLUSIVE: return 'programação protegida'
+            from .study_replanning import effective_routine
+            from .exam_practice import area_extra_volume
+            _,budget=effective_routine(p,cfg,base['overrides'].get(day,{}))
+            used=sum(s['entry']['questions'] for s in sessions if s['entry']['day']==day and s['entry']['kind']=='bloco')
+            used+=area_extra_volume(results,sessions,day).get(day,0)
+            if dose>max(0,budget-used): return 'capacidade diária insuficiente'
+            return None
+        fixed={r['date'] for r in occurrences if r['date'] and (r['date']<current or r['id'] in protected or r['id'] in request['exceptions'])}
+        fixed_rows=[r for r in occurrences if r['date'] and (r['date']<current or r['id'] in protected or r['id'] in request['exceptions'])]
+        if len(fixed)!=len(fixed_rows): raise ValueError('A data já contém outro treino, inclusive um resultado preservado.')
+        occupied=set(fixed)
         for row in occurrences:
             day=row['date']
             if not day or day<current or row['id'] in protected: continue
-            cfg=settings.get(day,{'kind':'normal','questions':p.max_questions})
-            blocked=day in exams or cfg['kind']=='descanso' or base['overrides'].get(day,{}).get('mode') in EXCLUSIVE
-            if blocked:
-                row.update(status='blocked',reason='Prova, simulado completo ou programação protegida; mova este treino.')
-            elif questions>cfg['questions']: raise ValueError(f'Em {day}, o treino excede a meta diária de {cfg["questions"]}. Reduza as questões ou ajuste esse dia.')
+            row.pop('status',None); row.pop('reason',None)
+            if row['id'] in request['exceptions']:
+                if unavailable(day): raise ValueError(f'Data manual {day} indisponível: {unavailable(day)}. Escolha uma data livre de programação protegida.')
+                row['status']='manual'
+                continue
+            reason=unavailable(day)
+            # Keep valid requested dates; only resolve conflicts/collisions.
+            if reason or day in occupied:
+                candidates=[(_date(day)+timedelta(days=o)).isoformat() for o in range(-7,8)]
+                candidates=[d for d in candidates if max(current,first)<=d<=end and not unavailable(d) and d not in occupied
+                            and all(abs((_date(d)-_date(other)).days)>=2 for other in occupied)]
+                if candidates:
+                    chosen=min(candidates,key=lambda d:(abs((_date(d)-_date(day)).days),pressure.get(d,0),d))
+                    row.update(date=chosen,status='moved',reason=f'Remanejado de {day}: {reason or "proximidade de outro treino"}.')
+                else: row.update(status='blocked',reason=f'Sem vaga próxima: {reason or "outro treino"}. Ajuste o período ou a carga.')
+            occupied.add(row['date'])
         # A comparação usa o mesmo simulador dos próximos contatos; não assume melhora.
         view=self.overview(current); after=deepcopy(base); after['area_practice']=[r for r in occurrences if r['date'] and r.get('status')!='blocked']
         after['area_results']=[r for r in results if r['exam'].get('practice_id')]
         for day in {r['date'] for r in after['area_practice']}:
             if day and base['overrides'].get(day,{}).get('mode') not in EXCLUSIVE:
                 after['overrides'][day]={**after['overrides'].get(day,{}),'area_reserved':practice_context(after,day)['reserved']}
-        from .study_calendar import forecast_calendar
         from .mock_schedule import calendar_changes
-        horizon=min(90,max(1,(_date(end)-_date(current)).days+1))
-        def project(agenda):
-            ov=self.overview(current,_agenda_override=agenda)
-            return forecast_calendar(ov['planning_states'],p,current,horizon,sessions,settings,ov['plan'],agenda,next_contact_only=True)
-        changes=calendar_changes(project(view['agenda']),project(after))
+        options={}
+        for day in baseline:
+            for item in day['items']:
+                options.setdefault(item['topic_id'],{**item,'date':day['date']})
+        reservations={r['topic_id']:r for r in base['rows']}
+        reservations.update(previous_rows)
+        for key,item in options.items():
+            if key in reservations: item['questions']=reservations[key]['remaining']
+        rows=[]
+        for topic_id,day in request['topic_dates'].items():
+            _date(day)
+            if topic_id not in options: raise ValueError('Escolha um tema presente nesta prévia.')
+            item=options[topic_id]
+            if not current<=day<=baseline[-1]['date'] or unavailable(day,item['questions']): raise ValueError('Data do tema fora da prévia, protegida ou sem capacidade. Escolha uma data livre.')
+            rows.append({**reservations.get(topic_id,{}),'topic_id':topic_id,'path':item['path'],'date':day,'original_due':reservations.get(topic_id,{}).get('original_due',item['date']),
+                         'questions':item['questions'],'remaining':item['questions'],'manual_date':True,'created_day':current,'cutoff':max((s['id'] for s in sessions),default=0),'plan_id':0})
+        after['rows']=[r for r in after['rows'] if r['topic_id'] not in request['topic_dates']]+deepcopy(rows)
+        projected=project(after)
+        for row in rows:
+            actual=sum(i['questions'] for d in projected if d['date']==row['date'] for i in d['items'] if i['topic_id']==row['topic_id'])
+            if actual<row['questions']: raise ValueError(f'Sem capacidade para a dose completa de {row["path"][-1]} nessa data. Escolha outro dia.')
+        changes=calendar_changes(project(view['agenda']),projected)
         if token!=self.agenda.token(): raise ValueError('Seu plano mudou. Recalcule a prévia.')
         return {'request':request,'occurrences':occurrences,'topic_changes':changes,'token':token,'created_day':current,
-                'replaces_plan_id':old['id'] if old else None,'window_days':horizon}
+                'replaces_plan_id':old['id'] if old else None,'window_days':horizon,'rows':rows,
+                'topic_options':[{'topic_id':i['topic_id'],'path':i['path'],'date':i['date'],'questions':i['questions'],'priority':i['priority']} for i in options.values()]}
 
     def apply_area_schedule(self,preview):
         self._practice_preview_current(preview)
         fresh=self.preview_area_schedule(**preview['request'])
         if fresh!=preview: raise ValueError('A programação mudou. Recalcule a prévia.')
-        return self.agenda.append({**fresh,'kind':'reschedule.apply','scope':'area_practice','rows':[],
+        if any(r.get('status')=='blocked' for r in fresh['occurrences']): raise ValueError('Há treinos sem vaga. Ajuste a prévia antes de aplicar.')
+        return self.agenda.append({**fresh,'kind':'reschedule.apply','scope':'area_practice','selected':list(fresh['request']['topic_dates']),
             'cutoff':max((e['id'] for e in self.store.events()),default=0)},fresh['token'])
 
     def _practice_preview_current(self,preview):

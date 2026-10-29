@@ -66,9 +66,99 @@ def test_changed_result_marks_error_mapping_stale_and_future_full_mock_blocks_ar
     with pytest.raises(ValueError): service.preview_mock_correction(row['exam_key'],'2026-10-16')
     service.apply_mock_schedule(service.preview_mock_schedule('2026-10-18',7))
     preview=service.preview_area_schedule('2026-10-18','2026-11-29',1,20,['UNESP'])
-    assert all(r.get('status')=='blocked' for r in preview['occurrences'])
+    assert all(r.get('status')!='blocked' for r in preview['occurrences'])
+    assert preview['occurrences'][0]['date']!='2026-10-18'
     service.apply_area_schedule(preview)
     assert not service.overview('2026-10-18')['plan'].get('area_tasks')
+
+
+def test_automatic_area_fit_and_manual_preview_dates(tmp_path,sample_pdf):
+    service,topic=configured(tmp_path,sample_pdf)
+    service.apply_mock_schedule(service.preview_mock_schedule('2026-10-18',7))
+    preview=service.preview_area_schedule('2026-10-18','2026-11-29',2,20,['UNESP'])
+    dates=[r['date'] for r in preview['occurrences'] if r['date']]
+    assert len(dates)==len(set(dates))
+    assert all(r.get('status')!='blocked' for r in preview['occurrences'])
+    assert all(d not in service.mock_schedule()['overrides'] for d in dates)
+    assert service.area_schedule() is None
+    with pytest.raises(ValueError,match='protegida'):
+        service.preview_area_schedule('2026-10-18','2026-11-29',1,20,['UNESP'],{'area-2026-10-18':'2026-10-25'})
+
+
+def test_manual_topic_date_is_previewed_applied_and_undone(tmp_path,sample_pdf):
+    service,topic=configured(tmp_path,sample_pdf)
+    base=service.preview_area_schedule('2026-10-15','2026-11-26',1,20,['UNESP'])
+    item=max(base['topic_options'],key=lambda i:i['questions'])
+    preview=service.preview_area_schedule(**{**base['request'],'topic_dates':{item['topic_id']:'2026-10-20'}})
+    assert preview['rows'][0]['date']=='2026-10-20'
+    assert not service.agenda.active([],'2026-10-15')['rows']
+    plan_id=service.apply_area_schedule(preview)
+    assert any(r['topic_id']==item['topic_id'] and r['date']=='2026-10-20' for r in service.agenda.active([],'2026-10-15')['rows'])
+    service.cancel_replan(plan_id)
+    assert not service.agenda.active([],'2026-10-15')['rows']
+
+
+def test_unplaceable_series_cannot_be_applied(tmp_path,sample_pdf):
+    service,topic=configured(tmp_path,sample_pdf)
+    service.configure_day('2026-10-15',40,'descanso',0)
+    preview=service.preview_area_schedule('2026-10-15','2026-10-15',1,20,['UNESP'])
+    assert preview['occurrences'][0]['status']=='blocked'
+    with pytest.raises(ValueError,match='vaga'):
+        service.apply_area_schedule(preview)
+
+
+def test_later_edits_preserve_auto_moved_history_and_expire_manual_topic_dates(tmp_path,sample_pdf,monkeypatch):
+    from datetime import date
+    import osler.exam_practice_service as module
+    service,topic=configured(tmp_path,sample_pdf)
+    service.apply_mock_schedule(service.preview_mock_schedule('2026-10-18',7))
+    preview=service.preview_area_schedule('2026-10-18','2026-11-29',1,20,['UNESP'])
+    key=preview['topic_options'][0]['topic_id']
+    preview=service.preview_area_schedule(**{**preview['request'],'topic_dates':{key:'2026-10-20'}})
+    service.apply_area_schedule(preview)
+    frozen=dict(preview['occurrences'][0])
+    monkeypatch.setattr(module,'today_local',lambda:date(2026,10,22))
+    edited=service.preview_area_schedule(**{**preview['request'],'exceptions':{'area-2026-10-25':'2026-10-27'}})
+    assert edited['occurrences'][0]==frozen
+    assert not edited['request']['topic_dates']
+
+
+def test_manual_training_cannot_collide_with_recorded_occurrence(tmp_path,sample_pdf):
+    service,topic=configured(tmp_path,sample_pdf)
+    service.apply_area_schedule(service.preview_area_schedule('2026-10-15','2026-11-26',1,40,['UNESP']))
+    service.register_area_result('area-2026-10-15','2026-10-15',40,30)
+    with pytest.raises(ValueError,match='outro treino'):
+        service.preview_area_schedule('2026-10-15','2026-11-26',1,40,['UNESP'],{'area-2026-10-22':'2026-10-15'})
+
+
+def test_moving_correction_topic_preserves_source_exclusion(tmp_path,sample_pdf):
+    service,topic=configured(tmp_path,sample_pdf)
+    exam=MockExams(service.repository).save(MockExam('2026-10-15',20,15,unseen_questions=True,
+        topics=[{'path':topic.qbank.path,'questions':20,'correct':15}]))
+    service.apply_mock_correction(service.preview_mock_correction(exam['exam_key'],'2026-10-16',40))
+    preview=service.preview_area_schedule('2026-10-15','2026-11-26',1,20,['UNESP'])
+    key=next(i['topic_id'] for i in preview['topic_options'] if i['path']==topic.qbank.path)
+    preview=service.preview_area_schedule(**{**preview['request'],'topic_dates':{key:'2026-10-20'}})
+    assert preview['rows'][0]['source_exam_key']==exam['exam_key']
+    service.apply_area_schedule(preview)
+    convert_to_entries(service,exam['exam_key'],1)
+    row=next(r for r in service.agenda.active(service.store.active('2026-10-20'),'2026-10-20')['rows'] if r['topic_id']==key)
+    assert row['remaining']==row['questions']
+
+
+def test_repreview_preserves_partial_completion_of_manual_topic(tmp_path,sample_pdf):
+    from osler.study_models import StudyEntry
+    service,topic=configured(tmp_path,sample_pdf)
+    base=service.preview_area_schedule('2026-10-15','2026-11-26',1,20,['UNESP'])
+    item=max(base['topic_options'],key=lambda i:i['questions'])
+    preview=service.preview_area_schedule(**{**base['request'],'topic_dates':{item['topic_id']:'2026-10-20'}})
+    service.apply_area_schedule(preview)
+    service.save_entry(StudyEntry(item['path'],'2026-10-15',5,4),'partial')
+    new=service.preview_area_schedule(**preview['request'])
+    assert new['rows'][0]['questions']==item['questions']-5
+    service.apply_area_schedule(new)
+    row=next(r for r in service.agenda.active(service.store.active('2026-10-15'),'2026-10-15')['rows'] if r['topic_id']==item['topic_id'])
+    assert row['remaining']==item['questions']-5
 
 
 def test_correction_date_can_be_moved_before_result_without_fabricating_work(tmp_path,sample_pdf):

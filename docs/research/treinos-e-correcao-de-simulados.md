@@ -34,7 +34,9 @@ Contagens de erros sem denominador não geram taxas de acerto. Acertos com segur
 - Planos e anotações são registros versionados no banco existente, sem migração de schema.
 - As questões do próprio simulado, convertidas depois, não completam o reforço que ele originou.
 - Reforço concluído não apaga o erro original nem comprova domínio.
-- Simulado completo ou descanso protegido prevalece sobre treino de área. Conflitos aparecem na prévia e devem ser movidos; não somam carga ao dia exclusivo.
+- Simulado completo ou descanso protegido prevalece sobre treino de área. A prévia tenta encaixar conflitos em até sete dias da sugestão, dentro da série, sem duplicar datas e com separação de pelo menos dois dias das datas já ocupadas durante o encaixe. Primeiro minimiza o deslocamento; entre datas igualmente próximas prefere menor pressão de revisões (questões multiplicadas por 4 para urgente, 2 para alta e 1 para normal). São critérios operacionais de desempate, não estimativas científicas de retenção nem solução global ótima. Datas originalmente livres são preservadas.
+- A prévia mostra sugestão original, data proposta e razão do remanejamento. Datas manuais de treinos precisam estar livres; o usuário pode ajustar também um tema previsto nos próximos 90 dias. A dose completa deve caber na data escolhida segundo o mesmo simulador do calendário. A nova reserva preserva a origem da correção e substitui somente a reserva daquele tema. O app mostra os efeitos nos demais temas antes de aplicar tudo num único registro reversível.
+- Se não houver vaga próxima para algum treino, a prévia impede aplicar o rodízio inteiro até ajustar período, carga ou datas. Não há promessa de encaixe quando a capacidade é insuficiente. Mudanças posteriores na agenda exigem nova prévia; não há remanejamento silencioso de um plano já aprovado.
 - O rodízio é cobertura de prática, não uma previsão de incidência. Não se infere domínio de uma amostra pequena nem se promete aprovação.
 
 ## Validação
