@@ -7,11 +7,11 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.27.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.28.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 [Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 
-A interface usa navegação visível em abas, campos com contorno e separação por linhas e tons de azul-cinza entre conteúdo e apoio. Hoje tem resumo compacto; Calendário mostra a programação antes das ferramentas de recuperação; Temas reúne filtros secundários em “Mais filtros”. Após salvar um resultado, a confirmação oferece retorno ao plano ou um novo registro. [Decisões e limites da verificação do redesign](docs/design/redesign-ui.md).
+A interface Bento usa um menu lateral único, cards claros, ações visíveis e detalhes recolhidos. Hoje reúne o próximo bloco e o que já foi feito; Calendário distingue estudo registrado, hoje e previsão; Evolução abre pelo histórico real e mantém projeções em Cenários. Flashcards mostra decks e recomendações antes dos ajustes; Arquivos abre pela biblioteca e conserva as ferramentas técnicas em Avançado. Ajustes reúne Meta e rotina, Minhas provas e Instituições e incidências. O nome opcional é usado somente na sessão atual. [Entrega da fase 5, capturas e limites](docs/design/bento-fase5-entrega.md) · [Sistema de design](DESIGN.md).
 
 ## O que o aplicativo oferece
 

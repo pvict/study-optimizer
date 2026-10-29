@@ -161,7 +161,11 @@ def render_today(service,go_record,go_review,go_edit=None):
     with st.container(key='bento_header'):
         heading,stamp=st.columns([2,1],gap='medium',vertical_alignment='center')
         with heading:
-            st.title('Olá')
+            name=st.session_state.get('interface_name','')
+            if name:
+                import re
+                name=re.sub(r'([\\`*_{}\[\]()#+\-.!|>])',r'\\\1',name)
+            st.title('Olá'+(', '+name if name else ''))
             st.caption('Um bloco de cada vez.')
         with stamp:st.html('<span class="o-date">'+escape(date_label(day))+'</span>')
     with st.spinner('Preparando seu plano…'):

@@ -1,4 +1,4 @@
-/* Fundação Bento: tokens aprovados. A composição das telas pertence às próximas fases. */
+/* Osler Bento: tokens aprovados e composição das cinco fases. */
 @font-face {
   font-family:Inter;
   src:url('/app/static/fonts/InterVariable.woff2') format('woff2');
@@ -276,4 +276,39 @@
   [data-testid="stHtml"] .o-mock-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .st-key-bento-evolution-summary [data-testid="stHorizontalBlock"] { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
   .st-key-bento-evolution-summary [data-testid="stColumn"] { width:100%; min-width:0; }
+}
+
+/* Fase5: tarefas de cards, biblioteca e ajustes no mesmo sistema. */
+[data-testid="stMainBlockContainer"]:has(:is(.st-key-error_cards_summary,.st-key-bento-error-cards-settings,.st-key-bento-reduction-summary,.st-key-bento-files-navigation,.st-key-bento-settings-navigation)) { padding:32px; max-width:1240px; }
+.st-key-error_cards_summary,[class*="st-key-error_cards_block_"] {
+  padding:var(--o-pad); border:1px solid var(--o-line); border-radius:var(--o-radius);
+  background:var(--o-card); box-shadow:var(--o-shadow);
+}
+.st-key-error_cards_summary [data-testid="stVerticalBlock"],[class*="st-key-error_cards_block_"] [data-testid="stVerticalBlock"] { gap:var(--o-gap); }
+.st-key-error_cards_summary [data-testid="stMetricValue"] p,.st-key-bento-reduction-summary [data-testid="stMetricValue"] p { font-size:28px; line-height:34px; }
+.st-key-error_cards_summary [data-testid="stMetricLabel"] p,.st-key-bento-reduction-summary [data-testid="stMetricLabel"] p { font-size:13px; }
+[class*="st-key-error_cards_block_"] button { min-height:44px; border-radius:14px; }
+[class*="st-key-error_cards_block_"] h3 { padding-top:0; }
+[class*="st-key-error_cards_block_"] [data-testid="stExpander"] { background:transparent; }
+.st-key-bento-error-cards-record { scroll-margin-top:72px; }
+:is(.st-key-bento-settings-routine,.st-key-bento-settings-incidence,.st-key-bento-settings-exams,.st-key-bento-error-cards-settings,.st-key-bento-error-cards-record) [data-testid="stForm"] { padding:0; border:0; background:transparent; }
+:is(.st-key-bento-settings-routine,.st-key-bento-settings-incidence,.st-key-bento-settings-exams,.st-key-bento-error-cards-settings,.st-key-bento-error-cards-record) [data-testid="stExpander"] { background:transparent; }
+.st-key-bento-settings-navigation { padding:16px 24px; }
+.st-key-bento-settings-navigation [data-testid="stWidgetLabel"] { display:none; }
+.st-key-bento-files-navigation { padding:16px 24px; }
+.st-key-bento-files-library [data-testid="stDataFrame"] { width:100%; }
+.st-key-bento-files-library h3,.st-key-bento-files-import h3 { padding-top:0; }
+[class*="st-key-bento-reduction-topic-"] :is(p,li) { font-size:13px; line-height:18px; }
+[class*="st-key-bento-reduction-topic-"] h3 { padding-top:0; }
+.st-key-error_cards_summary [data-testid="stProgress"] > div > div > div > div { background-color:var(--o-primary); }
+@supports (corner-shape:squircle) {
+  .st-key-error_cards_summary,[class*="st-key-error_cards_block_"] { corner-shape:squircle; border-radius:34px; }
+}
+@media (max-width:900px) {
+  [data-testid="stMainBlockContainer"]:has(:is(.st-key-error_cards_summary,.st-key-bento-error-cards-settings,.st-key-bento-reduction-summary,.st-key-bento-files-navigation,.st-key-bento-settings-navigation)) { padding:72px 20px 24px; }
+  :is(.st-key-error_cards_summary,.st-key-bento-reduction-summary) [data-testid="stHorizontalBlock"] { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  :is(.st-key-error_cards_summary,.st-key-bento-reduction-summary) [data-testid="stColumn"] { width:100%; min-width:0; }
+  :is(.st-key-error_cards_summary,.st-key-bento-reduction-summary) [data-testid="stColumn"]:last-child { grid-column:1/-1; }
+  :is(.st-key-bento-settings-routine,.st-key-bento-settings-exams,.st-key-bento-files-navigation) [data-testid="stHorizontalBlock"] { flex-direction:column; }
+  :is(.st-key-bento-settings-routine,.st-key-bento-settings-exams,.st-key-bento-files-navigation) [data-testid="stColumn"] { width:100%; flex:1 1 100%; min-width:0; }
 }

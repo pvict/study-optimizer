@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-28T18:04:06-03:00",
+  "generatedAt": "2026-10-28T22:43:40-03:00",
   "title": "Design System: Osler — Bento, estudo e acompanhamento",
   "extensions": {
     "colorMeta": {
@@ -196,7 +196,7 @@
       }
     },
     "bento": {
-      "phase": 4,
+      "phase": 5,
       "source": "osler/bento.css",
       "tokens": {
         "--o-font": "\"SF Pro Display\",\"SF Pro Text\",-apple-system,BlinkMacSystemFont,\"Inter\",\"Segoe UI\",system-ui,sans-serif",
@@ -244,8 +244,8 @@
         "--a-neutral-ink": "#374151",
         "--a-neutral-solid": "#374151"
       },
-      "applied": "fundação, navegação, Hoje, Temas, Registro, Calendário, Simulados e Evolução",
-      "deferred": "Flashcards, Arquivos, Ajustes e acabamento da fase5",
+      "applied": "fundação, navegação, Hoje, Temas, Registro, Calendário, Simulados, Evolução, Flashcards, Arquivos e Ajustes",
+      "deferred": "Nenhuma tela restante no briefing Bento em cinco fases.",
       "surfaces": [
         "navegação lateral",
         "Hoje",
@@ -253,7 +253,10 @@
         "Registro",
         "Calendário",
         "Simulados",
-        "Evolução"
+        "Evolução",
+        "Flashcards",
+        "Arquivos",
+        "Ajustes"
       ]
     },
     "shadows": [
@@ -288,7 +291,7 @@
   ],
   "narrative": {
     "northStar": "Clareza para estudar, um bloco de cada vez.",
-    "overview": "Estudo e acompanhamento em Bento, com dados reais e cenários identificados; regras e fontes preservadas.",
+    "overview": "Estudo, acompanhamento e ferramentas em Bento; fontes reais separadas, detalhes recolhidos e regras preservadas.",
     "keyCharacteristics": [
       "Português simples",
       "Tema claro, sem cards pretos",

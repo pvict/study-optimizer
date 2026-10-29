@@ -76,7 +76,7 @@ def _record(service,view):
         with st.expander('Repetições e lembrança (opcional)'):
             include=st.checkbox('Também anotei quantas respostas lembrei antes de virar',key='ec_include_recalled')
             recalled=st.number_input('Respostas lembradas antes de virar',0,5000,0,key='ec_recalled')
-        day=st.date_input('Dia de estudo (encerra às04h)',value=today_local(),min_value=date.fromisoformat(view['queue_start']),max_value=today_local(),key='ec_record_day')
+        day=st.date_input('Dia de estudo (encerra às04h)',value=today_local(),min_value=date.fromisoformat(view['queue_start']),max_value=today_local(),key='ec_record_day',format='DD/MM/YYYY')
         save=st.form_submit_button('Salvar bloco de cards',type='primary')
     if st.button('Cancelar registro de cards'):st.session_state.pop('ec_recording',None);st.rerun()
     if save:
@@ -94,7 +94,7 @@ def _today(service,view):
     if not view['budget']:st.info('A passagem automática pelos cards está pausada. A fila e seus registros ficam guardados. Use Temas para estudar um deck por conta própria ou ajuste apenas um dia quando houver espaço na rotina.' if not view['settings']['daily'] else view['budget_reason']+'. Nenhuma carga automática de cards hoje; você pode ajustar apenas este dia.')
     items=view['items']
     if items:
-        st.markdown(f"**{sum(t['planned'] for t in items)} cards em {len(items)} decks inteiros para fazer**")
+        st.markdown(f"**{sum(t['planned'] for t in items)} cards em {len(items)} {'deck inteiro' if len(items)==1 else 'decks inteiros'} para fazer**")
         st.caption(f"Referência de {view['budget']} cards/dia, com até10% de margem para completar um deck. A meta não é preenchida com fragmentos de outros decks.")
     oversized=[t for t in view['ranked'] if t.get('oversized')]
     if view['budget'] and oversized:st.info('Decks acima da referência e da margem: '+', '.join(t['path'][-1]+f" ({t['remaining']})" for t in oversized[:3])+'. Para fazê-los inteiros, aumente a referência de um dia em Importar e ajustar ou escolha o deck em Temas.')
@@ -106,9 +106,10 @@ def _today(service,view):
         with st.container(border=True,key='error_cards_block_'+item['topic_id']):
             st.subheader(item['path'][-1]);st.caption(' › '.join(item['path'][:-1]))
             st.markdown(f"**{item['planned']} {'card' if item['planned']==1 else 'cards'}** · Prioridade {item['priority'].lower()} · Saldo do lote: {item['remaining']}")
-            st.caption('Concluir o deck iniciado hoje.' if item.get('in_progress_today') else 'Deck inteiro deste tema; faça pausas se precisar.')
-            st.write(item['reason'])
             st.button('Registrar cards deste tema',key='ec_start_'+item['topic_id'],type='primary' if i==0 else 'secondary',on_click=_start_record,args=(item,view['token']))
+            with st.expander('Por que este deck?'):
+                st.caption('Concluir o deck iniciado hoje.' if item.get('in_progress_today') else 'Deck inteiro deste tema; faça pausas se precisar.')
+                st.write(item['reason'])
     st.subheader('Feito neste dia de estudo')
     done=[r for r in view['history'] if r['day']==today_local().isoformat()]
     if not done:st.caption('Nenhum bloco de cards registrado hoje.')
@@ -174,7 +175,7 @@ def _import_and_settings(service,view):
             tree=parse_error_cards(data.decode('utf-8-sig'))
             st.write(f"Prévia: **{_n(tree['total'])} cards**, {len(tree['topics'])} temas específicos e {tree['unallocated']} cards sem subtema visível. Pais não entram duas vezes.")
             scope=st.radio('O que esse arquivo representa?',['pending','inventory','pass'],format_func={'pending':'Somente não estudados ou pendentes','inventory':'Todos os criados, incluindo já revisados','pass':'Quero uma nova passagem por todos os cards deste arquivo'}.get,key='ec_scope')
-            observed=st.date_input('Dia de estudo do retrato (vira às04h)',value=today_local(),max_value=today_local(),key='ec_observed')
+            observed=st.date_input('Dia de estudo do retrato (vira às04h)',value=today_local(),max_value=today_local(),key='ec_observed',format='DD/MM/YYYY')
             st.caption('Um novo retrato substitui o saldo atual e passa a abranger as criações já registradas até esse dia. Elas não serão somadas outra vez. Confira se o arquivo já inclui esses cards. Registros e originais ficam guardados; uma cópia idêntica não reinicia a passagem.')
             if st.button('Importar esta árvore de cards',type='primary'):
                 service.import_html(data,upload.name if upload else 'arvore-colada.html',observed.isoformat(),scope,view['token'])
@@ -191,7 +192,7 @@ def _import_and_settings(service,view):
         except ValueError as exc:st.error(str(exc))
     with st.expander('Ajustar somente um dia'):
         with st.form('ec_day_settings'):
-            selected=st.date_input('Dia para ajustar os cards',value=today_local(),min_value=today_local(),key='ec_day_override')
+            selected=st.date_input('Dia para ajustar os cards',value=today_local(),min_value=today_local(),key='ec_day_override',format='DD/MM/YYYY')
             amount=st.number_input('Referência de cards nesse dia (zero para pausar)',0,2000,view['settings']['daily'],key='ec_day_amount')
             reset=st.checkbox('Voltar à carga automática nesse dia')
             save_day=st.form_submit_button('Atualizar esse dia de cards')
@@ -218,14 +219,22 @@ def render_error_cards(repo):
     if 'ec_notice' in st.session_state:st.success(st.session_state.pop('ec_notice'))
     show_queue=bool(view['snapshot'] or view['has_queue'] or view['history'])
     if show_queue:
-        with st.container(border=True,key='error_cards_summary'):
-            st.markdown(f"**{view['done_today']} respostas em cards hoje · {_load_label(view)}** · {_n(view['remaining'])} cards identificados ainda sem passagem registrada")
+        with st.container(key='error_cards_summary'):
+            a,b,c=st.columns(3)
+            a.metric('Respostas em cards hoje',_n(view['done_today']))
+            b.metric('Cards ainda nesta passagem',_n(view['remaining']))
+            c.metric('Referência de cards por dia',_n(view['budget']))
             if view['active']:st.progress(view['covered']/max(1,view['total_cards']))
-            st.caption('Progresso deste lote; as revisões continuam na Osler. Repetições contam na carga diária e não reduzem novamente o saldo de cards diferentes.')
-            if view['created_cards']:st.caption(f"{view['created_cards']} cards acrescentados pelos blocos de questões, sem alterar a carga diária.")
+            with st.expander('Entender o saldo e a carga'):
+                st.caption('Respostas de hoje incluem cards diferentes e repetições. O saldo conta só os cards identificados ainda sem primeira passagem registrada.')
+                st.caption(_load_label(view)+'. Esta carga faz parte da sua capacidade total de flashcards, junto dos retornos da Osler.')
+                st.caption('Progresso deste lote; as revisões continuam na Osler. Repetições contam na carga diária e não reduzem novamente o saldo de cards diferentes.')
+                if view['created_cards']:st.caption(f"{view['created_cards']} cards acrescentados pelos blocos de questões, sem alterar a carga diária.")
             if view['unreconciled_covered']:st.warning(f"{view['unreconciled_covered']} cards já estudados ficaram sem saldo correspondente após uma correção. O estudo foi preservado e não foi descontado de outros temas. Confira os lançamentos em Registrar.")
             if view['unallocated']:st.caption(f"Total importado: {_n(view['snapshot']['tree']['total'])} cards · {view['unallocated']} aguardam abertura dos grupos para revelar os subtemas.")
-    _record(service,view)
+    if st.session_state.get('ec_recording'):
+        with st.container(key='bento-error-cards-record'):
+            _record(service,view)
     today,topics,forecast,settings=st.tabs(['Hoje','Temas','Próximos dias','Importar e ajustar'])
     with today:
         if show_queue:_today(service,view)
@@ -234,4 +243,6 @@ def render_error_cards(repo):
         if show_queue:_topics(view)
     with forecast:
         if show_queue:_forecast(service,view)
-    with settings:_import_and_settings(service,view)
+    with settings:
+        with st.container(key='bento-error-cards-settings'):
+            _import_and_settings(service,view)

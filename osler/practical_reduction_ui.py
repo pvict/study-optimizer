@@ -34,6 +34,23 @@ def _current_frame(topics):
                           'Blocos': ', '.join(t['evidence_dates']['blocks'])} for t in topics])
 
 
+def reduction_summary(repo, view, day):
+    """Três fontes descritivas, sem inferir cartões suspensos ou carga poupada."""
+    from .planning_service import PlanningService
+    source=view['sources']['reports']['flashcards']
+    report=repo.get_report(source['sha256']) if source else None
+    topics=view.get('all_suggestions',[])
+    counts=[t.get('studied_cards') for t in topics]
+    measurements=[m for m in PlanningService(repo).measurements()
+                  if m['kind']=='revisoes_periodo' and m['observed_date']<=day]
+    workload=max(measurements,key=lambda m:(m['observed_date'],m['id']),default=None)
+    return {'studied':report.summary.get('estudados') if report else None,
+            'studied_date':source['report_date'] if source else None,
+            'review_cards':sum(counts) if counts and all(n is not None for n in counts) else None,
+            'reviews_per_day':workload['count']/workload['horizon_days'] if workload else None,
+            'workload':workload}
+
+
 def render_practical(repo, open_tool):
     service = PracticalReductionService(repo)
     day = today_local().isoformat()
@@ -46,12 +63,22 @@ def render_practical(repo, open_tool):
     except (ValueError, sqlite3.Error) as exc:
         st.error(str(exc))
         return
+    summary=reduction_summary(repo,view,day)
+    with st.container(key='bento-reduction-summary'):
+        a,b,c=st.columns(3)
+        a.metric('Cartões já estudados','—' if summary['studied'] is None else f"{summary['studied']:,}".replace(',','.'))
+        a.caption('Total declarado no PDF de '+_date_label(summary['studied_date']) if summary['studied_date'] else 'Sem total declarado no PDF.')
+        b.metric('Cartões para avaliar','—' if summary['review_cards'] is None else f"{summary['review_cards']:,}".replace(',','.'))
+        b.caption('Estudados nos temas sugeridos; não significa suspensão do deck inteiro.')
+        c.metric('Revisões por dia','—' if summary['reviews_per_day'] is None else f"{summary['reviews_per_day']:.1f}".replace('.',','))
+        workload=summary['workload']
+        c.caption(f"{'Consulta aproximada' if workload.get('approximate') else 'Consulta'} de {_date_label(workload['observed_date'])}: {workload['count']} em {workload['horizon_days']} dias. Fonte: {workload['source']}. Não inclui erros futuros." if workload else 'Sem contagem de revisões por período informada.')
     st.subheader('Sugestões com os dados atuais')
     st.caption('Preserve High Yield e os conceitos em que ainda erra. A indicação é seletiva; os dados não identificam quais cartões são High Yield nem comprovam que o deck inteiro pode ser suspenso.')
     topics = view['suggestions']
     if topics:
         for topic in topics:
-            with st.container(border=True):
+            with st.container(key='bento-reduction-topic-'+topic['topic_id']):
                 st.subheader(topic['path'][-1])
                 st.caption(' › '.join(topic['path'][:-1]))
                 st.write('**Manutenção seletiva**' if topic['recommendation'] == 'manutencao_seletiva' else '**Pausa seletiva por capacidade · 7 dias**')

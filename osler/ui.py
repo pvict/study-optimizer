@@ -199,7 +199,12 @@ def _advanced_tools(repo, project_root):
     all_entries = repo.list_reports()
     entries = repo.list_reports(include_duplicates=False)
     def open_backup(): st.session_state['advanced_view']='Backup e restauração'
-    st.button('Backup e restauração',key='open_backup',on_click=open_backup)
+    def open_library(): st.session_state['advanced_view']='Dados e classificação'
+    with st.container(key='bento-files-navigation'):
+        left,right=st.columns(2)
+        left.button('Biblioteca e importação',key='files_library',on_click=open_library,width='stretch',icon=':material/folder_open:')
+        right.button('Backup e restauração',key='open_backup',on_click=open_backup,width='stretch',icon=':material/backup:')
+    content=st.container()
     advanced_controls=st.expander("Avançado · selecionar relatório ou ferramenta")
     show_equivalent = advanced_controls.checkbox("Mostrar relatórios equivalentes", value=False)
     options = all_entries if show_equivalent else entries
@@ -213,6 +218,11 @@ def _advanced_tools(repo, project_root):
             st.info("Conteúdo equivalente a outro relatório; original preservado.")
     legacy={'Painel','Planejador de Suspensões','Simulação e rotina','Roteiro simples','Meu caminho','Preferências do roteiro','Reduções anteriores'}
     view = advanced_controls.selectbox("Abrir ferramenta", ["Dados e classificação", "Painel", "Planejador de Suspensões", "Simulação e rotina", "Evolução", "Backup e restauração", "Roteiro simples", "Meu caminho", "Preferências do roteiro","Reduções anteriores"],format_func=lambda v:v+' (legado)' if v in legacy else v,key="advanced_view")
+    with content:
+        _file_tool(repo,project_root,report,view,legacy)
+
+
+def _file_tool(repo,project_root,report,view,legacy):
     if view in legacy: st.caption('Recurso legado · preservado para consulta e continuidade dos registros anteriores.')
     if view=='Reduções anteriores':
         from .practical_reduction_ui import render_legacy_details
@@ -243,11 +253,15 @@ def _advanced_tools(repo, project_root):
 
 
 def _data_tabs(repo, report):
-    library, upload, inspect, audit, crossing, assessment = st.tabs(["Biblioteca", "Importar relatórios", "Inspecionar dados", "Validação e auditoria", "Cruzamento", "Classificação"])
+    library, upload = st.tabs(["Biblioteca", "Importar relatórios"])
     with library:
-        _library(repo)
+        with st.container(key='bento-files-library'):
+            _library(repo)
     with upload:
-        _import_tab(repo)
+        with st.container(key='bento-files-import'):
+            _import_tab(repo)
+    with st.expander('Avançado · inspecionar e conferir dados'):
+        inspect, audit, crossing, assessment = st.tabs(["Inspecionar dados", "Validação e auditoria", "Cruzamento", "Classificação"])
     with inspect:
         if report:
             _inspect(report, repo)

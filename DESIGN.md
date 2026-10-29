@@ -1,6 +1,6 @@
 ---
 name: Osler — Bento, estudo e acompanhamento
-description: Fundação local e composição Bento de Hoje, Temas, Registro, Calendário, Simulados e Evolução.
+description: Interface Bento local de estudo, acompanhamento, flashcards, arquivos e ajustes.
 colors:
   primary: "#4F46E5"
   primary-deep: "#4338CA"
@@ -113,13 +113,13 @@ components:
     rounded: "{rounded.pill}"
 ---
 
-# Design System: Osler — Bento (fases 1–4)
+# Design System: Osler — Bento (fases 1–5)
 
 ## Direção e escopo
 
 **Clareza para estudar, um bloco de cada vez.** Interface Operate local para preparação de residência, em português simples, no computador e no celular. O briefing aprovado é `docs/redesign/PROMPT-CODEX-REDESIGN-BENTO-OSLER.md`; suas regras e valores vencem sugestões genéricas das skills.
 
-As fases1–4 estão aplicadas: fundação, navegação lateral, Hoje, Temas/Registrar e Calendário/Simulados/Evolução. Flashcards, Arquivos e Ajustes seguem para a fase5. O redesign não altera regras de estudo, prioridade ou gravação.
+As cinco fases estão aplicadas: fundação, navegação lateral, Hoje, Temas/Registrar, Calendário/Simulados/Evolução e Flashcards/Arquivos/Ajustes. O redesign preserva regras de estudo, prioridade e histórico. Versão 0.28.0.
 
 Fontes normativas: `osler/bento.css` (tokens e base), `osler/bento.py` (primitivas puras e variações fixas), `osler/study.css` (estrutura existente), carregados nesta ordem por `study_style.py`. `.streamlit/config.toml` alinha o tema nativo e serve a fonte local. O sidecar `.impeccable/design.json` espelha estes valores; não cria rampas adicionais.
 
@@ -216,4 +216,16 @@ Registrar é um card central de no máximo680px. Escolha de tema recolhida quand
 
 Abas Erros, Plano de corte e Minha meta preservadas. Erros paginados12; atalho por tema limpa motivo residual. Corte, confiança da fonte e Wilson são dados cadastrados/observados; nenhuma previsão de aprovação. CSV consolidado permanece com fontes separadas. Feedback do registro usa superfície e texto neutros, sem alterar sua mensagem ou regra.
 
-Escala dos cards11/13/20px; padding24 e gap16; fontes e tokens da fundação. Estado neutro, cor apenas da área nos elementos previstos. Detector manual desta fase listou Inter, exigida pelo briefing, e retornou código1 no conjunto misto Python/CSS: não é prova de cobertura completa do código Python. Evidência e limitações: docs/design/bento-fase3-entrega.md. Fases4–5 continuam pendentes.
+Escala dos cards11/13/20px; padding24 e gap16; fontes e tokens da fundação. Estado neutro, cor apenas da área nos elementos previstos. Detector manual desta fase listou Inter, exigida pelo briefing, e retornou código1 no conjunto misto Python/CSS: não é prova de cobertura completa do código Python. Evidência e limitações: docs/design/bento-fase3-entrega.md. As entregas posteriores estão documentadas nos relatórios das fases4–5.
+
+## Fase5 — Flashcards, Arquivos e Ajustes
+
+Cards de erros apresentam respostas de hoje, saldo da primeira passagem e referência diária em grandezas distintas. A barra mede apenas a passagem do lote; explicações ficam em Entender o saldo e a carga. Decks inteiros têm registro visível antes de Por que este deck. Importação, repetição, desfazer e dias especiais conservam as regras anteriores.
+
+Redução de revisões mostra três fontes separadas: total estudado declarado no PDF selecionado; cartões estudados nos temas sugeridos para avaliação seletiva; média da consulta de revisões por período informada pelo usuário, datada e com origem. Nenhuma dessas medidas é economia de revisões, cartões a suspender ou domínio. Ausência permanece traço; zero informado permanece zero. Recomendações e salvaguardas vêm da política existente.
+
+Arquivos abre pela Biblioteca e Importar relatórios. Inspeção, auditoria, cruzamento e classificação ficam no expander Avançado; seleção de relatório e ferramentas legadas permanecem em outro Avançado. Backup tem atalho e retorno à Biblioteca. Nomes completos continuam disponíveis junto às fontes, além da tabela rolável.
+
+Ajustes organiza Meta e rotina, Minhas provas e Instituições e incidências em superfícies Bento. A meta diária e a proporção vêm primeiro. Nome opcional fica recolhido e vale somente na sessão, sem gravar ou alterar o perfil estatístico. A saudação escapa Markdown. Na seção de incidência, tempos do roteiro legado ficam preservados em sua ferramenta original; o formulário atual salva as instituições conservando os demais campos. Revisões, simulados e calibração continuam acessíveis em Avançado.
+
+Mesmo raio24, padding24, gap16 e escala compacta28/34; empilhamento até900px, campos móveis16px, foco discreto e teclado preservado. A biblioteca usa tabela com rolagem interna e alternativa de nomes completos. Auditoria geral e limitações de navegador, fonte, contraste e zoom: docs/design/bento-fase5-entrega.md. Não confundir viewport emulado com aparelho físico nem zoom CSS com zoom nativo.

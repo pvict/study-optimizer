@@ -103,18 +103,23 @@ def render_adaptive(repo):
         elif view=='Evolução': render_evolution(service)
         elif view=='Simulados': render_mock_exams(service)
         else:
-            st.subheader('Seu plano, do seu jeito')
-            settings=st.radio('O que ajustar?',['Meta e rotina','Minhas provas','Instituições e incidências'],horizontal=True,key='study_settings_section')
+            with st.container(key='bento-settings-navigation'):
+                settings=st.radio('O que ajustar?',['Meta e rotina','Minhas provas','Instituições e incidências'],horizontal=True,key='study_settings_section')
             if settings=='Meta e rotina':
-                with st.container(key='study_settings'):
+                with st.container(key='bento-settings-routine'):
                     _settings(service)
-                    render_review_strategy(service)
-                    render_mock_settings(service)
-                    render_parameter_settings(service)
+                with st.expander('Avançado · revisões, simulados e calibração'):
+                    with st.container(key='study_settings'):
+                        render_review_strategy(service)
+                        render_mock_settings(service)
+                        render_parameter_settings(service)
             elif settings=='Minhas provas':
-                render_exam_goals(service)
-                render_exam_weights(service)
-            else: render_guide_settings(repo)
+                with st.container(key='bento-settings-exams'):
+                    render_exam_goals(service)
+                    render_exam_weights(service)
+            else:
+                with st.container(key='bento-settings-incidence'):
+                    render_guide_settings(repo,incidence_only=True)
     except (ValueError,sqlite3.Error,OSError) as exc:
         st.error(str(exc))
 
@@ -143,26 +148,36 @@ def _edit(event):
         st.session_state[key]=value
 
 
+def _set_display_name():
+    st.session_state['interface_name']=' '.join(st.session_state['settings_display_name'].split())
+    st.session_state['settings_display_name']=st.session_state['interface_name']
+
+
 def _settings(service):
-    if st.button('Recarregar ajustes salvos'):
-        st.session_state.pop('adaptive_profile_snapshot',None)
-        st.rerun()
+    st.subheader('Meta e rotina')
+    with st.expander('Nome e ajustes salvos (opcional)'):
+        st.text_input('Como quer ser chamado? (opcional)',value=st.session_state.get('interface_name',''),max_chars=40,
+                      key='settings_display_name',on_change=_set_display_name)
+        st.caption('Nome usado somente nesta sessão do aplicativo. Não altera os dados do seu plano.')
+        if st.button('Recarregar ajustes salvos'):
+            st.session_state.pop('adaptive_profile_snapshot',None)
+            st.rerun()
     record=st.session_state.setdefault('adaptive_profile_snapshot',service.store.profile())
     p=AdaptiveProfile(**record['configured_profile'])
-    st.write('Ajustes globais. Não é necessário configurar cada tema.')
     with st.form('adaptive_profile'):
-        st.subheader('Rotina diária')
-        count=st.number_input('Meta padrão de questões por dia',min_value=1,max_value=1000,value=p.max_questions)
-        st.caption('O tempo disponível não limita essa meta. Você pode mudar um dia específico na tela Hoje.')
-        share_percent=st.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='settings_new_share')
+        left,right=st.columns(2)
+        count=left.number_input('Meta padrão de questões por dia',min_value=1,max_value=1000,value=p.max_questions)
+        share_percent=right.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='settings_new_share')
+        st.caption('A meta é por questões. Para mudar só um dia, use Hoje → Ajustar meu dia.')
         share=share_percent/100
         workload_mode=st.radio('Como distribuir a rotina?',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
                                format_func={'adaptive':'Adaptativa — abre espaço para revisões','fixed':'Fixa — mantém a proporção escolhida'}.get,key='settings_workload_mode')
         st.divider()
         st.subheader('Objetivos e datas')
-        start=st.date_input('Início do cronograma',value=date.fromisoformat(p.start_date) if p.start_date else None,key='settings_start_date',format='DD/MM/YYYY')
-        st.caption('Antes dessa data, o app não cobra metas nem faltas. O histórico anterior continua valendo para as revisões.')
-        target=st.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
+        left,right=st.columns(2)
+        start=left.date_input('Início do cronograma',value=date.fromisoformat(p.start_date) if p.start_date else None,key='settings_start_date',format='DD/MM/YYYY')
+        target=right.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
+        st.caption('Antes do início, sem metas nem faltas. O histórico anterior continua valendo para as revisões.')
         st.caption('Objetivo de aprendizagem: acerto em questões novas e amostra suficiente; convicção é informação complementar. Não é nota de prova nem probabilidade de aprovação.' if p.review_strategy=='balanced_v2' else 'Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
         if ExamGoals(service.repository).active():
             exam=date.fromisoformat(p.exam_date)
