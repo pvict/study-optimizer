@@ -229,3 +229,9 @@ Arquivos abre pela Biblioteca e Importar relatórios. Inspeção, auditoria, cru
 Ajustes organiza Meta e rotina, Minhas provas e Instituições e incidências em superfícies Bento. A meta diária e a proporção vêm primeiro. Nome opcional fica recolhido e vale somente na sessão, sem gravar ou alterar o perfil estatístico. A saudação escapa Markdown. Na seção de incidência, tempos do roteiro legado ficam preservados em sua ferramenta original; o formulário atual salva as instituições conservando os demais campos. Revisões, simulados e calibração continuam acessíveis em Avançado.
 
 Mesmo raio24, padding24, gap16 e escala compacta28/34; empilhamento até900px, campos móveis16px, foco discreto e teclado preservado. A biblioteca usa tabela com rolagem interna e alternativa de nomes completos. Auditoria geral e limitações de navegador, fonte, contraste e zoom: docs/design/bento-fase5-entrega.md. Não confundir viewport emulado com aparelho físico nem zoom CSS com zoom nativo.
+
+## Treinos por área e correção — v0.29
+
+Simulados acrescenta duas abas nativas, Treinos por área e Correção. Preserva tokens, fonte local, lateral e superfícies Bento. O primeiro passo é configurar o rodízio; depois aparecem agenda, mudanças por ocorrência e registro curto do resultado. Correção oferece busca digitada/hierárquica pelo tema específico, quantidade opcional de erros e prévia datada antes de reservar a prática. Fontes e regras avançadas ficam recolhidas.
+
+Hoje mostra o treino reservado e o dia de correção junto ao plano; Calendário identifica ambos sem inventar estudo concluído. Tabelas têm rolagem própria e controles conservam os alvos nativos de teclado/toque. QA sintético com Edge em 1440, 1366, 768 e 390px, sem estouro horizontal do documento ou exceções nas 16 combinações de tela/tamanho. Capturas não equivalem a teste em aparelho físico. Método e limites em docs/research/treinos-e-correcao-de-simulados.md.

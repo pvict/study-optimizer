@@ -80,6 +80,7 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
         if item.get('preventive_priority'):notices.append('Prioridade do plano preventivo')
         if item.get('swap_return'):notices.append('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))
         elif (item.get('planner_supply') or {}).get('external_only'):notices.append('Complemento no banco completo')
+        elif item.get('correction'):notices.append('Reforço dos erros do simulado · data reservada '+date_label(item['reschedule_date']))
         elif item.get('rescheduled'):notices.append('Recuperação agendada · atraso original desde '+item['original_due'])
         if item['added_by_user']:notices.append(f"Adicionado por você · {item['extra_pending']} questões extras · só hoje")
         if notices:st.caption(' · '.join(notices))
@@ -123,6 +124,7 @@ def _today_ring(plan,state):
         remaining=f"Restam {plan['questions']} no plano" if plan['target_questions'] else 'Sem meta de blocos hoje'
         if state=='empty':remaining='Plano disponível após importar o relatório'
         text=f"{dist['planned_new']} em temas novos · {dist['planned_reviews']} em revisões e diagnósticos."
+        if plan.get('area_tasks'): text+=' '+str(sum(t['questions'] for t in plan['area_tasks'] if not t['completed']))+' em treino por área.'
         st.markdown('<div class="o-ring-row">'+ring(plan['done_questions'],plan['target_questions'],80)+'<div><strong>'+remaining+'</strong><p>'+text+'</p></div></div>',unsafe_allow_html=True)
 
 
@@ -179,6 +181,19 @@ def render_today(service,go_record,go_review,go_edit=None):
     summary=week_summary(view,service.store.days(),service.guide.days(),exam,service.recorded_mock_days())
     render_approach(service)
     render_absence_notice(service,day)
+    for task in plan.get('area_tasks',[]):
+        with st.container(border=True,key='bento-area-today-'+task['id']):
+            st.subheader(task['institution']+' · '+task['area'])
+            st.write(f"Treino por área · {task['done']} questões registradas" if task['completed'] else f"Treino por área · {task['questions']} questões dentro da meta de hoje")
+            st.caption('Misture os temas dessa área no banco da instituição. O resultado da área fica separado dos percentuais por tema.')
+            st.button('Ver resultado e corrigir' if task['completed'] else 'Registrar treino por área',key='area_today_'+task['id'],on_click=go_view,args=('Plano de questões','Simulados'))
+    corrections=[r for r in service.exam_learning_agenda() if r['date']==day]
+    if corrections:
+        with st.container(border=True,key='bento-correction-today'):
+            st.subheader('Dia de corrigir e reforçar')
+            for correction in corrections:
+                st.write(correction['name']+' · '+('informe os temas errados em Simulados → Correção' if correction['needs_details'] else 'os temas do reforço estão nos blocos do plano'))
+            st.button('Abrir correção dos simulados',key='correction_today',on_click=go_view,args=('Plano de questões','Simulados'))
     with st.container(key='bento_top'):
         main,side=st.columns([2,1],gap='medium')
         with main:

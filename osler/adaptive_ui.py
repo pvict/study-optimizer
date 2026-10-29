@@ -76,7 +76,7 @@ def render_adaptive(repo):
                 'Temas e estatísticas':'Encontre o que precisa de atenção e acompanhe seu rendimento.',
                 'Registrar resultados':'Registre o que fez. O próximo plano acompanha seus resultados.',
                 'Ajustes':'Defina sua rotina uma vez. Ajuste quando precisar.','Evolução':'Enxergue o que já construiu e explore os próximos capítulos da preparação.',
-                'Simulados':'Acompanhe provas completas, com resultados separados dos blocos do dia.'}[current])
+                'Simulados':'Acompanhe simulados, treinos por área e a correção dos erros.'}[current])
     if 'adaptive_notice' in st.session_state: st.success(st.session_state.pop('adaptive_notice'))
     if 'adaptive_error' in st.session_state: st.error(st.session_state.pop('adaptive_error'))
     if view!='Ajustes': st.session_state.pop('adaptive_profile_snapshot',None)

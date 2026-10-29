@@ -32,6 +32,7 @@ class MockExam:
     note: str = ''
     areas: list[dict] = field(default_factory=list)
     topics: list[dict] = field(default_factory=list)
+    practice_id: str | None = None
 
     def validate(self):
         _date(self.day)
@@ -56,6 +57,11 @@ class MockExam:
         for value in (self.institution, self.target_id):
             if value is not None and (not isinstance(value, str) or not value.strip() or len(value)>200):
                 raise ValueError('Instituição ou prova inválida.')
+        if self.practice_id is not None:
+            if not isinstance(self.practice_id,str) or not self.practice_id.startswith('area-') or len(self.practice_id)>80:
+                raise ValueError('Treino por área inválido.')
+            if len(self.areas)!=1 or self.areas[0].get('questions')!=self.questions or self.areas[0].get('correct')!=self.correct or not self.institution:
+                raise ValueError('Um treino deve informar uma instituição e uma área com o resultado completo.')
         for rows, identity in ((self.areas, 'area'), (self.topics, 'path')):
             if not isinstance(rows, list): raise ValueError('Resultados detalhados inválidos.')
             keys = []
@@ -118,22 +124,30 @@ class MockExams:
         for row in self.events(): latest[row['exam_key']] = row
         return sorted([r for r in latest.values() if r['action']=='save'], key=lambda r: (r['exam']['day'], r['id']))
 
-    def save(self, exam, *, exam_key=None, expected_version=0):
+    def save(self, exam, *, exam_key=None, expected_version=0, expected_token=None):
         exam.validate()
         valid_date(exam.day, past=True)
-        return self._append(exam, exam_key or uuid.uuid4().hex, expected_version, 'save')
+        return self._append(exam, exam_key or uuid.uuid4().hex, expected_version, 'save',expected_token)
 
     def void(self, exam_key, expected_version):
         return self._append(None, exam_key, expected_version, 'void')
 
-    def _append(self, exam, exam_key, expected_version, action):
+    def _append(self, exam, exam_key, expected_version, action,expected_token=None):
         with self.repository._connection() as db:
             db.execute('BEGIN IMMEDIATE')
+            if expected_token is not None:
+                from .study_agenda import planning_token
+                if planning_token(db)!=expected_token: raise ValueError('O plano mudou. Atualize a tela.')
             old = _latest(db, exam_key, expected_version)
             if action=='void' and (not old or old['action']!='save'):
                 raise ValueError('O simulado mudou ou já foi desconsiderado.')
             if _converted(db, exam_key):
                 raise ValueError('Retire explicitamente os blocos convertidos antes de corrigir ou desconsiderar o simulado.')
+            if exam is not None and exam.practice_id:
+                latest={}
+                for row in db.execute('SELECT * FROM mock_exams ORDER BY id'): latest[row['exam_key']]=row
+                if any(k!=exam_key and r['action']=='save' and json.loads(r['payload']).get('practice_id')==exam.practice_id for k,r in latest.items()):
+                    raise ValueError('Este treino já tem resultado. Corrija o registro existente em Resultados.')
             if exam is not None and exam.target_id:
                 target = db.execute('SELECT * FROM exam_targets WHERE target_id=? ORDER BY version DESC LIMIT 1', (exam.target_id,)).fetchone()
                 if not target or target['action']!='save': raise ValueError('Escolha uma prova cadastrada e ativa.')

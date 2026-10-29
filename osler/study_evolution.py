@@ -6,7 +6,7 @@ from .planning import _date
 from .topic_catalog import is_practice_topic
 
 
-def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30):
+def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30,area_results=()):
     _date(as_of)
     topics=[t for t in states if is_practice_topic(t) and not t.get('historical_aggregate')]
     ids={t['topic_id'] for t in topics}
@@ -19,6 +19,8 @@ def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30):
         actual_by_day[e['day']]+=e['questions']
         key=by_path.get(tuple(normalize_path(e['path'])))
         if key: local_ids.add(key)
+    from .exam_practice import area_extra_volume
+    for day,n in area_extra_volume(area_results,sessions,as_of).items(): actual_by_day[day]+=n
     actual=sum(actual_by_day.values()); covered=set(local_ids)
     for e in records:
         if e['kind']=='acumulado' and e['questions']>0:
@@ -61,7 +63,7 @@ def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30):
         running+=q; history.append({'date':day,'attempts':running,'kind':'Realizado'})
     if not history or history[-1]['date']<as_of: history.append({'date':as_of,'attempts':actual,'kind':'Realizado'})
     days=sorted(actual_by_day)
-    milestones=[('first','Primeiro registro',bool(entries),days[0] if days else None,
+    milestones=[('first','Primeiro registro',bool(entries or actual),days[0] if days else None,
                  next((p['date'] for p in points if p['attempts']>0),None),'Um bloco registrado no app'),
                 ('questions100','100 respostas',actual>=100,next((p['date'] for p in history if p['attempts']>=100),None),
                  next((p['date'] for p in points if p['attempts']>=100),None),'Inclui questões novas e repetidas no app'),

@@ -66,8 +66,8 @@ def effective_routine(profile,config,override):
     q=config['questions']
     if override.get('mode')=='extra':
         total=min(1000,q+override['extra_questions'])
-        return replace(profile,new_share=q*profile.new_share/total),total
-    return (replace(profile,new_share=0) if override.get('mode') in {'reviews','final_review'} else profile),q
+        return replace(profile,new_share=q*profile.new_share/total),max(0,total-override.get('area_reserved',0))
+    return (replace(profile,new_share=0) if override.get('mode') in {'reviews','final_review'} else profile),max(0,q-override.get('area_reserved',0))
 
 
 def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None):

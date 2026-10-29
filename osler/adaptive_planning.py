@@ -332,7 +332,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     excluded={topic_id for row in swaps for topic_id in row['excluded_ids']}
     swapped_ids={row['topic_id'] for row in swaps}
     if question_target is None: _number(minutes,'Tempo disponível',integer=True,positive=True,maximum=720)
-    else: _number(question_target,'Meta de questões',integer=True,positive=True,maximum=1000)
+    else: _number(question_target,'Meta de questões',integer=True,maximum=1000)
     if kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
     today=[s['entry'] for s in sessions if s['entry']['day']==as_of and s['entry']['kind']!='acumulado']
     from .study_swaps import quota_entries
@@ -407,14 +407,15 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
         remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
-        group_budget=remaining_budget if row.get('daily_proposal') or row.get('swap_return') or row.get('final_review') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        group_budget=remaining_budget if row.get('daily_proposal') or row.get('swap_return') or row.get('final_review') or row.get('correction') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
         q=min(row['remaining'],t['total'],group_budget,remaining_budget)
         if q:
             group_targets[group]=max(0,group_targets[group]-q)
             recovered.append({**t,'questions':q,'new_questions':min(q,t['available_new']),'repeat_questions':max(0,q-t['available_new']),
                               'added_by_user':False,'rescheduled':not row.get('daily_proposal',False),'daily_proposal_preserved':bool(row.get('daily_proposal')),'reschedule_date':row['date'],'original_due':row['original_due'],
                               'swap_return':row.get('swap_return'),
-                              'reason':'Bloco já previsto para hoje; as questões excedentes não o substituem' if row.get('daily_proposal') else 'Recuperação reagendada; atraso original preservado'})
+                              'correction':bool(row.get('correction')),'source_exam_key':row.get('source_exam_key'),
+                              'reason':'Prática dos temas errados no simulado' if row.get('correction') else 'Bloco já previsto para hoje; as questões excedentes não o substituem' if row.get('daily_proposal') else 'Recuperação reagendada; atraso original preservado'})
     budget-=sum(r['questions'] for r in recovered)
     recovery_ids={r['topic_id'] for r in recovered}
     extra_counts={t['topic_id']:t['questions'] for t in extras}

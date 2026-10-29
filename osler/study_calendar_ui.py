@@ -76,6 +76,8 @@ def _day_summary(day,plan,context,today):
     st.html('<div class="o-calendar-state'+markers+'">'+label+'</div>')
     for e in context.get('exam_dates',[]):
         if e['date']==day.isoformat(): st.caption(e['label']+' · '+e['institution'])
+    for e in context.get('correction_days',[]):
+        if e['date']==day.isoformat(): st.caption('Correção · '+e['name']+(' · informar temas' if e['needs_details'] else ' · reforço programado'))
     if plan is None:
         st.caption('Fora do período disponível')
         return
@@ -89,6 +91,8 @@ def _day_summary(day,plan,context,today):
     if plan.get('not_started'):
         st.caption('Antes do início · sem meta')
         return
+    for task in plan.get('area_tasks',[]):
+        st.caption('Treino por área · '+task['institution']+' · '+task['area']+f" · {task['questions']} questões"+(' · realizado' if task['completed'] else ''))
     if plan.get('historical'):
         done=plan.get('done_questions')
         st.caption('Quantidade não informada' if done is None else f'{done} questões registradas' if done else 'Sem estudo registrado')
@@ -117,6 +121,7 @@ def render_calendar(service,go_record,go_review=None):
     context=service.replanning()
     context['mock_result_days']=service.recorded_mock_days()
     context['exam_dates']=service.exam_dates()
+    context['correction_days']=service.exam_learning_agenda()
     initial=min(max(today,date.fromisoformat(start_date)),today+timedelta(days=547)) if start_date else today
     minimum,maximum=today-timedelta(days=90),today+timedelta(days=547)
     if start_date and date.fromisoformat(start_date)>maximum: st.caption('O início está além do horizonte atual de 18 meses. O calendário ainda não programa blocos nesse período.')
@@ -139,6 +144,9 @@ def render_calendar(service,go_record,go_review=None):
     plans=service.calendar(max(1,(end-today).days+1))
     by_date={p['date']:p for p in plans}
     by_date.update(past_calendar(context['view']['planning_states'],context['view']['sessions'],service.agenda.daily_plans(),(today-timedelta(days=96)).isoformat(),today.isoformat(),context['backlog']))
+    from .exam_practice import decorate_practice_plan
+    for key,plan in by_date.items():
+        if plan.get('historical'): decorate_practice_plan(plan,context['view']['agenda'],key,context['view']['sessions'])
     for key,override in context['overrides'].items():
         if key in by_date:
             by_date[key]['routine_override']=override
@@ -186,6 +194,11 @@ def render_calendar(service,go_record,go_review=None):
 def _render_selected_day(service,go_record,go_review,today,start_date,selected,plan,current_view):
     strategy=service.store.profile()['profile'].get('review_strategy')
     st.subheader('Blocos de '+ '/'.join(reversed(selected.split('-'))))
+    for correction in service.exam_learning_agenda():
+        if correction['date']==selected:
+            st.info('Correção de '+correction['name']+'. '+('Informe os temas errados na aba Simulados → Correção para distribuir a prática.' if correction['needs_details'] else 'Os temas de reforço usam parte da meta normal deste dia.'))
+    for task in plan.get('area_tasks',[]):
+        st.info(task['institution']+' · '+task['area']+f" · treino de {task['questions']} questões dentro da meta diária. Registre o resultado em Simulados → Treinos por área.")
     override=plan.get('routine_override',{})
     if override.get('mode')=='mock_day': st.success(f"Dia feito por simulado · {override['mock_questions']} questões, separadas dos blocos.")
     elif override.get('mode')=='mock_reserved':

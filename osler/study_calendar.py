@@ -11,6 +11,7 @@ from .study_capacity import practice_state,capacity_limits
 from .study_swaps import swap_rows
 from .final_review import special_config,final_reservations
 from .study_triage_policy import apply_triage
+from .exam_practice import practice_context,decorate_practice_plan
 
 
 def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False):
@@ -74,7 +75,8 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         active_ids={t['topic_id'] for t in active}
         active.extend(by_id[r['topic_id']] for r in due_reservations if r['topic_id'] in by_id and r['topic_id'] not in active_ids)
         capacity_states=[{**t,'pending_reviews':[{**q,'questions':pending[q['session_id']]['remaining']} for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]} for t in working]
-        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations,capacity_states=capacity_states,capacity_limits=capacity_limits(profile,day,settings,agenda),swaps=daily_swaps)
+        allocation_sessions=practice_context(agenda,day,sessions)['ordinary_sessions'] if override.get('area_reserved') else sessions
+        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],allocation_sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations,capacity_states=capacity_states,capacity_limits=capacity_limits(profile,day,settings,agenda),swaps=daily_swaps)
         plan['routine_override']=agenda['overrides'].get(day,{})
         scheduled_pending=0
         for item in plan['items']:
@@ -121,6 +123,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             t['priority']=t.get('evidence_priority',t['priority'])
             t['review_committed']=True
             # Só projeção: evidência observada, posteriors e sessões não são alterados.
+        decorate_practice_plan(plan,agenda,day,sessions)
         backlog=projected_backlog(working,pending,day,start_date=profile.start_date)
         output.append({**plan,'projection':offset>0,'forecast_mode':'next_contact' if next_contact_only else spacing_scenario,
                        'awaiting_results':sum(bool(t.get('awaiting_result')) for t in working),

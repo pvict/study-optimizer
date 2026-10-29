@@ -69,6 +69,9 @@ def render_mock_schedule(service):
                                        for r in preview['occurrences'] if r['date']!=before[r['occurrence_id']]['date']]),hide_index=True,width='stretch')
         st.caption(f"Remanejamento comparado de {_date_text(preview['window_start'])} a {_date_text(preview['window_end'])}. A série inteira reserva capacidade; as datas abaixo são previsões de próximos contatos e serão recalculadas após seus resultados.")
         changes=preview['topic_changes']
+        if preview.get('area_conflicts'):
+            st.warning('Treinos por área coincidem com os simulados completos abaixo. O dia exclusivo tem prioridade; mova esses treinos na aba Treinos por área. Eles não somarão carga ao dia do simulado.')
+            st.dataframe(pd.DataFrame([{'Data':r['date'],'Instituição':r['institution'],'Área':r['area']} for r in preview['area_conflicts']]),hide_index=True,width='stretch')
         if changes:
             st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Antes':r['before_date'],'Depois':r['after_date'] or 'Sem vaga neste horizonte',
                                        'Questões previstas':r['after_questions'],'Prioridade':r['priority']} for r in changes]),hide_index=True,width='stretch',height=280)

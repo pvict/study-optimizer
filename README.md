@@ -7,7 +7,11 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.28.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.29.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+
+Em **Simulados → Treinos por área**, programe um ou dois treinos semanais por instituição, mova datas e registre resultados. As questões reservadas fazem parte da meta diária. O rodízio percorre as cinco grandes áreas e as instituições escolhidas; alterar frequência ou carga preserva os treinos já realizados.
+
+Em **Simulados → Correção**, informe os temas errados agora ou depois de registrar o resultado. A quantidade de erros por tema é opcional. Escolha o dia e veja a distribuição antes de aplicar: os blocos respeitam a carga diária, com doses orientadas pela incidência disponível, pelo desempenho observado e pelos erros. Sem denominador, não se calcula um percentual de acerto por tema. Histórico, conversões e nota do simulado ficam preservados. [Método e limites](docs/research/treinos-e-correcao-de-simulados.md).
 
 [Entrega do lote C: funções, validações, limites e reversão](docs/research/lote-c-entrega.md).
 

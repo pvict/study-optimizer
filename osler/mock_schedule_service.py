@@ -11,7 +11,7 @@ from .mock_schedule import schedule_dates,calendar_changes
 class MockScheduleServiceMixin:
     def recorded_mock_days(self):
         from .study_read_model import read_events,latest_active
-        return {r['data']['day'] for r in latest_active(read_events(self.repository,'mock_exams'),'exam_key')}
+        return {r['data']['day'] for r in latest_active(read_events(self.repository,'mock_exams'),'exam_key') if not r['data'].get('practice_id')}
 
     def mock_schedule_undo_reason(self,plan_id):
         from .study_agenda import effective_applies
@@ -108,7 +108,8 @@ class MockScheduleServiceMixin:
             after_calendar=project(after_view,agenda)
             topic_changes=calendar_changes(before_calendar,after_calendar)
         if token!=self.agenda.token(): raise ValueError('Seu plano mudou. Recalcule a prévia.')
-        return {'request':request,'occurrences':occurrences,'overrides':overrides,'rows':rows,'selected':selected,
+        area_conflicts=[r for r in base.get('area_practice',[]) if r['date'] in new_dates]
+        return {'request':request,'occurrences':occurrences,'overrides':overrides,'rows':rows,'selected':selected,'area_conflicts':area_conflicts,
                 'topic_changes':topic_changes,'unassigned':[r for r in topic_changes if r['after_date'] is None],
                 'window_start':current,'window_end':after_calendar[-1]['date'],'created_day':current,'token':token,
                 'replaces_plan_id':old['id'] if old else None,'editing':_editing}

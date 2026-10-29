@@ -56,7 +56,7 @@ def test_results_summary_precedes_form_and_render_does_not_create_study(tmp_path
     monkeypatch.setenv('BENTO_MOCK_ROOT', str(tmp_path))
     app = AppTest.from_string(APP, default_timeout=30).run()
     assert not app.exception
-    assert [tab.label for tab in app.tabs] == ['Programação', 'Resultados']
+    assert [tab.label for tab in app.tabs] == ['Programação', 'Resultados', 'Treinos por área', 'Correção']
     assert [s.value for s in app.subheader].index('Último simulado') < [s.value for s in app.subheader].index('Registrar simulado')
     assert app.number_input(key='mock_field_questions').value is None
     assert app.button(key='mock_save') and app.button(key='mock_edit') and app.button(key='mock_void')

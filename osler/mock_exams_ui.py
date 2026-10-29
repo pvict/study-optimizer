@@ -122,9 +122,12 @@ def _history(mocks):
 
 def render_mock_exams(service):
     from .mock_schedule_ui import render_mock_schedule
-    programming,results=st.tabs(['Programação','Resultados'])
+    from .exam_practice_ui import render_area_practice,render_mock_correction
+    programming,results,practice,correction=st.tabs(['Programação','Resultados','Treinos por área','Correção'])
     with programming: render_mock_schedule(service)
     with results: _render_mock_results(service)
+    with practice: render_area_practice(service)
+    with correction: render_mock_correction(service)
 
 
 def _render_mock_results(service):
@@ -183,11 +186,12 @@ def _render_mock_results(service):
                     exam = MockExam(day.isoformat(), int(total), int(correct), name=name, kind=kind, institution=institution.strip() or None,
                                     target_id=target_id or None, blank=blank, minutes_used=minutes, minutes_allowed=allowed,
                                     score=score, max_score=max_score, conditions='realista' if realistic else 'nao_realista',
-                                    unseen_questions=unseen, note=note, areas=_details(areas, 'area', 'Área'), topics=_details(topics, 'path', 'Tema completo'))
+                                    unseen_questions=unseen, note=note, areas=_details(areas, 'area', 'Área'), topics=_details(topics, 'path', 'Tema completo'),practice_id=initial.get('practice_id'))
                     saved = mocks.save(exam, exam_key=edit['exam_key'] if edit else None, expected_version=edit['version'] if edit else 0)
                     st.session_state['mock_selected'] = saved['exam_key']
+                    st.session_state['correction_exam'] = saved['exam_key']
                     st.session_state['mock_reset_pending'] = True
-                    st.session_state['mock_notice'] = 'Simulado salvo. Nenhum bloco foi criado automaticamente.'
+                    st.session_state['mock_notice'] = 'Simulado salvo. Informe os temas errados na aba Correção agora ou depois; nada foi somado aos blocos automaticamente.'
                     st.rerun()
                 except ValueError as exc: st.error(str(exc))
         if edit: st.button('Cancelar correção', key='mock_cancel', on_click=_reset)
@@ -233,26 +237,27 @@ def _render_mock_results(service):
                 if st.button('Retirar blocos desta conversão', key='mock_retract'):
                     try: st.success(f'{retract_conversion(service, selected, row["version"])} bloco(s) retirado(s). Agora é possível corrigir o simulado.')
                     except ValueError as exc: st.error(str(exc))
-        with st.expander('Considerar este dia como feito'):
-            st.caption('Veja a prévia antes de substituir a meta normal do dia. Isso não soma o simulado ao desempenho dos blocos.')
-            if st.button('Ver prévia do dia de simulado', key='mock_day_preview'):
-                try: st.session_state['mock_day_preview_data'] = service.preview_mock_day(selected, row['version'])
-                except ValueError as exc: st.error(str(exc))
-            preview = st.session_state.get('mock_day_preview_data')
-            if preview and preview['exam_key']==selected and preview['version']==row['version']:
-                st.write(f"Em {preview['day']}: meta normal de {preview['replaced_questions']} questões → dia feito por simulado de {preview['questions']} questões, sem dívida.")
-                if st.button('Aplicar dia feito por simulado', key='mock_day_apply'):
-                    try:
-                        st.session_state['mock_day_undo'] = service.mark_mock_day(selected, row['version'], preview)
-                        st.session_state.pop('mock_day_preview_data', None)
-                        st.success('Dia considerado feito por simulado.')
+        if not exam.get('practice_id'):
+            with st.expander('Considerar este dia como feito'):
+                st.caption('Veja a prévia antes de substituir a meta normal do dia. Isso não soma o simulado ao desempenho dos blocos.')
+                if st.button('Ver prévia do dia de simulado', key='mock_day_preview'):
+                    try: st.session_state['mock_day_preview_data'] = service.preview_mock_day(selected, row['version'])
                     except ValueError as exc: st.error(str(exc))
-            if st.session_state.get('mock_day_undo') and st.button('Desfazer dia feito por simulado', key='mock_day_undo_button'):
-                try:
-                    service.cancel_replan(st.session_state['mock_day_undo'])
-                    st.session_state.pop('mock_day_undo', None)
-                    st.success('Meta normal do dia restaurada.')
-                except ValueError as exc: st.error(str(exc))
+                preview = st.session_state.get('mock_day_preview_data')
+                if preview and preview['exam_key']==selected and preview['version']==row['version']:
+                    st.write(f"Em {preview['day']}: meta normal de {preview['replaced_questions']} questões → dia feito por simulado de {preview['questions']} questões, sem dívida.")
+                    if st.button('Aplicar dia feito por simulado', key='mock_day_apply'):
+                        try:
+                            st.session_state['mock_day_undo'] = service.mark_mock_day(selected, row['version'], preview)
+                            st.session_state.pop('mock_day_preview_data', None)
+                            st.success('Dia considerado feito por simulado.')
+                        except ValueError as exc: st.error(str(exc))
+                if st.session_state.get('mock_day_undo') and st.button('Desfazer dia feito por simulado', key='mock_day_undo_button'):
+                    try:
+                        service.cancel_replan(st.session_state['mock_day_undo'])
+                        st.session_state.pop('mock_day_undo', None)
+                        st.success('Meta normal do dia restaurada.')
+                    except ValueError as exc: st.error(str(exc))
         _history(mocks)
 
     with st.container(key='bento-mock-history'):

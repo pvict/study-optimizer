@@ -38,9 +38,10 @@ from .study_triage_policy import apply_triage
 from .mock_schedule_service import MockScheduleServiceMixin
 from .exam_weight_service import ExamWeightServiceMixin
 from .review_strategy_service import ReviewStrategyServiceMixin
+from .exam_practice_service import ExamPracticeServiceMixin
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin,ExamWeightServiceMixin,ReviewStrategyServiceMixin):
+class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin,ExamWeightServiceMixin,ReviewStrategyServiceMixin,ExamPracticeServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
@@ -244,14 +245,16 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
             extras=[]; swaps=[]
         elif override.get('mode') in {'final_rest','mock_day','mock_reserved'}: extras=[]; swaps=[]
         completion=None
+        from .exam_practice import practice_context,decorate_practice_plan
+        allocation_sessions=practice_context(agenda,as_of,sessions)['ordinary_sessions'] if override.get('area_reserved') else sessions
         if question_target is not None and as_of==today_local().isoformat() and kind!='descanso' and override.get('mode') not in {'final_review','final_rest','mock_day','mock_reserved'}:
             from .daily_excess import daily_completion_context
-            completion=daily_completion_context(self.repository,as_of,sessions,record['id'],day['revision'],sorted(r['id'] for r in agenda.get('active',[])))
+            completion=daily_completion_context(self.repository,as_of,allocation_sessions,record['id'],day['revision'],sorted(r['id'] for r in agenda.get('active',[])))
             if _profile_override is None and _agenda_override is None:
                 unavailable={r['topic_id'] for r in reservations}|{e['topic_id'] for e in extras}|{r['topic_id'] for r in swaps}
                 unavailable.update(key for r in swaps for key in r['excluded_ids'])
                 reservations=[*reservations,*[{**i,'date':as_of,'original_due':as_of,'daily_proposal':True} for i in completion['preserve'] if i['topic_id'] not in unavailable]]
-        plan=allocate_day(disjoint,effective,minutes,kind,sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None)
+        plan=allocate_day(disjoint,effective,minutes,kind,allocation_sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None)
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')
@@ -264,6 +267,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                      'incidence_contexts':incidence['contexts']})
         from .planner_completion import apply_completions
         apply_completions(plan,agenda,as_of)
+        decorate_practice_plan(plan,agenda,as_of,sessions)
         exact=[e['entry'] for e in sessions if e['entry']['kind']=='bloco' and e['entry']['mode']=='novas' and e['entry']['correct'] is not None]
         n=sum(e['questions'] for e in exact)
         portfolio={'new_questions':n,'new_correct':sum(e['correct'] for e in exact),
@@ -378,4 +382,10 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         if chosen.get('scope')=='mock_schedule':
             reason=self.mock_schedule_undo_reason(plan_id)
             if reason: raise ValueError(reason)
+        if chosen.get('scope')=='area_practice':
+            if any((r['date'] or r['original_date'])<today_local().isoformat() for r in chosen['occurrences']):
+                raise ValueError('A série contém datas passadas. Remova apenas as próximas ocorrências na prévia.')
+            from .mock_exams import MockExams
+            if any(r['exam'].get('practice_id') in {o['id'] for o in chosen['occurrences']} for r in MockExams(self.repository).active()):
+                raise ValueError('Há resultados nesta série. Preserve o histórico e ajuste apenas os próximos treinos.')
         return self.agenda.append({'kind':'reschedule.cancel','plan_id':plan_id,'created_day':today_local().isoformat()},expected_token or context['token'])

@@ -99,6 +99,7 @@ class FinalReviewServiceMixin:
         record=next((r for r in MockExamStore(self.repository).active() if r['exam_key']==exam_key),None)
         if not record or record['version']!=expected_version: raise ValueError('O simulado mudou. Atualize a tela.')
         mock=record.get('exam',record.get('mock',record.get('data')))
+        if mock.get('practice_id'): raise ValueError('Treinos por área usam apenas parte da meta; não dispensam o dia inteiro.')
         day=mock['day']
         target=self.store.day(day,self.store.profile()['profile']['max_questions'])['settings']['questions']
         return {'exam_key':exam_key,'version':expected_version,'day':day,'questions':mock['questions'],

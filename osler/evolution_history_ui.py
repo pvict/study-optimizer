@@ -15,11 +15,13 @@ from .study_models import AdaptiveProfile
 from .study_replanning import effective_routine
 
 
-def observed_history(sessions,as_of,profile,settings,overrides,*,weeks=8):
+def observed_history(sessions,as_of,profile,settings,overrides,*,weeks=8,area_results=()):
     """Bases descritivas separadas; a meta é referência da rotina atual, não passado inferido."""
     today=_date(as_of);monday=today-timedelta(days=today.weekday())
     entries=[s['entry'] for s in sessions if s['entry']['day']<=as_of and s['entry']['kind']!='acumulado']
-    first=monday-timedelta(weeks=weeks-1) if weeks else min([_date(e['day']) for e in entries]+[today])
+    from .exam_practice import area_extra_volume
+    extra=area_extra_volume(area_results,sessions,as_of)
+    first=monday-timedelta(weeks=weeks-1) if weeks else min([_date(e['day']) for e in entries]+[_date(d) for d in extra]+[today])
     first-=timedelta(days=first.weekday())
     entries=[e for e in entries if e['day']>=first.isoformat()]
     measured=[e for e in entries if e['kind']=='bloco' and e['mode']=='novas' and
@@ -33,6 +35,8 @@ def observed_history(sessions,as_of,profile,settings,overrides,*,weeks=8):
         day=_date(e['day']);return by_week[(day-timedelta(days=day.weekday())).isoformat()]
     for e in entries:
         if e['kind']=='bloco':week(e)['volume']+=e['questions']
+    for day,n in extra.items():
+        if day>=first.isoformat(): week({'day':day})['volume']+=n
     areas=defaultdict(lambda:{'n':0,'correct':0})
     for e in measured:
         row=week(e);row['new_n']+=e['questions'];row['correct']+=e['correct']
@@ -46,7 +50,7 @@ def observed_history(sessions,as_of,profile,settings,overrides,*,weeks=8):
             config=special_config(settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]}),overrides.get(day,{}))
             _,target=effective_routine(profile,config,overrides.get(day,{}))
             row=by_week[(cursor-timedelta(days=cursor.weekday())).isoformat()]
-            row['target']=(row['target'] or 0)+(0 if config['kind']=='descanso' else target)
+            row['target']=(row['target'] or 0)+(0 if config['kind']=='descanso' else target+overrides.get(day,{}).get('area_reserved',0))
         cursor+=timedelta(days=1)
     for w in by_week.values():
         w['accuracy']=100*w['correct']/w['new_n'] if w['new_n'] else None
@@ -58,7 +62,7 @@ def observed_history(sessions,as_of,profile,settings,overrides,*,weeks=8):
     n=sum(e['questions'] for e in measured);correct=sum(e['correct'] for e in measured)
     return {'weeks':list(by_week.values()),'areas':area_rows,'new_n':n,'correct':correct,
             'accuracy':100*correct/n if n else None,'volume':sum(w['volume'] for w in by_week.values()),
-            'study_days':len({e['day'] for e in entries}),'start':first.isoformat(),'end':as_of}
+            'study_days':len({e['day'] for e in entries}|{d for d,n in extra.items() if n and d>=first.isoformat()}),'start':first.isoformat(),'end':as_of}
 
 
 def _chart_style(chart,height=260):
@@ -98,9 +102,10 @@ def render_history(service):
     profile=AdaptiveProfile(**service.store.profile()['profile'])
     with st.container(key='bento-evolution-controls'):
         period=st.radio('Histórico de',['4 semanas','8 semanas','Todo o período'],index=1,horizontal=True,key='evolution_history_period')
-        st.caption('Somente registros realizados. Simulados e arquivos importados têm bases próprias.')
-    model=observed_history(sessions,today,profile,service.store.days(),service.agenda.active(sessions,today)['overrides'],
-                           weeks={'4 semanas':4,'8 semanas':8,'Todo o período':None}[period])
+        st.caption('Somente registros realizados. Treinos por área entram no volume uma vez; seus acertos ficam em Simulados. Arquivos importados têm bases próprias.')
+    agenda=service.agenda.active(sessions,today)
+    model=observed_history(sessions,today,profile,service.store.days(),agenda['overrides'],
+                           weeks={'4 semanas':4,'8 semanas':8,'Todo o período':None}[period],area_results=agenda.get('area_results',[]))
     with st.container(key='bento-evolution-summary'):
         a,b,c=st.columns(3)
         a.metric('Questões registradas',f"{model['volume']:,}".replace(',','.'))

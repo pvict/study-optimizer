@@ -61,7 +61,8 @@ class StudyAgenda:
         if view['plan'].get('not_started'): return None
         if view['plan'].get('routine_override',{}).get('mode') in {'final_review','final_rest','mock_day','mock_reserved'}: return None
         actual={}; credited={}
-        for s in view['sessions']:
+        from .exam_practice import practice_context
+        for s in practice_context(view.get('agenda',{}),view['date'],view['sessions'])['ordinary_sessions']:
             e=s['entry']
             if e['day']==view['date'] and e['kind']=='bloco':
                 key=tuple(normalize_path(e['path']))
@@ -104,7 +105,11 @@ class StudyAgenda:
                 rows[key]={**item,'plan_id':booking,'cutoff':item.get('cutoff',swap['cutoff']),
                                                          'created_day':swap['created_day'],'swap_return':swap['slot_id']}
         for key,item in rows.items():
+            from .mock_exams import _prefix
+            source_prefix=_prefix(item['source_exam_key']) if item.get('source_exam_key') else None
             used=sum(s['entry']['questions'] for s in sessions if s['entry']['kind']=='bloco' and
+                     (not source_prefix or not s['session_id'].startswith(source_prefix)) and
+                     (not item.get('source_exam_key') or s['entry']['day']>=item['date']) and
                      s.get('first_event_id',s.get('id',0))>item['cutoff'] and s['entry']['day']>=item['created_day'] and tuple(normalize_path(s['entry']['path']))==key)
             item['remaining']=max(0,item['questions']-used)
         from .planner_completion import active_completions
@@ -115,6 +120,20 @@ class StudyAgenda:
             if closed:
                 item['planner_completed_day']=closed['day']
                 if as_of>closed['day']:item['remaining']=0
+        from .mock_exams import MockExams
+        from .exam_practice import practice_context,EXCLUSIVE
+        practice=next((r for r in reversed(applies) if r.get('scope')=='area_practice'),{})
+        area_rows=[dict(r) for r in practice.get('occurrences',[]) if r['date'] and r.get('status')!='blocked']
+        results=[r for r in MockExams(self.repo).active() if r['exam'].get('practice_id')]
+        practice_agenda={'area_practice':area_rows,'area_results':results}
+        day_settings=self.store.days()
+        for day in {r['date'] for r in area_rows}|{r['exam']['day'] for r in results}:
+            prior=overrides.get(day,{})
+            config=day_settings.get(day,{})
+            if prior.get('mode') in EXCLUSIVE or config.get('kind')=='descanso': continue
+            context=practice_context(practice_agenda,day)
+            if context['tasks']: overrides[day]={**prior,'area_reserved':context['reserved']}
         return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'triage_policies':triage_policies,'swaps':swaps,
+                **practice_agenda,
                 'planner_completions':completions,
                 'history':[r for r in records if r.get('kind','').startswith('reschedule.')]}
