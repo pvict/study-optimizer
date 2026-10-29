@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from streamlit.testing.v1 import AppTest
 from osler.models import stable_topic_id
 from test_error_cards_service import setup
@@ -18,7 +19,7 @@ render_error_cards(Repository(os.environ['ERROR_CARDS_TEST_ROOT']))
     button=next(b for b in app.button if b.label=='Registrar cards deste tema')
     button.click().run();assert not app.exception
     app.number_input(key='ec_covered').set_value(20)
-    app.button(key='FormSubmitter:ec_record-Salvar bloco de cards').click().run()
+    confirm_action(app.button(key='FormSubmitter:ec_record-Salvar bloco de cards').click().run())
     assert not app.exception and len(s.history())==1 and s.history()[0]['covered']==20
     with s.repo._connection() as db:assert db.execute('SELECT COUNT(*) FROM study_events').fetchone()[0]==0
 
@@ -46,7 +47,7 @@ render_error_cards(Repository(os.environ['ERROR_CARDS_TEST_ROOT']))
 ''',default_timeout=60).run()
     app.button(key='ec_manual_'+topic).click().run()
     assert not app.exception
-    app.button(key='FormSubmitter:ec_record-Salvar bloco de cards').click().run()
+    confirm_action(app.button(key='FormSubmitter:ec_record-Salvar bloco de cards').click().run())
     assert not app.exception
     v=s.overview(day,question_view={'states':[],'plan':{'items':[]}})
     assert v['remaining']==100 and v['done_today']==110

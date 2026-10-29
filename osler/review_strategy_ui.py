@@ -1,4 +1,6 @@
 """Estratégia em detalhes, com impacto visível antes de aplicar."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import pandas as pd
 import streamlit as st
 from .balanced_reviews import STRATEGIES
@@ -37,8 +39,8 @@ def render_review_strategy(service):
         if preview and preview['strategy']==selected and preview['profile_id']==record['id']:
             _show(preview); stale=preview['token']!=service.agenda.token()
             if stale: st.info('Os dados mudaram. Recalcule a prévia antes de aplicar.')
-            if st.button('Aplicar estratégia',type='primary',key='review_strategy_apply',disabled=stale or selected==current):
-                try: service.apply_review_strategy(preview)
+            if confirm_button('Aplicar estratégia',type='primary',key='review_strategy_apply',disabled=stale or selected==current,action_key='review_strategy_ui_40'):
+                try: notify_success(service.apply_review_strategy(preview),'Agenda atualizada.')
                 except ValueError as exc: st.error(str(exc)); return
                 st.session_state.pop('review_strategy_preview_data',None)
                 st.session_state.pop('adaptive_profile_snapshot',None)

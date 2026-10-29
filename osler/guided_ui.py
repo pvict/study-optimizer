@@ -1,4 +1,6 @@
 """Um roteiro de estudo em linguagem cotidiana, sem formulário por assunto."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date
 import sqlite3
 
@@ -34,8 +36,8 @@ def render_today(repo):
     result = service.guide(today_local().isoformat(), minutes, kind)
     if kind == "descanso":
         st.info("Hoje é descanso. Amanhã o roteiro recomeça, sem acrescentar uma dívida ao seu dia.")
-        if st.button("Registrar meu descanso"):
-            service.save_day(result["date"], "descanso", [])
+        if confirm_button("Registrar meu descanso",action_key='guided_ui_37'):
+            notify_success(service.save_day(result["date"], "descanso", []),'Alterações salvas.')
             st.session_state["guide_notice"] = "Descanso registrado. Seu próximo dia continua leve."
             st.rerun()
         return
@@ -76,11 +78,11 @@ def render_today(repo):
     with st.expander("Quer registrar como foi o assunto? É opcional"):
         feedback = st.selectbox("Como você se sentiu nas questões?", ["nao_registrei", "dificil", "tranquilo"], format_func={"nao_registrei": "Prefiro não registrar", "dificil": "Ainda estou errando ou ficando em dúvida", "tranquilo": "Consegui explicar bem as respostas"}.get, key="guide_feedback")
     c1, c2 = st.columns(2)
-    done = c1.button("Terminei por hoje", type="primary")
-    partial = c2.button("Consegui fazer uma parte")
+    done = confirm_button("Terminei por hoje", type="primary",action_key='guided_ui_79',container=c1)
+    partial = confirm_button("Consegui fazer uma parte",action_key='guided_ui_80',container=c2)
     if done or partial:
         try:
-            service.save_day(result["date"], "feito" if done else "parcial", focus["path"] if focus else [], feedback)
+            notify_success(service.save_day(result["date"], "feito" if done else "parcial", focus["path"] if focus else [], feedback),'Alterações salvas.')
             st.session_state["guide_notice"] = "Dia registrado. Amanhã você recebe um novo ponto de partida, sem compensações automáticas."
             st.rerun()
         except (ValueError, sqlite3.Error) as exc:

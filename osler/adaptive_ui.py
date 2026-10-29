@@ -1,4 +1,6 @@
 """Planejamento diário com atualização curta, sem configuração por subtema."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from dataclasses import replace
 from datetime import date
 import sqlite3
@@ -201,11 +203,11 @@ def _settings(service):
             recent=st.number_input('Janela recente em dias',min_value=1,max_value=730,value=p.recent_days)
             minimum=st.number_input('Mínimo de questões por bloco automático',min_value=1,max_value=100,value=p.min_block)
             gap=st.number_input('Máximo de dias entre contatos',min_value=1,max_value=90,value=p.max_contact_gap)
-        save=st.form_submit_button('Salvar planejamento',type='primary')
+        save=confirm_submit('Salvar planejamento',type='primary',action_key='adaptive_ui_204',details=f'Meta: {count} questões/dia · Novos: {share_percent}% · Prova: {exam:%d/%m/%Y}. O calendário será recalculado.')
     if save:
-        service.store.save_profile(replace(p,target_accuracy=target,exam_date=exam.isoformat(),start_date=start.isoformat() if start else None,max_questions=int(count),
+        notify_success(service.store.save_profile(replace(p,target_accuracy=target,exam_date=exam.isoformat(),start_date=start.isoformat() if start else None,max_questions=int(count),
                                            new_share=share,workload_mode=workload_mode,max_topics=int(max_topics),recent_days=int(recent),min_block=int(minimum),max_contact_gap=int(gap),
-                                           area_targets={r['Área']:float(r['Meta (%)']) for _,r in area_frame.iterrows() if r['Usar meta própria']}),record['id'])
+                                           area_targets={r['Área']:float(r['Meta (%)']) for _,r in area_frame.iterrows() if r['Usar meta própria']}),record['id']),'Alterações salvas.')
         st.session_state.pop('adaptive_profile_snapshot',None)
         st.session_state['adaptive_notice']='Planejamento atualizado. As próximas quantidades já seguem esses ajustes.'
         st.rerun()

@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from copy import deepcopy
 import sqlite3
@@ -183,6 +184,6 @@ def test_practical_ui_has_ready_list_and_single_optional_declaration(tmp_path, m
     assert not any('aprovar' in b.label.lower() for b in app.button)
     topic_id = PracticalReductionService(repo).overview('2026-10-15')['triage'][0]['topic_id']
     app.multiselect(key='practical_selection').set_value([topic_id]).run()
-    next(b for b in app.button if b.label == 'Já fiz uma redução seletiva nesses temas').click().run()
+    confirm_action(next(b for b in app.button if b.label == 'Já fiz uma redução seletiva nesses temas').click().run())
     assert not app.exception
     assert PracticalReductionService(repo).overview('2026-10-15')['applied_topics'] == 1

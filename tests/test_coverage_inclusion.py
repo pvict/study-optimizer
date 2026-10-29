@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from copy import deepcopy
 import pytest
 from osler.adaptive_planning import topic_states,allocate_day
@@ -88,7 +89,7 @@ _register(st.session_state.service)
     app.number_input(key='study_correct').set_value(18)
     app.number_input(key='study_confident').set_value(16)
     app.number_input(key='study_cards_created').set_value(2)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     view=s.overview('2026-10-15')
     parent=next(t for t in view['states'] if t['topic_id']==records[2].topic_id)

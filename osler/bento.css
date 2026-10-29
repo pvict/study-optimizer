@@ -70,6 +70,19 @@
 [data-testid="stApp"] [data-testid="stTabs"] [data-baseweb="tab-border"] { display:none; }
 [data-testid="stApp"] [data-testid="stTab"] > .react-aria-SelectionIndicator { display:none; }
 [data-testid="stHeader"] { background:rgba(245,245,247,.94); height:3.5rem; backdrop-filter:blur(16px); }
+[data-testid="stDialog"] [role="dialog"] { border:1px solid var(--o-line); border-radius:20px; background:var(--o-card); color:var(--o-ink); box-shadow:0 20px 64px rgba(29,29,31,.2); font-family:var(--o-font); }
+[data-testid="stDialog"] [role="dialog"] h3 { font-size:20px; line-height:26px; letter-spacing:-.015em; }
+[data-testid="stDialog"] [role="dialog"] p { font-size:14px; line-height:21px; }
+[data-testid="stDialog"] button { min-height:44px; min-width:44px; border-radius:10px; touch-action:manipulation; }
+[data-testid="stDialog"] button:focus-visible { outline:3px solid var(--o-primary-strong); outline-offset:3px; }
+[data-testid="stDialog"] [data-testid="stHorizontalBlock"] { flex-direction:row; }
+[data-testid="stDialog"] [data-testid="stColumn"] { flex:1 1 0; width:auto; min-width:0; }
+.st-key-confirmation_danger [data-testid="stBaseButton-primary"] { background:#B42318; border-color:#B42318; }
+.st-key-confirmation_danger [data-testid="stBaseButton-primary"]:hover { background:#8E1B13; border-color:#8E1B13; }
+[data-testid="stToast"] { border:1px solid var(--o-line); border-radius:14px; background:var(--o-card); color:var(--o-ink); box-shadow:0 8px 32px rgba(29,29,31,.12); font-family:var(--o-font); max-width:calc(100vw - 2rem); }
+@media (max-width:640px) {
+  [data-testid="stDialog"] [role="dialog"] { max-width:100%; margin-inline:0; }
+}
 [data-testid="stApp"] .study-status { color:var(--o-ink); background:var(--a-neutral-tint); border:1px solid transparent; }
 [data-testid="stApp"] .study-status-alerta { border-color:rgba(17,24,39,.45); background:var(--o-card); }
 

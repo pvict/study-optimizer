@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from datetime import date
 from streamlit.testing.v1 import AppTest
@@ -18,10 +19,10 @@ def test_open_orange_day_compare_apply_and_undo_prevention(tmp_path,monkeypatch,
     app.button(key='compare_prevention').click().run()
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert any('Após redistribuir' in str(f.value.columns) for f in app.dataframe)
-    app.button(key='apply_prevention').click().run()
+    confirm_action(app.button(key='apply_prevention').click().run())
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert service.replanning()['policies']
-    app.button(key='undo_prevention').click().run()
+    confirm_action(app.button(key='undo_prevention').click().run())
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert not service.replanning()['policies']
     assert len(service.store.active('2026-10-15'))==1

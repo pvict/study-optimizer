@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from streamlit.testing.v1 import AppTest
 from osler.storage import Repository
 from osler.adaptive_service import AdaptiveService
@@ -33,7 +34,7 @@ def test_weight_ui_requires_preview_before_profile_is_saved(tmp_path,sample_pdf,
     app.button(key='exam_weight_preview').click().run()
     assert not app.exception and service.store.profile()['id']==0
     assert any('Banca B' in str(d.value) for d in app.dataframe)
-    app.button(key='exam_weight_apply').click().run()
+    confirm_action(app.button(key='exam_weight_apply').click().run())
     assert not app.exception
     assert service.store.profile()['profile']['institution_weights']=={'Banca A':1.5,'Banca B':1}
 
@@ -85,7 +86,7 @@ def test_weight_ui_can_clear_legacy_raw_weights_after_all_exams_are_removed(tmp_
     app.button(key='exam_weight_preview').click().run()
     assert not app.exception
     assert any('Pesos antigos' in m.value for m in app.info)
-    app.button(key='exam_weight_apply').click().run()
+    confirm_action(app.button(key='exam_weight_apply').click().run())
     assert not app.exception
     assert service.store.profile()['configured_profile']['institution_weights']=={'Banca A':1,'Banca B':1}
 

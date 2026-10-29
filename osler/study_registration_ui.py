@@ -1,4 +1,6 @@
 """Formulário e confirmação de estudo; persistência e validação pertencem ao serviço/modelo."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import uuid
 import streamlit as st
 from .planner_service import today_local
@@ -55,7 +57,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         plan=question_view['plan']
         summary=f"Salvo. Hoje: {plan['done_questions']} de {plan['target_questions']}." if plan['target_questions'] else f"Salvo. Hoje: {plan['done_questions']} questões · sem meta de blocos."
         st.html('<div class="o-record-saved"><strong>'+summary+'</strong><p>Questões registradas no seu dia de estudo.</p></div>')
-        if st.session_state.pop('study_saved_toast',False):st.toast('Resultado salvo.',icon=':material/check_circle:')
+        st.session_state.pop('study_saved_toast',False)  # toast central de gravação
         if plan['items']:
             action=first_block_action(plan['items'][0],question_view['date'],question_view['profile']['review_strategy'])
             st.button('Próximo bloco',key='study_next_block',type='primary',on_click=_next,args=(action,go_record,go_review),width='stretch')
@@ -126,7 +128,12 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
             mode=st.selectbox('Essas questões eram',['novas','repetidas','mistas'],format_func={'novas':'Novas para mim','repetidas':'Questões que já fiz antes','mistas':'Mistura ou não sei separar'}.get,key='study_mode') if kind!='contato' else 'mistas'
             duration=st.number_input('Minutos gastos neste estudo',min_value=0.1,max_value=1440.,value=None,key='study_duration')
             last=st.text_input('Último contato conhecido no acumulado (AAAA-MM-DD)',key='study_last_contact') if kind=='acumulado' else None
-        submitted=st.form_submit_button('Salvar resultado e atualizar meu plano',type='primary')
+        result_label='Contato sem questões' if kind=='contato' else f'{correct}/{n} acertos' if correct is not None else f'Acerto aproximado: {percent}%' if percent is not None else 'Acertos não informados'
+        detail=f"Tema: {chosen['path'][-1]} · Data: {day.strftime('%d/%m/%Y') if day else 'não informada'}\n\n{n} questões · {result_label}"
+        if confident is not None:detail+=f' · {confident}/{n} com convicção'
+        if cards_created:detail+=f' · {cards_created} novos flashcards'
+        detail+='\n\nO resultado atualizará o desempenho e as próximas revisões.'
+        submitted=confirm_submit('Salvar resultado e atualizar meu plano',type='primary',action_key='study_registration_ui_129',details=detail)
         general_hint=st.empty()
     if submitted:
         entry=StudyEntry(lookup[selected]['path'],day.isoformat(),int(n),int(correct) if correct is not None else None,percent,kind,mode,duration,last or None,
@@ -139,7 +146,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
             else:general_hint.error(errors['general'])
             return
         sid=editing['session_id'] if editing else st.session_state.setdefault('study_entry_id',uuid.uuid4().hex)
-        service.save_entry(entry,sid,editing['version'] if editing else 0)
+        notify_success(service.save_entry(entry,sid,editing['version'] if editing else 0),'Resultado registrado.')
         st.session_state['last_study_mode']=entry.mode
         st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected,'session_id':sid}
         for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of','study_cards_created']: st.session_state.pop(key,None)
@@ -151,9 +158,9 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         st.download_button('Baixar cabeçalho da tabela',template.encode('utf-8-sig'),'resultados_modelo.csv','text/csv')
         upload=st.file_uploader('Resultados CSV ou TSV',type=['csv','tsv'],key='study_upload')
         pasted=st.text_area('Ou cole a tabela de resultados',key='study_paste')
-        if st.button('Importar resultados',disabled=not upload and not pasted.strip()):
+        if confirm_button('Importar resultados',disabled=not upload and not pasted.strip(),action_key='study_registration_ui_154'):
             text=upload.getvalue().decode('utf-8-sig') if upload else pasted
-            count=service.import_text(text)
+            count=notify_success(service.import_text(text),'Importação processada.')
             st.session_state['adaptive_notice']=f'{count} lançamentos processados. Reenvios idênticos foram reconhecidos.'
             st.rerun()
     with st.expander('Corrigir ou desconsiderar um lançamento'):
@@ -164,7 +171,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
             event=by_id[chosen]
             st.caption('Desconsiderar remove a contribuição do cálculo, preservando o histórico.')
             st.button('Editar este lançamento',on_click=edit_entry,args=(event,))
-            if st.button('Desconsiderar este lançamento'):
-                service.store.void(chosen,event['version'])
+            if confirm_button('Desconsiderar este lançamento',action_key='study_registration_ui_167'):
+                notify_success(service.store.void(chosen,event['version']),'Alterações salvas.')
                 st.session_state['adaptive_notice']='Lançamento desconsiderado. O histórico foi preservado.'
                 st.rerun()

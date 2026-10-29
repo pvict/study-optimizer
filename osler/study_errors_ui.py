@@ -1,4 +1,6 @@
 """Registro opcional após o bloco e consulta de conceitos ainda em revisão."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import pandas as pd
 import streamlit as st
 
@@ -32,11 +34,11 @@ def render_quick_error(service, session_id):
                                  placeholder='Uma frase curta, sem copiar o enunciado')
             critical = st.checkbox('É um erro crítico para mim', key=key + '_critical',
                                    help='Enquanto estiver aberto, pede atenção no plano e impede sugestão de reduzir cartões deste tema.')
-            save = st.form_submit_button('Salvar erro', key=key + '_save')
+            save = confirm_submit('Salvar erro', key=key + '_save',action_key='study_errors_ui_35')
         if save:
             try:
-                ErrorStore(service.repository, catalog=service.catalog).save(
-                    StudyError(entry['path'], entry['day'], cause, note, session_id, critical))
+                notify_success(ErrorStore(service.repository, catalog=service.catalog).save(
+                    StudyError(entry['path'], entry['day'], cause, note, session_id, critical)),'Alterações salvas.')
             except ValueError as exc:
                 st.error(str(exc))
             else:
@@ -46,7 +48,7 @@ def render_quick_error(service, session_id):
 
 def _close_error(store, key, version, action):
     try:
-        getattr(store, action)(key, version)
+        notify_success(getattr(store, action)(key, version),'Erro atualizado; histórico preservado.')
         st.session_state['study_error_notice'] = 'Erro marcado como resolvido.' if action == 'resolve' else 'Erro desconsiderado. O histórico foi preservado.'
     except ValueError as exc:
         st.session_state['study_error_failure'] = str(exc)
@@ -93,9 +95,9 @@ def render_errors(service):
                 if error['flashcard_hint']:
                     st.text('Ideia para cartão: ' + error['flashcard_hint'])
                 left, right = st.columns(2)
-                left.button('Marcar como resolvido', key='resolve_error_' + error['error_key'],
+                confirm_button('Marcar como resolvido', key='resolve_error_' + error['error_key'],container=left,action_key='resolve_error',
                             on_click=_close_error, args=(store, error['error_key'], error['version'], 'resolve'), width='stretch')
-                right.button('Desconsiderar erro', key='void_error_' + error['error_key'],
+                confirm_button('Desconsiderar erro', key='void_error_' + error['error_key'],container=right,action_key='void_error',
                              on_click=_close_error, args=(store, error['error_key'], error['version'], 'void'), width='stretch')
     else:
         with st.container(key='bento-errors-empty'):

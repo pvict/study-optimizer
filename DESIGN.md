@@ -244,3 +244,9 @@ Hoje mostra o treino reservado e o dia de correção junto ao plano; Calendário
 Interface de produtividade com superfícies neutras, lateral cinza e seleção discreta. Azul acessível nas ações principais e progresso real; cores das áreas restritas a rótulos e dados. Tipografia de sistema (Segoe UI no Windows, sistema Apple quando disponível), sem baixar SF Pro. Abas segmentadas, alvos de 44px, feedback imediato ao pressionar, foco de teclado visível e transições curtas. Movimento reduzido elimina transformações; contraste aumentado reforça bordas; transparência reduzida torna o cabeçalho sólido. Nenhuma alteração de cálculo ou dados.
 
 Backup remoto: tag `backup/pre-apple-ui-2026-10-29`. Apple Design prevalece sobre as escolhas aleatórias de paleta/tipo da skill Taste; dela foram usados os princípios de composição, dados honestos e revisão em navegador.
+
+## Confirmações e retorno de ações
+
+Registros e alterações de dados usam diálogo nativo com título, resumo, Cancelar e verbo concreto. Desfazer, retirar e restaurar destacam o risco com aviso e ação vermelha. Superfície neutra, raio20, sombra moderada, alvos44px e foco de teclado visível. No celular, duas ações lado a lado e rótulos curtos. Escape/X equivalem a cancelar; a janela mantém o foco.
+
+Toast de sucesso somente após a operação retornar, preservado entre reruns. Mensagens de erro e resultados detalhados continuam na tela. Buscar, navegar e recalcular prévias não pedem confirmação. Implementação Streamlit `st.dialog`/`st.toast`, sem frontend React paralelo. Método e validação: `docs/plans/2026-10-29-confirmacoes-toast.md`.

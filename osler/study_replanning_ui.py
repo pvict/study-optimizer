@@ -1,4 +1,6 @@
 """Recuperação em quatro escolhas, prévia concreta e desfazer sem perder estudo."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import timedelta,date
 import hashlib,json
 import pandas as pd
@@ -57,8 +59,8 @@ def render_replanning(service,context):
                     st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Questões':r['questions'],'Motivo':r['reason']} for r in preview['unassigned']]),hide_index=True,width='stretch')
                 stale=preview['token']!=context['token']
                 if stale: st.warning('Os dados mudaram. Monte uma nova prévia antes de aplicar.')
-                if st.button('Aplicar este reagendamento',key='apply_replan_preview',type='primary',disabled=stale or not preview['rows']):
-                    service.apply_replan(preview)
+                if confirm_button('Aplicar este reagendamento',key='apply_replan_preview',type='primary',disabled=stale or not preview['rows'],action_key='study_replanning_ui_60'):
+                    notify_success(service.apply_replan(preview),'Agenda atualizada.')
                     st.session_state.pop('replan_preview',None)
                     st.session_state['adaptive_notice']='Recuperação agendada. Nenhum estudo foi marcado como feito.'
                     st.rerun()
@@ -67,8 +69,8 @@ def render_replanning(service,context):
             last=recoveries[-1]
             st.divider()
             st.caption(f"Última redistribuição: {MODES[last['mode']]} · início {last['start']} · {last['days']}dias. Desfazer preserva todos os resultados registrados.")
-            if st.button('Desfazer última redistribuição',key='undo_last_replan'):
-                service.cancel_replan(last['id'],context['token'])
+            if confirm_button('Desfazer última redistribuição',key='undo_last_replan',action_key='study_replanning_ui_70'):
+                notify_success(service.cancel_replan(last['id'],context['token']),'Agenda atualizada.')
                 st.session_state.pop('replan_preview',None)
                 st.session_state['adaptive_notice']='Redistribuição desfeita. Seus estudos continuam no histórico.'
                 st.rerun()

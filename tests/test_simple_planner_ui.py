@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_planner import setup_plan
@@ -11,10 +12,10 @@ def test_manual_choice_needs_no_written_justification_or_duplicate_checkbox(tmp_
     app.selectbox(key="advanced_view").set_value("Planejador de Suspensões").run()
     assert not app.exception
     assert not any("Confirmo" in c.label for c in app.checkbox)
-    next(b for b in app.button if b.label == "Quero avaliar este tema").click().run()
+    confirm_action(next(b for b in app.button if b.label == "Quero avaliar este tema").click().run())
     assert not app.exception
     assert planner.get_batch(batch)["items"][0]["status"] == "aguardando_validacao"
-    next(b for b in app.button if b.label == "Quero fazer essa redução").click().run()
+    confirm_action(next(b for b in app.button if b.label == "Quero fazer essa redução").click().run())
     assert not app.exception
     assert planner.get_batch(batch)["items"][0]["status"] == "aprovado_usuario"
     assert planner.get_batch(batch)["items"][0]["applied_date"] is None

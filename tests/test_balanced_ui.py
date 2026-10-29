@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from streamlit.testing.v1 import AppTest
 from osler.adaptive_service import AdaptiveService
 
@@ -18,7 +19,7 @@ render_review_strategy(AdaptiveService(Repository(os.environ['BALANCED_UI_ROOT']
     assert s.store.profile()['configured_profile']['review_strategy']=='legacy_v1'
     app.button(key='review_strategy_preview').click().run()
     assert not app.exception and app.dataframe
-    app.button(key='review_strategy_apply').click().run()
+    confirm_action(app.button(key='review_strategy_apply').click().run())
     assert not app.exception
     assert s.store.profile()['configured_profile']['review_strategy']=='balanced_v2'
     assert len(s.review_strategy_history())==1

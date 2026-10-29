@@ -1,4 +1,6 @@
 """Recuperação local em nova pasta, preservando sempre a anterior."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import datetime
 from pathlib import Path
 import os
@@ -17,10 +19,11 @@ def render_backups(repo, project_root):
     st.caption(f"Pasta de dados em uso: {repo.root}")
     if "restore_notice" in st.session_state:
         st.success(st.session_state.pop("restore_notice"))
-    if st.button("Criar backup local verificado", type="primary"):
+        st.toast('Pasta de dados atualizada. A pasta anterior foi preservada.',icon=':material/check_circle:')
+    if confirm_button("Criar backup local verificado", type="primary",action_key='backups_ui_20'):
         try:
             with st.spinner("Preservando e verificando os arquivos…"):
-                created = create_backup(repo)
+                created = notify_success(create_backup(repo),'Cópia de segurança criada.')
             st.session_state["backup_latest"] = str(created)
             st.success("Backup local criado e verificado.")
         except (ValueError, OSError, sqlite3.Error) as exc:
@@ -41,7 +44,7 @@ def render_backups(repo, project_root):
             st.success(f"Backup válido: {verified['reports']} originais, {verified['file_count']} arquivos; versão de dados {verified['schema_version']}.")
         except (ValueError, OSError) as exc:
             st.error(str(exc))
-    if st.button("Restaurar em nova pasta e abrir", disabled=verified is None):
+    if confirm_button("Restaurar em nova pasta e abrir", disabled=verified is None,action_key='backups_ui_44',details=f"Backup: {uploaded.name if uploaded else 'não selecionado'}. Será aberto em uma nova pasta. Seus dados atuais em {repo.root} serão preservados."):
         try:
             destination = Path(project_root)/f"data-restaurada-{datetime.now():%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}"
             restored = restore_backup(uploaded.getvalue(), destination)
@@ -56,7 +59,7 @@ def render_backups(repo, project_root):
     if folders:
         with st.expander("Voltar para outra pasta local preservada"):
             target = st.selectbox("Pasta preservada", folders, format_func=lambda p: p.name)
-            if st.button("Abrir pasta preservada"):
+            if confirm_button("Abrir pasta preservada",action_key='backups_ui_59',details=f"O aplicativo passará a usar {target}. Os dados atuais em {repo.root} serão preservados."):
                 try:
                     activate_data_dir(project_root, target)
                     st.session_state.clear()

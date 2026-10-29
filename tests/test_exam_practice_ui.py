@@ -18,9 +18,11 @@ def test_native_area_flow_preview_apply_register_and_correction_later(tmp_path,s
     assert not app.exception and not app.error
     assert service.area_schedule() is None
     app.button(key='area_apply').click().run()
+    app.button(key='action_confirm').click().run()
     assert not app.exception and service.area_schedule()
     app.number_input(key='area_result_correct').set_value(15)
     app.button(key='area_result_save').click().run()
+    app.button(key='action_confirm').click().run()
     assert not app.exception and not app.error
     assert len(MockExams(service.repository).active())==1
     assert app.selectbox(key='correction_exam').value==MockExams(service.repository).active()[0]['exam_key']
@@ -28,12 +30,14 @@ def test_native_area_flow_preview_apply_register_and_correction_later(tmp_path,s
     app.number_input(key='correction_error_count').set_value(3)
     app.button(key='correction_add_topic').click().run()
     app.button(key='correction_save_errors').click().run()
+    app.button(key='action_confirm').click().run()
     assert not app.exception and not app.error
     record=MockExams(service.repository).active()[0]
     assert service.mock_errors(record['exam_key'])['errors'][0]['errors']==3
     app.button(key='correction_distribution_preview').click().run()
     assert not app.exception and not app.error
     app.button(key='correction_apply').click().run()
+    app.button(key='action_confirm').click().run()
     assert not app.exception and service.correction_schedule(record['exam_key'])
 
 
@@ -76,5 +80,6 @@ def test_preview_allows_train_and_topic_date_edits_without_saving(tmp_path,sampl
     assert service.area_schedule() is None
     assert app.session_state['area_apply_preview']['rows'][0]['date']=='2026-10-23'
     app.button(key='area_apply').click().run()
+    app.button(key='action_confirm').click().run()
     assert not app.exception and not app.error
     assert service.area_schedule()['request']['topic_dates'][topic_id]=='2026-10-23'

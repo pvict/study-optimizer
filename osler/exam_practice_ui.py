@@ -1,4 +1,6 @@
 """Treino, resultado e reforço em controles nativos no Bento existente."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date,timedelta
 
 import pandas as pd
@@ -29,9 +31,9 @@ def _valid_choice(key,options):
 
 
 def _apply(service,preview,key,method,label):
-    if st.button(label,key=key,type='primary'):
+    if confirm_button(label,key=key,type='primary',action_key='exam_practice_ui_32',details=f"A agenda será atualizada conforme a prévia: {len(preview.get('occurrences',[]))} ocorrências e {len(preview.get('rows',[]))} reservas. Confira as datas e o impacto apresentados."):
         try:
-            getattr(service,method)(preview)
+            notify_success(getattr(service,method)(preview),'Agenda atualizada.')
             st.session_state['practice_notice']='Agenda atualizada. Confira as datas em Hoje e Calendário.'
             st.session_state.pop(key+'_preview',None)
             st.rerun()
@@ -160,11 +162,11 @@ def _area_result(service):
             total=st.number_input('Questões realizadas',min_value=1,max_value=1000000,value=row['questions'],key='area_result_questions')
             correct=st.number_input('Acertos no treino',min_value=0,max_value=1000000,value=None,key='area_result_correct')
             unseen=st.checkbox('Todas eram questões inéditas para mim',key='area_result_unseen')
-            submitted=st.form_submit_button('Salvar resultado do treino',key='area_result_save',type='primary')
+            submitted=confirm_submit('Salvar resultado do treino',key='area_result_save',type='primary',action_key='exam_practice_ui_163',details=f"{row['institution']} · {row['area']} · {total} questões · {correct} acertos · {day.strftime('%d/%m/%Y') if day else 'não informada'}")
         if submitted:
             try:
                 if correct is None: raise ValueError('Informe o número de acertos.')
-                saved=service.register_area_result(chosen,day.isoformat(),int(total),int(correct),unseen=unseen,token=service.agenda.token())
+                saved=notify_success(service.register_area_result(chosen,day.isoformat(),int(total),int(correct),unseen=unseen,token=service.agenda.token()),'Resultado registrado.')
                 st.session_state['correction_exam']=saved['exam_key']
                 st.session_state['mock_selected']=saved['exam_key']
                 st.session_state['practice_notice']='Treino salvo. Na aba Correção, informe os temas errados agora ou depois.'
@@ -227,7 +229,7 @@ def render_mock_correction(service):
             column_config={'Tema completo':st.column_config.TextColumn('Tema específico · caminho completo',required=True),
                            'Erros':st.column_config.NumberColumn('Erros · opcional',min_value=1,step=1)},key=draft_key+'_editor')
         st.caption('Se não souber a quantidade, deixe Erros vazio. O app usa o tema para o reforço sem inventar seu percentual de acerto. Exclua uma linha para retirar um tema.')
-        submitted=st.form_submit_button('Salvar temas errados',key='correction_save_errors')
+        submitted=confirm_submit('Salvar temas errados',key='correction_save_errors',action_key='exam_practice_ui_230')
     if submitted:
         try:
             checked=[]
@@ -237,7 +239,7 @@ def render_mock_correction(service):
                 if not isinstance(name,str) or not name.strip(): raise ValueError('Informe o caminho completo do tema.')
                 if not pd.isna(n) and (isinstance(n,bool) or float(n)!=int(n)): raise ValueError('Informe uma quantidade inteira de erros.')
                 checked.append({'path':[p.strip() for p in name.replace('>>','→').split('→') if p.strip()],'errors':None if pd.isna(n) else int(n)})
-            service.save_mock_errors(selected,row['version'],checked,context['annotation_id'],service.agenda.token())
+            notify_success(service.save_mock_errors(selected,row['version'],checked,context['annotation_id'],service.agenda.token()),'Alterações salvas.')
             st.session_state['practice_notice']='Temas salvos. Confira a distribuição abaixo antes de reservar os blocos.'
             st.rerun()
         except ValueError as exc: st.error(str(exc))
@@ -265,8 +267,8 @@ def render_mock_correction(service):
         if active:
             st.caption('Programação aplicada. Registre os blocos em Hoje; fazer o reforço não apaga os erros do simulado nem comprova domínio.')
             st.dataframe(_rows(active['rows']),hide_index=True,width='stretch')
-            if st.button('Desfazer esta distribuição',key='correction_undo'):
-                try: service.cancel_replan(active['id']);st.rerun()
+            if confirm_button('Desfazer esta distribuição',key='correction_undo',action_key='exam_practice_ui_268'):
+                try: notify_success(service.cancel_replan(active['id']),'Agenda atualizada.');st.rerun()
                 except ValueError as exc: st.error(str(exc))
     with st.expander('Por que esse método?'):
         st.write('Recuperar a resposta, conferir o feedback e retomar depois ajudam a retenção. Um treino misturado por área reduz a pista oferecida por listas de um único tema. A frequência e os pesos são escolhas práticas que devem ser revistas com seus resultados; não garantem 90% nem aprovação.')

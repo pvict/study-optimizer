@@ -1,4 +1,6 @@
 """Troca manual explícita, sem calibração automática ou edição dos valores."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import json
 import pandas as pd
 import streamlit as st
@@ -17,9 +19,9 @@ def render_parameter_settings(service):
         with st.form('parameter_selection'):
             options=[v['version'] for v in versions]
             chosen=st.selectbox('Versão cadastrada',options,index=options.index(current['parameters'].version),key='parameter_version')
-            apply=st.form_submit_button('Usar esta versão manualmente',disabled=chosen==current['parameters'].version)
+            apply=confirm_submit('Usar esta versão manualmente',disabled=chosen==current['parameters'].version,action_key='parameter_ui_20')
         if apply:
-            store.select(chosen,current['id']); st.session_state.pop('parameter_selection_snapshot',None); st.success('Versão selecionada; histórico preservado.'); st.rerun()
+            notify_success(store.select(chosen,current['id']),'Alterações salvas.'); st.session_state.pop('parameter_selection_snapshot',None); st.success('Versão selecionada; histórico preservado.'); st.rerun()
         with st.expander('Valores e histórico das seleções'):
             st.json(current['parameters'].to_dict())
             if store.history(): st.dataframe(pd.DataFrame(store.history()),hide_index=True,width='stretch')

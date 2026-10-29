@@ -1,4 +1,6 @@
 """Uma meta em questões, próximos blocos e revisões extras escolhidas pelo aluno."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import streamlit as st
 from dataclasses import replace
 from .topic_picker_ui import pick_topic
@@ -11,8 +13,8 @@ from .review_parts_ui import render_review_parts
 
 def _change_extra(service,day,topic_id,questions,revision,remove=False):
     try:
-        if remove: service.remove_added_topic(day,topic_id,revision)
-        else: service.add_topic(day,topic_id,questions,revision)
+        if remove: notify_success(service.remove_added_topic(day,topic_id,revision),'Alterações salvas.')
+        else: notify_success(service.add_topic(day,topic_id,questions,revision),'Alterações salvas.')
         st.session_state.pop('day_form_snapshot',None)
         st.session_state['adaptive_notice']='Revisão retirada do plano. Seus resultados continuam no histórico.' if remove else 'Revisão adicionada. A meta mudou só para hoje.'
     except ValueError as exc: st.session_state['adaptive_error']=str(exc)
@@ -29,9 +31,9 @@ def _day_settings(service,view,day):
             questions=st.number_input('Quantas questões quer fazer hoje?',min_value=1,max_value=1000,value=snapshot['settings']['questions'],key='day_questions')
             rest=st.checkbox('Hoje é dia de descanso',value=snapshot['settings']['kind']=='descanso',key='day_rest')
             st.caption('Vale só para hoje. O padrão dos próximos dias fica em Ajustes.')
-            save=st.form_submit_button('Atualizar meta de hoje')
+            save=confirm_submit('Atualizar meta de hoje',action_key='study_day_ui_32')
         if save:
-            service.configure_day(day,int(questions),'descanso' if rest else 'normal',snapshot['revision'])
+            notify_success(service.configure_day(day,int(questions),'descanso' if rest else 'normal',snapshot['revision']),'Agenda atualizada.')
             st.session_state.pop('day_form_snapshot',None)
             st.session_state['adaptive_notice']='Meta de hoje atualizada.'
             st.rerun()
@@ -44,9 +46,9 @@ def _day_settings(service,view,day):
             workload_mode=st.radio('Distribuição',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
                                    format_func={'adaptive':'Adaptativa','fixed':'Fixa'}.get,key='today_workload_mode',horizontal=True)
             st.caption(f"Em uma meta de {plan['base_questions']}: {round(plan['base_questions']*share/100)} questões em temas novos e {plan['base_questions']-round(plan['base_questions']*share/100)} em revisões. Revisões incluem diagnóstico de temas já estudados; questões novas do banco podem aparecer nos dois grupos.")
-            save_share=st.form_submit_button('Salvar divisão da rotina',key='save_today_distribution')
+            save_share=confirm_submit('Salvar divisão da rotina',key='save_today_distribution',action_key='study_day_ui_47')
         if save_share:
-            try: service.store.save_profile(replace(p,new_share=share/100,workload_mode=workload_mode),record['id'])
+            try: notify_success(service.store.save_profile(replace(p,new_share=share/100,workload_mode=workload_mode),record['id']),'Alterações salvas.')
             except ValueError:
                 st.session_state.pop('distribution_profile_snapshot',None)
                 raise
@@ -83,8 +85,8 @@ def _block_controls(service,view,item,day,go_record,go_review,hero=False):
         st.write(item['reason'])
         trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)
     if item['added_by_user']:
-        st.button('Retirar revisão extra',key=f"remove_extra_{item['topic_id']}",on_click=_change_extra,
-                  args=(service,day,item['topic_id'],0,view['day']['revision'],True))
+        confirm_button('Retirar revisão extra',key=f"remove_extra_{item['topic_id']}",on_click=_change_extra,
+                  args=(service,day,item['topic_id'],0,view['day']['revision'],True),action_key='study_day_ui_86')
 
 
 def _extra_controls(service,view,day,advance=False):
@@ -101,7 +103,7 @@ def _extra_controls(service,view,day,advance=False):
                 maximum=min(1000,chosen['total']-already)
                 if maximum>0:
                     q=st.number_input('Questões extras',min_value=1,max_value=maximum,value=min(10,maximum),key=f'extra_count_{selected}_{maximum}')
-                    st.button('Adicionar ao meu dia',on_click=_change_extra,args=(service,day,selected,int(q),view['day']['revision']),width='stretch')
+                    confirm_button('Adicionar ao meu dia',on_click=_change_extra,args=(service,day,selected,int(q),view['day']['revision']),width='stretch',action_key='study_day_ui_104')
                 else: st.caption('A quantidade conhecida desse banco já foi adicionada hoje.')
             st.caption('Só entra no progresso depois que você registrar o resultado.')
 

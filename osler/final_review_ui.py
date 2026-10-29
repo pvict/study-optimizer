@@ -1,4 +1,6 @@
 """Datas e revisão final com comparação antes de alterar o calendário."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date,timedelta
 import pandas as pd
 import streamlit as st
@@ -36,8 +38,8 @@ def render_final_review(service):
         for row in current['active']:
             if row.get('scope')!='final_review': continue
             st.caption('Revisão aplicada: '+row['start']+' até '+row['rest_day'])
-            if st.button('Desfazer esta revisão final',key='final_undo_'+str(row['id'])):
-                service.cancel_replan(row['id'],service.agenda.token())
+            if confirm_button('Desfazer esta revisão final',key='final_undo_'+str(row['id']),action_key='final_review_ui_39'):
+                notify_success(service.cancel_replan(row['id'],service.agenda.token()),'Agenda atualizada.')
                 st.session_state['adaptive_notice']='Revisão final desfeita. Agenda anterior restaurada; resultados preservados.'
                 st.rerun()
         exams=[e for e in active_exams(service.repository) if e['target']['exam_date']>today_local().isoformat()]
@@ -60,9 +62,9 @@ def render_final_review(service):
                 st.dataframe(pd.DataFrame([{'Data':r['date'],'Tema específico':r['path'][-1],'Questões':r['questions'],'Motivo':r['basis']} for r in preview['rows']]),hide_index=True,width='stretch')
             else: st.info('Nenhum tema disponível na janela. Confira os dias de descanso e o catálogo.')
             st.caption(f"{len(preview['replaced_days'])} dias terão programação temporária. A carga não é preenchida artificialmente quando faltam temas elegíveis; cada tema aparece uma vez nesta proposta.")
-            if st.button('Aplicar revisão final',key='final_apply',disabled=not preview['rows'],type='primary'):
+            if confirm_button('Aplicar revisão final',key='final_apply',disabled=not preview['rows'],type='primary',action_key='final_review_ui_63'):
                 try:
-                    service.apply_final_review(preview)
+                    notify_success(service.apply_final_review(preview),'Agenda atualizada.')
                     st.session_state.pop('final_preview_data',None)
                     st.session_state['adaptive_notice']='Revisão final aplicada. Você pode desfazer abaixo.'
                     st.rerun()
@@ -77,8 +79,8 @@ def render_mock_days(service):
         for row in active:
             for day,override in row['overrides'].items():
                 st.caption(f"{day} · {override['mock_questions']} questões do simulado, separadas dos blocos.")
-            if st.button('Restaurar meta normal deste dia',key='calendar_undo_mock_'+str(row['id'])):
-                service.cancel_replan(row['id'],service.agenda.token())
+            if confirm_button('Restaurar meta normal deste dia',key='calendar_undo_mock_'+str(row['id']),action_key='final_review_ui_80'):
+                notify_success(service.cancel_replan(row['id'],service.agenda.token()),'Agenda atualizada.')
                 st.session_state['adaptive_notice']='Meta diária restaurada. Simulado e resultados preservados.'
                 st.rerun()
 

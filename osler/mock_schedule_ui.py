@@ -1,4 +1,6 @@
 """Programação separada dos resultados, com datas independentes e prévia."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date,timedelta
 import pandas as pd
 import streamlit as st
@@ -53,8 +55,8 @@ def render_mock_schedule(service):
                 st.caption(f'{len(versions)} versões preservadas. Desfazer restaura a programação anterior; resultados permanecem.')
                 reason=service.mock_schedule_undo_reason(old['id'])
                 if reason: st.caption(reason)
-                if st.button('Desfazer última alteração dos simulados',key='mock_schedule_undo',disabled=bool(reason)):
-                    service.cancel_replan(old['id'],service.agenda.token()); _clear_preview()
+                if confirm_button('Desfazer última alteração dos simulados',key='mock_schedule_undo',disabled=bool(reason),action_key='mock_schedule_ui_56'):
+                    notify_success(service.cancel_replan(old['id'],service.agenda.token()),'Agenda atualizada.'); _clear_preview()
                     st.session_state.pop('mock_occurrence',None); st.session_state.pop('mock_occurrence_date',None); st.rerun()
     preview=st.session_state.get('mock_schedule_preview_data')
     if not preview: return
@@ -79,6 +81,6 @@ def render_mock_schedule(service):
         if preview['unassigned']: st.warning(f"{len(preview['unassigned'])} temas perderam a vaga neste horizonte. Continuam na fila; a mudança não aumenta sua meta automaticamente.")
         stale=preview['token']!=service.agenda.token()
         if stale: st.info('Os dados mudaram. Monte uma nova prévia antes de aplicar.')
-        if st.button('Aplicar programação dos simulados',key='mock_schedule_apply',type='primary',disabled=stale):
-            service.apply_mock_schedule(preview); _clear_preview()
+        if confirm_button('Aplicar programação dos simulados',key='mock_schedule_apply',type='primary',disabled=stale,action_key='mock_schedule_ui_82'):
+            notify_success(service.apply_mock_schedule(preview),'Agenda atualizada.'); _clear_preview()
             st.session_state.pop('mock_occurrence_date',None); st.rerun()

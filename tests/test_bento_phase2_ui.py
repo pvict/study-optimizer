@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from streamlit.testing.v1 import AppTest
 from dataclasses import replace
 import pytest
@@ -28,7 +29,7 @@ def test_hero_registration_and_optional_pause_keep_real_records(tmp_path,monkeyp
     assert not app.exception and not any(b.key=='bento_pause_start' for b in app.button)
     next(b for b in app.button if b.label=='Registrar este bloco').click().run()
     app.number_input(key='study_n').set_value(20);app.number_input(key='study_correct').set_value(17)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     app.button(key='study_back_to_plan').click().run()
     assert not app.exception
     app.button(key='bento_pause_start').click().run()

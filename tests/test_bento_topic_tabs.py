@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 """Contratos das abas secundárias de Temas, somente em dados temporários."""
 from dataclasses import replace
 
@@ -66,13 +67,13 @@ def test_errors_resolve_and_void_preserve_source_and_corrected_history(tmp_path,
                            error_key=linked['error_key'], expected_version=1)
     app = tab_app(tmp_path, monkeypatch, 'study_errors_ui', 'render_errors')
     assert len(error_buttons(app)) == 12
-    app.button(key='resolve_error_' + corrected['error_key']).click().run()
+    confirm_action(app.button(key='resolve_error_' + corrected['error_key']).click().run())
     assert not app.exception
     closed = next(e for e in store.events() if e['error_key'] == linked['error_key'] and e['action'] == 'resolve')
     assert closed['version'] == 3 and closed['source_session_id'] == 'original-block'
     assert closed['note'] == 'Conceito corrigido'
     assert store.events()[-3]['note'] == 'Conceito original'
-    app.button(key=error_buttons(app, 'void_error_')[0].key).click().run()
+    confirm_action(app.button(key=error_buttons(app, 'void_error_')[0].key).click().run())
     assert not app.exception and store.events()[-1]['action'] == 'void'
     assert len(service.store.events()) == 1
 
@@ -81,7 +82,7 @@ def test_errors_page_clamps_when_last_item_disappears(tmp_path, monkeypatch):
     _, _, _ = seed_errors(tmp_path, 25)
     app = tab_app(tmp_path, monkeypatch, 'study_errors_ui', 'render_errors')
     app.number_input(key='study_errors_page').set_value(3).run()
-    error_buttons(app)[0].click().run()
+    confirm_action(error_buttons(app)[0].click().run())
     assert not app.exception
     assert app.number_input(key='study_errors_page').value == 2
     assert len(error_buttons(app)) == 12

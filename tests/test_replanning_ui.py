@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from datetime import date
 from streamlit.testing.v1 import AppTest
@@ -24,10 +25,10 @@ def test_calendar_has_real_delay_and_preview_apply_undo_without_fake_results(tmp
         app.radio(key='replan_mode').set_value(mode).run()
         app.button(key='generate_replan_preview').click().run()
         assert not app.exception and not app.error,[e.value for e in app.error]
-    app.button(key='apply_replan_preview').click().run()
+    confirm_action(app.button(key='apply_replan_preview').click().run())
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert service.replanning()['active']
-    app.button(key='undo_last_replan').click().run()
+    confirm_action(app.button(key='undo_last_replan').click().run())
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert not service.replanning()['active']
     assert len(service.store.active('2026-10-15'))==1

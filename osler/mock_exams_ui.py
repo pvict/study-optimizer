@@ -1,4 +1,6 @@
 """Registro curto de simulados e detalhes opcionais, separado dos blocos de estudo."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from dataclasses import replace
 from datetime import date, timedelta
 from html import escape
@@ -179,7 +181,7 @@ def _render_mock_results(service):
                                         column_config={'Tema completo': st.column_config.TextColumn(required=True),
                                                        'Questões': st.column_config.NumberColumn(min_value=1, step=1, required=True),
                                                        'Acertos': st.column_config.NumberColumn(min_value=0, step=1, required=True)}, key='mock_field_topics')
-            submitted = st.form_submit_button('Salvar simulado', type='primary', key='mock_save')
+            submitted = confirm_submit('Salvar simulado', type='primary', key='mock_save',action_key='mock_exams_ui_182',details=f"{name or 'Simulado'} · {institution or 'Instituição não informada'} · {total} questões · {correct} acertos · {day.strftime('%d/%m/%Y') if day else 'não informada'}")
             if submitted:
                 try:
                     if day is None or total is None or correct is None: raise ValueError('Informe a data, o total de questões e os acertos.')
@@ -187,7 +189,7 @@ def _render_mock_results(service):
                                     target_id=target_id or None, blank=blank, minutes_used=minutes, minutes_allowed=allowed,
                                     score=score, max_score=max_score, conditions='realista' if realistic else 'nao_realista',
                                     unseen_questions=unseen, note=note, areas=_details(areas, 'area', 'Área'), topics=_details(topics, 'path', 'Tema completo'),practice_id=initial.get('practice_id'))
-                    saved = mocks.save(exam, exam_key=edit['exam_key'] if edit else None, expected_version=edit['version'] if edit else 0)
+                    saved = notify_success(mocks.save(exam, exam_key=edit['exam_key'] if edit else None, expected_version=edit['version'] if edit else 0),'Alterações salvas.')
                     st.session_state['mock_selected'] = saved['exam_key']
                     st.session_state['correction_exam'] = saved['exam_key']
                     st.session_state['mock_reset_pending'] = True
@@ -218,9 +220,9 @@ def _render_mock_results(service):
             with st.expander('Resultados por tema específico'):
                 st.dataframe(_table(exam['topics'], 'path', 'Tema completo'), hide_index=True, width='stretch')
         st.button('Corrigir simulado', key='mock_edit', on_click=_reset, args=(row,))
-        if st.button('Desconsiderar simulado', key='mock_void'):
+        if confirm_button('Desconsiderar simulado', key='mock_void',action_key='mock_exams_ui_221'):
             try:
-                mocks.void(selected, row['version'])
+                notify_success(mocks.void(selected, row['version']),'Alterações salvas.')
                 _reset()
                 st.session_state['mock_notice'] = 'Simulado desconsiderado; histórico preservado.'
                 st.rerun()
@@ -228,14 +230,14 @@ def _render_mock_results(service):
         with st.expander('Adicionar resultados ao estudo ou retirar conversão'):
             st.caption('Só questões inéditas com resultado por tema específico viram blocos novos. A área isolada não permite inferir subtemas. Não registre estas mesmas questões novamente no Registro.')
             if exam['unseen_questions'] and exam['topics']:
-                if st.button('Adicionar como blocos de questões novas', key='mock_convert'):
+                if confirm_button('Adicionar como blocos de questões novas', key='mock_convert',action_key='mock_exams_ui_231'):
                     try:
-                        ids = convert_to_entries(service, selected, row['version'])
+                        ids = notify_success(convert_to_entries(service, selected, row['version']),'Alterações salvas.')
                         st.success(f'{len(ids)} bloco(s) disponível(is) no estudo. Repetir esta ação não duplica blocos.')
                     except ValueError as exc: st.error(str(exc))
                 st.caption('Antes de corrigir ou desconsiderar um simulado convertido, retire os blocos abaixo. O histórico dos blocos será preservado.')
-                if st.button('Retirar blocos desta conversão', key='mock_retract'):
-                    try: st.success(f'{retract_conversion(service, selected, row["version"])} bloco(s) retirado(s). Agora é possível corrigir o simulado.')
+                if confirm_button('Retirar blocos desta conversão', key='mock_retract',action_key='mock_exams_ui_237'):
+                    try: st.success(f'{notify_success(retract_conversion(service, selected, row["version"]))} bloco(s) retirado(s). Agora é possível corrigir o simulado.')
                     except ValueError as exc: st.error(str(exc))
         if not exam.get('practice_id'):
             with st.expander('Considerar este dia como feito'):
@@ -246,15 +248,15 @@ def _render_mock_results(service):
                 preview = st.session_state.get('mock_day_preview_data')
                 if preview and preview['exam_key']==selected and preview['version']==row['version']:
                     st.write(f"Em {preview['day']}: meta normal de {preview['replaced_questions']} questões → dia feito por simulado de {preview['questions']} questões, sem dívida.")
-                    if st.button('Aplicar dia feito por simulado', key='mock_day_apply'):
+                    if confirm_button('Aplicar dia feito por simulado', key='mock_day_apply',action_key='mock_day_apply',details=f"{preview['day']}: a meta normal de {preview['replaced_questions']} questões será substituída por um dia feito pelo simulado de {preview['questions']} questões."):
                         try:
-                            st.session_state['mock_day_undo'] = service.mark_mock_day(selected, row['version'], preview)
+                            st.session_state['mock_day_undo'] = notify_success(service.mark_mock_day(selected, row['version'], preview),'Dia de simulado atualizado.')
                             st.session_state.pop('mock_day_preview_data', None)
                             st.success('Dia considerado feito por simulado.')
                         except ValueError as exc: st.error(str(exc))
-                if st.session_state.get('mock_day_undo') and st.button('Desfazer dia feito por simulado', key='mock_day_undo_button'):
+                if st.session_state.get('mock_day_undo') and confirm_button('Desfazer dia feito por simulado', key='mock_day_undo_button',action_key='mock_day_undo'):
                     try:
-                        service.cancel_replan(st.session_state['mock_day_undo'])
+                        notify_success(service.cancel_replan(st.session_state['mock_day_undo']),'Agenda atualizada.')
                         st.session_state.pop('mock_day_undo', None)
                         st.success('Meta normal do dia restaurada.')
                     except ValueError as exc: st.error(str(exc))
@@ -279,9 +281,9 @@ def render_mock_settings(service):
     profile = AdaptiveProfile(**snapshot['configured_profile'])
     with st.form('mock_settings'):
         cadence = st.number_input('Sugerir simulado a cada quantos dias?', min_value=0, max_value=365, value=profile.mock_cadence_days, step=1, key='mock_cadence')
-        if st.form_submit_button('Salvar frequência de simulados', key='mock_save_settings'):
+        if confirm_submit('Salvar frequência de simulados', key='mock_save_settings',action_key='mock_exams_ui_282'):
             try:
-                service.store.save_profile(replace(profile, mock_cadence_days=cadence), snapshot['id'])
+                notify_success(service.store.save_profile(replace(profile, mock_cadence_days=cadence), snapshot['id']),'Alterações salvas.')
                 st.session_state.pop('mock_profile_snapshot', None)
                 st.success('Frequência salva.')
             except ValueError as exc: st.error(str(exc))

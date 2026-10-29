@@ -1,4 +1,6 @@
 """Lista pronta, exportação completa e uma declaração opcional por seleção."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import sqlite3
 from datetime import date
 
@@ -93,9 +95,9 @@ def render_practical(repo, open_tool):
             selected = st.multiselect('Temas em que você já fez a mudança', list(lookup),
                                       format_func=lambda key: ' → '.join(lookup[key]['path']), key='current_reduction_selection')
             st.caption('O registro é local. O app não suspende nem reativa cartões na Osler.')
-            if st.button('Já fiz essa redução seletiva na Osler', disabled=not selected):
+            if confirm_button('Já fiz essa redução seletiva na Osler', disabled=not selected,action_key='practical_reduction_ui_96'):
                 _record_current(service, 'aplicado', selected, day, view)
-            if st.button('Escolhi manter esses temas na revisão', disabled=not selected):
+            if confirm_button('Escolhi manter esses temas na revisão', disabled=not selected,action_key='practical_reduction_ui_98'):
                 _record_current(service, 'manter', selected, day, view)
     else:
         st.info('Sem nova sugestão justificável agora. Faltam evidências atuais suficientes ou há sinais que pedem manter a revisão. PDF e percentual revisado, sozinhos, não autorizam uma pausa.')
@@ -144,7 +146,7 @@ def render_practical(repo, open_tool):
             selected = st.multiselect('Voltar temas registrados para a lista local', list(latest),
                                       format_func=lambda key: ' → '.join(latest[key]['topic']['path']), key='current_reduction_reopen')
             st.caption('Voltar à lista local preserva o histórico. A reativação de cartões na Osler continua manual.')
-            if st.button('Voltar estes temas para a avaliação atual', disabled=not selected):
+            if confirm_button('Voltar estes temas para a avaliação atual', disabled=not selected,action_key='practical_reduction_ui_147'):
                 _record_current(service, 'reabrir', selected, day, view)
         else:
             st.write('Nenhuma ação manual registrada.')
@@ -155,7 +157,7 @@ def render_practical(repo, open_tool):
 
 def _record_current(service, kind, selected, day, view):
     try:
-        service.record_current(kind, selected, day, view['signature'], view['event_id'])
+        notify_success(service.record_current(kind, selected, day, view['signature'], view['event_id']),'Alterações salvas.')
         st.session_state.pop('current_reduction_selection', None)
         st.session_state.pop('current_reduction_reopen', None)
         st.session_state['practical_notice'] = 'Registro salvo. A avaliação atual e o histórico foram atualizados.'
@@ -209,8 +211,8 @@ def _render_documentary_details(repo, open_tool):
             with st.expander('Registrar o que já fiz (opcional)'):
                 lookup = {t['topic_id']: t for t in topics}
                 selected = st.multiselect('Temas que você escolheu', list(lookup), format_func=lambda key: ' → '.join(lookup[key]['path']), key='practical_selection')
-                done = st.button('Já fiz uma redução seletiva nesses temas', disabled=not selected)
-                keep = st.button('Prefiro manter esses temas na revisão', disabled=not selected)
+                done = confirm_button('Já fiz uma redução seletiva nesses temas', disabled=not selected,action_key='practical_reduction_ui_212')
+                keep = confirm_button('Prefiro manter esses temas na revisão', disabled=not selected,action_key='practical_reduction_ui_213')
                 if done or keep:
                     _record(service, 'aplicado' if done else 'manter', selected, day, view, options)
         else:
@@ -221,7 +223,7 @@ def _render_documentary_details(repo, open_tool):
             with st.expander('Ver registros ou voltar um tema para a lista'):
                 selected = st.multiselect('Temas registrados', list(latest), format_func=lambda key: ' → '.join(latest[key]['topic']['path']), key='practical_reopen')
                 st.caption('Voltar para a lista só altera o registro local; não reativa cartões na Osler.')
-                if st.button('Voltar estes temas para a lista', disabled=not selected):
+                if confirm_button('Voltar estes temas para a lista', disabled=not selected,action_key='practical_reduction_ui_224'):
                     _record(service, 'reabrir', selected, day, view, options)
         with st.expander('Ver a carga de revisões informada'):
             workload, comparison = view['workload'], view['comparison']
@@ -250,7 +252,7 @@ def render_legacy_details(repo,open_tool):
 
 def _record(service, kind, selected, day, view, options):
     try:
-        service.record(kind, selected, day, view['signature'], view['event_id'], **options)
+        notify_success(service.record(kind, selected, day, view['signature'], view['event_id'], **options),'Resultado registrado.')
         st.session_state.pop('practical_selection', None)
         st.session_state.pop('practical_reopen', None)
         st.session_state['practical_notice'] = 'Registro salvo. A lista foi atualizada sem alterar seus relatórios.'

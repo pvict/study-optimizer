@@ -1,4 +1,6 @@
 """Cenários ajustáveis de capacidade e rotina; sem cobrança de compensação."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date
 import json
 import sqlite3
@@ -55,8 +57,8 @@ def _configuration(service):
             interval = c1.number_input("Intervalo de provas antigas em dias (0 desativa)", 0, 366, cfg.exam_every_days, key="routine_input_exam_interval")
             exam = c2.number_input("Tempo reservado por prova antiga (min)", 1.0, 1440.0, float(cfg.exam_minutes), key="routine_input_exam_minutes")
             name = st.text_input("Nome do cenário", value="Rotina experimental", key="routine_input_name")
-            apply = st.form_submit_button("Aplicar cenário")
-            save = st.form_submit_button("Salvar versão do cenário")
+            apply = confirm_submit("Aplicar cenário",action_key='planning_ui_58')
+            save = confirm_submit("Salvar versão do cenário",action_key='planning_ui_59')
         if apply or save:
             try:
                 overrides = {}
@@ -69,8 +71,9 @@ def _configuration(service):
                     overrides[parts[0]] = parts[1]
                 updated = RoutineConfig(start.isoformat(), days, cap, sec, err_sec, q_min, selected_profiles, weekdays, overrides, interval, exam).validate()
                 if save:
-                    service.save_profile(name, updated)
+                    notify_success(service.save_profile(name, updated),'Alterações salvas.')
                 st.session_state["routine_config"] = updated.to_dict()
+                notify_success(None,'Cenário atualizado.')
                 st.session_state["planning_notice"] = "Cenário atualizado; versões anteriores preservadas."
                 st.rerun()
             except (ValueError, sqlite3.Error) as exc:
@@ -93,10 +96,10 @@ def _measurements(service):
             source = st.text_input("Origem e contexto da medição")
             approximate = st.checkbox("Contagem aproximada", value=False)
             note = st.text_area("Observações sobre o corte e denominador")
-            submit = st.form_submit_button("Registrar medição local")
+            submit = confirm_submit("Registrar medição local",action_key='planning_ui_96')
         if submit:
             try:
-                service.save_measurement(Measurement(kind, count, observed.isoformat(), source, horizon if kind != "cartoes_pendentes" else None, approximate, note))
+                notify_success(service.save_measurement(Measurement(kind, count, observed.isoformat(), source, horizon if kind != "cartoes_pendentes" else None, approximate, note)),'Alterações salvas.')
                 st.session_state["planning_notice"] = "Medição preservada com origem; nenhum relatório foi alterado."
                 st.rerun()
             except (ValueError, sqlite3.Error) as exc:

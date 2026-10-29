@@ -1,4 +1,6 @@
 """Calendário em cards semanais/mensais e detalhe do dia, com previsão identificada."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import calendar
 from datetime import timedelta,date
 from html import escape
@@ -278,9 +280,9 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         with st.form('calendar_day_'+selected):
             q=st.number_input('Meta de questões',1,1000,snapshot['settings']['questions'],key='calendar_goal_'+selected)
             rest=st.checkbox('Descanso',value=snapshot['settings']['kind']=='descanso',key='calendar_rest_'+selected)
-            save=st.form_submit_button('Salvar programação')
+            save=confirm_submit('Salvar programação',action_key='study_calendar_ui_281')
         if save:
-            service.configure_day(selected,int(q),'descanso' if rest else 'normal',snapshot['revision'])
+            notify_success(service.configure_day(selected,int(q),'descanso' if rest else 'normal',snapshot['revision']),'Agenda atualizada.')
             st.session_state.pop('calendar_snapshot_'+selected,None)
             st.success('Programação salva. O calendário será recalculado.')
             st.rerun()

@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 import pytest
@@ -78,10 +79,10 @@ def test_manual_review_can_approve_and_remove(tmp_path, monkeypatch, project_roo
     next(s for s in app.selectbox if s.label == "Tema do Qbank").select(2).run()
     next(s for s in app.selectbox if s.label == "Tema dos flashcards").select(2).run()
     next(t for t in app.text_area if t.label == "Justificativa da associação").set_value("Conferi que os dois caminhos representam o mesmo assunto").run()
-    next(b for b in app.button if b.label == "Aprovar associação").click().run()
+    confirm_action(next(b for b in app.button if b.label == "Aprovar associação").click().run())
     assert not app.exception
     assert len(repo.active_matches(q.file_sha256, f.file_sha256)) == 1
-    next(b for b in app.button if b.label == "Remover associação selecionada").click().run()
+    confirm_action(next(b for b in app.button if b.label == "Remover associação selecionada").click().run())
     assert not app.exception
     assert not repo.active_matches(q.file_sha256, f.file_sha256)
     assert [e["action"] for e in repo.matching_events()] == ["aprovar", "remover"]
@@ -121,7 +122,7 @@ def test_classification_ui_saves_manual_first_attempt_without_overwriting_pdf(tm
     next(t for t in app.text_input if t.label == "Acerto na primeira tentativa (%)").set_value("82")
     next(t for t in app.text_input if t.label == "Acerto na última tentativa (%)").set_value("95")
     next(t for t in app.text_input if t.label == "Origem dos indicadores").set_value("Conferido manualmente pelo usuário")
-    next(b for b in app.button if b.label == "Salvar nova observação").click().run()
+    confirm_action(next(b for b in app.button if b.label == "Salvar nova observação").click().run())
     assert not app.exception
     history = service.store.history(row.row_id)
     assert len(history) == 1
@@ -146,7 +147,7 @@ def test_planner_ui_creates_only_suggested_batch(tmp_path, monkeypatch, project_
     app.multiselect(key="planner_selection").select(row.row_id).run()
     next(t for t in app.text_input if t.label == "Nome do lote").set_value("Avaliar feridas")
     next(t for t in app.text_area if t.label == "Finalidade do lote").set_value("Conferência manual dos conceitos frágeis")
-    next(b for b in app.button if b.label == "Criar lote sugerido").click().run()
+    confirm_action(next(b for b in app.button if b.label == "Criar lote sugerido").click().run())
     assert not app.exception
     planner = PlannerService(repo)
     batches = planner.list_batches()

@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 """Contratos de tarefas e fontes da fase5, somente repositórios descartáveis."""
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -82,7 +83,7 @@ def test_institutions_form_preserves_legacy_time_and_study_capacity(tmp_path,mon
     app.radio(key='study_settings_section').set_value('Instituições e incidências').run()
     assert not app.exception and not app.select_slider
     app.text_area(key='guide_institutions').set_value('Instituição A\nInstituição B')
-    next(b for b in app.button if b.label=='Salvar instituições').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar instituições').click().run())
     after=guide.settings()['settings']
     assert after['institutions']==['Instituição A','Instituição B']
     assert {k:v for k,v in after.items() if k!='institutions'}=={k:v for k,v in before.items() if k!='institutions'}

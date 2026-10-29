@@ -1,4 +1,6 @@
 """Entrada manual e triagem A–D, com fontes e versões visíveis."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date
 import json
 import sqlite3
@@ -56,14 +58,15 @@ def _policies(service):
             for i, name in enumerate(DEFAULT_WEIGHTS):
                 weights[name] = columns[i % 3].number_input(f"Peso: {name}", min_value=0.0, value=float(config.weights.get(name, 0)), step=1.0, key=f"cfg_weight_{name}")
             name = st.text_input("Nome da versão de critérios", value="Critérios de estudo", key="cfg_name")
-            apply = st.form_submit_button("Aplicar critérios nesta sessão")
-            save = st.form_submit_button("Salvar versão dos critérios")
+            apply = confirm_submit("Aplicar critérios nesta sessão",action_key='assessment_ui_59')
+            save = confirm_submit("Salvar versão dos critérios",action_key='assessment_ui_60')
         if apply or save:
             try:
                 updated = ClassifierConfig(**values, min_weight_coverage=coverage/100, weights=weights).validate()
                 if save:
-                    service.store.save_policy(name, updated)
+                    notify_success(service.store.save_policy(name, updated),'Alterações salvas.')
                 st.session_state["assessment_config"] = updated.to_dict()
+                notify_success(None,'Critérios atualizados.')
                 st.session_state["assessment_notice"] = "Critérios atualizados; versões anteriores preservadas." if save else "Critérios aplicados nesta sessão."
                 st.rerun()
             except (ValueError, sqlite3.Error) as exc:
@@ -109,10 +112,10 @@ def _edit_observation(service, matching, as_of, analyzed):
                                                        format_func=lambda v: "Não informado" if v is None else v)
         values["fonte_incidencia"] = st.text_input("Fonte da incidência em provas", value=data.get("fonte_incidencia", ""))
         values["nota"] = st.text_area("Observações sobre os indicadores", value=data.get("nota", ""))
-        submitted = st.form_submit_button("Salvar nova observação", type="primary")
+        submitted = confirm_submit("Salvar nova observação", type="primary",action_key='assessment_ui_112')
     if submitted:
         try:
-            service.save_observation(matching, selected_id, parse_observation(values), revision)
+            notify_success(service.save_observation(matching, selected_id, parse_observation(values), revision),'Alterações salvas.')
             st.session_state["assessment_notice"] = "Observação salva com histórico; dados extraídos não foram alterados."
             st.rerun()
         except (ValueError, sqlite3.Error) as exc:
@@ -137,9 +140,9 @@ def _edit_observation(service, matching, as_of, analyzed):
             active = [h["id"] for h in history if h["active"]]
             if active:
                 chosen = st.selectbox("Observação a desconsiderar", active)
-                if st.button("Desconsiderar observação"):
+                if confirm_button("Desconsiderar observação",action_key='assessment_revoke'):
                     try:
-                        service.revoke(chosen, revision)
+                        notify_success(service.revoke(chosen, revision),'Observação desconsiderada; histórico preservado.')
                         st.session_state["assessment_notice"] = "Observação desconsiderada; histórico preservado."
                         st.rerun()
                     except ValueError as exc:
@@ -214,9 +217,9 @@ def render_assessment(repo):
         st.caption("Use o modelo deste par. Preencha somente as linhas desejadas, em UTF-8 e separador ;. Um erro ou conflito recusa o lote inteiro.")
         st.download_button("Baixar modelo de indicadores", service.csv_template(matching, as_of), "modelo_indicadores.csv", "text/csv")
         uploaded = st.file_uploader("CSV com indicadores manuais", type=["csv"], key="assessment_csv")
-        if st.button("Importar observações CSV", disabled=uploaded is None):
+        if confirm_button("Importar observações CSV", disabled=uploaded is None,action_key='assessment_ui_217'):
             try:
-                count = service.import_csv(matching, uploaded.getvalue())
+                count = notify_success(service.import_csv(matching, uploaded.getvalue()),'Importação processada.')
                 st.session_state["assessment_notice"] = f"{count} observações importadas; histórico preservado."
                 st.rerun()
             except (ValueError, sqlite3.Error) as exc:

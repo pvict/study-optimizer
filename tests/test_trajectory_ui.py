@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
@@ -83,6 +84,6 @@ _register(s)
 """).run()
     assert not app.exception
     assert any('agregado' in c.value.lower() for c in app.caption)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     assert service.store.active('2026-10-15')[0]['entry']['path']==parent['path']

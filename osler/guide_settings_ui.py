@@ -1,4 +1,6 @@
 """Poucas escolhas globais e importação de uma tabela inteira."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import json
 import sqlite3
 
@@ -31,11 +33,11 @@ def render_guide_settings(repo,*,incidence_only=False):
             normal = st.select_slider("Tempo de estudo em um dia normal", times, value=settings.normal_minutes, format_func=time_label)
             shift = st.select_slider("Tempo em um plantão ou dia cansativo", times, value=settings.shift_minutes, format_func=time_label)
             st.caption("Meta inicial: novembro de 2027. Os tempos sugeridos podem ser alterados quando sua rotina mudar.")
-        save = st.form_submit_button("Salvar instituições" if incidence_only else "Salvar meu plano", type="primary")
+        save = confirm_submit("Salvar instituições" if incidence_only else "Salvar meu plano", type="primary",action_key='guide_settings_ui_34')
     if save:
         try:
             names = list(dict.fromkeys(i.strip() for i in institutions.splitlines() if i.strip()))
-            service.save_settings(GuideSettings(names, normal, shift, settings.start_date, settings.target_date), record["id"])
+            notify_success(service.save_settings(GuideSettings(names, normal, shift, settings.start_date, settings.target_date), record["id"]),'Alterações salvas.')
             st.session_state["guide_settings_notice"] = "Instituições salvas. O plano usa as tabelas compatíveis com esse conjunto." if incidence_only else "Plano salvo. O roteiro de hoje já usa sua disponibilidade."
             st.rerun()
         except (ValueError, sqlite3.Error) as exc:
@@ -79,9 +81,9 @@ def render_guide_settings(repo,*,incidence_only=False):
                 text = ""
         context = st.text_input("Instituições selecionadas nessa consulta", value="; ".join(settings.institutions), placeholder="Se ainda não souber os nomes, escreva: Instituições selecionadas na Osler")
         unit = st.selectbox("O valor da coluna é", ["questoes", "percentual"], format_func={"questoes": "Quantidade de questões", "percentual": "Percentual"}.get)
-        if st.button("Usar esta tabela no meu plano", disabled=not text.strip() or not context.strip()):
+        if confirm_button("Usar esta tabela no meu plano", disabled=not text.strip() or not context.strip(),action_key='guide_settings_ui_82'):
             try:
-                service.import_incidence(text, unit, [p.strip() for p in context.split(";") if p.strip()], today_local().isoformat(), value_column)
+                notify_success(service.import_incidence(text, unit, [p.strip() for p in context.split(";") if p.strip()], today_local().isoformat(), value_column),'Importação processada.')
                 st.session_state["guide_settings_notice"] = "Tabela inteira processada. O guia já considera o conteúdo reconhecido."
                 st.rerun()
             except (ValueError, OSError, sqlite3.Error) as exc:

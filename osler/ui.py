@@ -1,4 +1,7 @@
 """Interface local do Marco 1: biblioteca, importação, inspeção e auditoria."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+from .action_feedback import bind_actions,flush_toast
+
 from dataclasses import asdict
 import os
 from pathlib import Path
@@ -69,11 +72,11 @@ def _import_tab(repo: Repository):
     st.subheader("Importar relatórios")
     st.write("Selecione os PDFs exportados manualmente. O tipo, o filtro e a data serão lidos do conteúdo.")
     uploads = st.file_uploader("Relatórios PDF", type=["pdf"], accept_multiple_files=True, key="pdf_uploads")
-    if st.button("Importar arquivos selecionados", type="primary", disabled=not uploads):
+    if confirm_button("Importar arquivos selecionados", type="primary", disabled=not uploads,action_key='ui_72',details='Arquivos: '+', '.join(u.name for u in uploads or [])+'. Os originais serão preservados e os dados ficarão disponíveis no app.'):
         for upload in uploads or []:
             with st.spinner(f"Validando {upload.name}…"):
                 try:
-                    result = import_bytes(repo, upload.getvalue(), upload.name)
+                    result = notify_success(import_bytes(repo, upload.getvalue(), upload.name),'Importação processada.')
                     if result.state == "ja_importado":
                         st.info(f"{upload.name}: arquivo já importado. Dados anteriores preservados.")
                     elif result.state == "equivalente":
@@ -172,25 +175,30 @@ def run():
         st.error(f"Não foi possível abrir a pasta de dados: {exc}. A pasta anterior não foi substituída.")
         preserved = project_root/"data"
         if root.resolve() != preserved.resolve() and (preserved/"osler.sqlite3").is_file():
-            if st.button("Abrir pasta original preservada"):
+            if confirm_button("Abrir pasta original preservada",action_key='ui_175'):
                 try:
                     activate_data_dir(project_root, preserved)
                     st.session_state.clear()
                     st.session_state["active_data_dir"] = str(preserved)
+                    notify_success(None,'Pasta original aberta; dados preservados.')
                     st.rerun()
                 except (ValueError, OSError) as recovery_error:
                     st.error(str(recovery_error))
         return
+    bind_actions(repo)
     from .study_navigation_ui import render_navigation
     view=render_navigation()
     if view == "Plano de questões":
         render_adaptive(repo)
+        flush_toast()
         return
     if view == "Diminuir revisões":
         from .error_cards_ui import render_flashcards
         render_flashcards(repo)
+        flush_toast()
         return
     _advanced_tools(repo, project_root)
+    flush_toast()
 
 
 def _advanced_tools(repo, project_root):

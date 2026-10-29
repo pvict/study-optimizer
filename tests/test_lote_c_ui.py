@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from osler.adaptive_service import AdaptiveService
@@ -30,7 +31,7 @@ from osler.weekly_review_ui import render_weekly_review
 render_weekly_review(AdaptiveService(Repository(os.environ['WEEKLY_TEST_ROOT'])))
 ''').run()
     app.text_input(key='weekly_blocked_2026-10-12').set_value('Plantão')
-    next(b for b in app.button if b.label=='Salvar revisão da semana').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar revisão da semana').click().run())
     from osler.weekly_review import WeeklyReviewStore
     assert not app.exception
     assert len(WeeklyReviewStore(Repository(tmp_path)).events())==1

@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 
@@ -18,7 +19,7 @@ def test_save_shows_feedback_then_today_lists_result_and_allows_correction(tmp_p
     app.number_input(key='study_n').set_value(30)
     app.number_input(key='study_correct').set_value(24)
     app.number_input(key='study_confident').set_value(20)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     assert next(m for m in app.metric if m.label=='Acertos no bloco').value=='80,0%'
     assert next(m for m in app.metric if m.label=='Acertos com convicção').value=='66,7%'
@@ -34,7 +35,7 @@ def test_save_shows_feedback_then_today_lists_result_and_allows_correction(tmp_p
     app.number_input(key='study_n').set_value(25)
     app.number_input(key='study_correct').set_value(20)
     app.number_input(key='study_confident').set_value(18)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     app.button(key='study_back_to_plan').click().run()
     assert not app.exception
     assert any(t.label=='Feito hoje (25)' for t in app.tabs)
@@ -47,7 +48,7 @@ def test_today_shows_empty_state_and_feedback_keeps_missing_conviction_unknown(t
     next(b for b in app.button if b.label=='Registrar este bloco').click().run()
     app.number_input(key='study_n').set_value(20)
     app.number_input(key='study_correct').set_value(18)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     assert next(m for m in app.metric if m.label=='Acertos com convicção').value=='Não informada'
     assert any('Convicção não informada' in i.value for i in app.info)

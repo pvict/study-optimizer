@@ -1,4 +1,6 @@
 """Das pendências laranja à comparação e a um plano preventivo reversível."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import timedelta
 import hashlib,json
 import pandas as pd
@@ -87,8 +89,8 @@ def render_prevention(service):
                 st.caption('O primeiro contato continua no plano normal. Revisões podem ser antecipadas em 1–2 dias quando o intervalo permite; lotes de 7 dias aguardam seu retorno. Agendar não marca estudo como feito.')
                 stale=preview['token']!=context['token']
                 if stale: st.warning('Os dados mudaram. Compare novamente antes de aplicar.')
-                if st.button('Aplicar plano preventivo',key='apply_prevention',type='primary',disabled=stale):
-                    service.apply_prevention(preview)
+                if confirm_button('Aplicar plano preventivo',key='apply_prevention',type='primary',disabled=stale,action_key='study_prevention_ui_90'):
+                    notify_success(service.apply_prevention(preview),'Agenda atualizada.')
                     st.session_state.pop('prevention_preview',None)
                     st.session_state.pop('prevention_context_cache',None)
                     st.session_state['adaptive_notice']='Plano preventivo aplicado. Os próximos blocos seguem a nova prioridade; seus resultados foram preservados.'
@@ -98,8 +100,8 @@ def render_prevention(service):
         if active:
             last=active[-1]
             st.caption(f"Último plano preventivo: {last['start']} a {last['end']}. Desfazer preserva estudos e recuperações agendadas.")
-            if st.button('Desfazer último plano preventivo',key='undo_prevention'):
-                service.cancel_replan(last['id'])
+            if confirm_button('Desfazer último plano preventivo',key='undo_prevention',action_key='study_prevention_ui_101'):
+                notify_success(service.cancel_replan(last['id']),'Agenda atualizada.')
                 st.session_state.pop('prevention_preview',None)
                 st.session_state.pop('prevention_context_cache',None)
                 st.session_state['adaptive_notice']='Plano preventivo desfeito. Seus resultados continuam no histórico.'
