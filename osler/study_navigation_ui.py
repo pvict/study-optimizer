@@ -1,7 +1,7 @@
 """Menu único; rotas continuam nas chaves públicas de estado já existentes."""
 import streamlit as st
 
-STUDY=[('Hoje','today','Meu dia','light_mode'),('Calendário','calendar','Calendário','calendar_month'),
+STUDY=[('Hoje','today','Meu dia','light_mode'),('Temas em atenção','attention','Temas em atenção','priority_high'),('Calendário','calendar','Calendário','calendar_month'),
        ('Evolução','evolution','Evolução','trending_up'),('Temas','topics','Temas e estatísticas','menu_book'),
        ('Simulados','mocks','Simulados','assignment')]
 

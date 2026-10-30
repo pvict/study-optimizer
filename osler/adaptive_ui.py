@@ -28,7 +28,7 @@ from .study_triage_ui import render_triage
 from .parameter_ui import render_parameter_settings
 from .consolidated_export import consolidated_csv
 
-VIEWS=['Meu dia','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Simulados','Ajustes']
+VIEWS=['Meu dia','Temas em atenção','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Simulados','Ajustes']
 
 
 def _go_record(topic_id,questions,mode=None):
@@ -72,8 +72,9 @@ def render_adaptive(repo):
     view=st.session_state['adaptive_view']
     current=st.session_state['adaptive_view']
     if current!='Meu dia': st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
-              'Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução','Simulados':'Seus simulados'}[current])
+              'Temas em atenção':'Temas em atenção','Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução','Simulados':'Seus simulados'}[current])
     if current!='Meu dia': st.caption({'Meu dia':'Faça os blocos abaixo e registre o resultado para atualizar o plano.',
+                'Temas em atenção':'Veja os temas incidentes sem prática, as dificuldades e o tempo sem contato.',
                 'Calendário':'Consulte os próximos dias e abra espaço para suas revisões.',
                 'Temas e estatísticas':'Encontre o que precisa de atenção e acompanhe seu rendimento.',
                 'Registrar resultados':'Registre o que fez. O próximo plano acompanha seus resultados.',
@@ -90,6 +91,9 @@ def render_adaptive(repo):
             if key.startswith('calendar_snapshot_'): st.session_state.pop(key,None)
     try:
         if view=='Meu dia': render_study_day(service,_go_record,_go_review,_edit)
+        elif view=='Temas em atenção':
+            from .study_attention_ui import render_attention
+            render_attention(service,service.overview(today_local().isoformat()),today_local().isoformat(),_go_record)
         elif view=='Calendário': render_calendar(service,_go_record,_go_review)
         elif view=='Registrar resultados':
             with st.container(key='study_registration'): _register(service)

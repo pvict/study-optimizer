@@ -76,7 +76,7 @@ def _ready(page,heading):
 def _screen(page,name,label,heading,width):
     expand=page.get_by_role('button',name='Expand sidebar',exact=True)
     if expand.is_visible():expand.click()
-    routes={'hoje':'today','calendario':'calendar','evolucao':'evolution','temas':'topics','registrar':'register',
+    routes={'hoje':'today','atencao':'attention','calendario':'calendar','evolucao':'evolution','temas':'topics','registrar':'register',
             'simulados':'mocks','ajustes':'settings','flashcards':'flashcards','arquivos':'files'}
     page.locator('.st-key-nav_'+routes[name]).get_by_role('button').click()
     page.wait_for_function("document.querySelector('[data-testid=stApp]')?.getAttribute('data-test-script-state') === 'notRunning'",timeout=60000)

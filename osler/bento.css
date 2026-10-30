@@ -363,3 +363,30 @@
   :is(.st-key-bento-settings-routine,.st-key-bento-settings-exams,.st-key-bento-files-navigation) [data-testid="stHorizontalBlock"] { flex-direction:column; }
   :is(.st-key-bento-settings-routine,.st-key-bento-settings-exams,.st-key-bento-files-navigation) [data-testid="stColumn"] { width:100%; flex:1 1 100%; min-width:0; }
 }
+
+/* Atenção e rotina são seções de trabalho: uma moldura externa repetiria a
+   separação já feita pela tabela e pelos controles nativos. Escopo deliberado. */
+.st-key-bento-attention {
+  background:transparent;
+  border:0;
+  border-top:1px solid var(--o-line);
+  border-radius:0;
+  box-shadow:none;
+  padding:24px 0 0;
+  min-width:0;
+  gap:12px;
+  transition:none;
+}
+.st-key-bento-attention h3 {
+  margin:0;
+  padding:0;
+  overflow-wrap:anywhere;
+}
+.st-key-bento-attention [data-testid="stDataFrame"] {
+  width:100%;
+  min-width:0;
+  max-width:100%;
+}
+@media (max-width:760px) {
+  .st-key-bento-attention { padding-top:20px; }
+}

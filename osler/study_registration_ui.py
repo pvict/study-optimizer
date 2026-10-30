@@ -44,6 +44,12 @@ def _next(action,go_record,go_review):
     else:go_record(action['topic_id'],action['questions'],action['mode'])
 
 
+def _detach_review():
+    """Muda apenas o rascunho; as contagens enviadas pelo formulário permanecem."""
+    st.session_state.pop('study_review_of',None)
+    st.session_state['study_mode']='mistas'
+
+
 def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     if 'study_mode' not in st.session_state:
         previous=[r for r in service.store.active(today_local().isoformat()) if r['entry']['kind']=='bloco']
@@ -98,7 +104,13 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     st.subheader(chosen['path'][-1])
     st.caption(' › '.join(chosen['path'][:-1]))
     render_bank_scope(chosen,service.store.profile()['profile']['min_block'])
-    if st.session_state.get('study_review_of'): st.info('Revisão vinculada a uma pendência. Só acertos com convicção saem dessa fila; o restante retorna em 7 dias.')
+    review_parent=st.session_state.get('study_review_of');review_available=None
+    if review_parent:
+        from .review_queue import review_queue
+        active=service.store.active(today_local().isoformat())
+        review_available=next((r['questions'] for r in review_queue(active) if r['session_id']==review_parent),0)
+        if editing and editing['entry'].get('review_of')==review_parent:review_available+=editing['entry']['questions']
+        st.info(f'Este retorno tem {review_available} questões disponíveis. Use o vínculo apenas para respostas deste lote. Se fez outra lista do tema, use a opção abaixo para manter as contagens sem esse vínculo.')
     kind=st.segmented_control('O que você está registrando?',['bloco','acumulado','contato'],format_func={'bloco':'Um bloco que fiz','acumulado':'Um total acumulado anterior','contato':'Estudei sem fazer questões'}.get,key='study_kind',default='bloco',required=True,width='stretch')
     with st.expander('Outras formas de registrar'):
         method=st.radio('Como informar o rendimento?',['acertos','percentual'],format_func={'acertos':'Quantidade de acertos','percentual':'Só tenho o percentual aproximado'}.get,horizontal=True,key='study_method') if kind!='contato' else 'acertos'
@@ -133,13 +145,22 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         if confident is not None:detail+=f' · {confident}/{n} com convicção'
         if cards_created:detail+=f' · {cards_created} novos flashcards'
         detail+='\n\nO resultado atualizará o desempenho e as próximas revisões.'
-        submitted=confirm_submit('Salvar resultado e atualizar meu plano',type='primary',action_key='study_registration_ui_129',details=detail)
+        review_error=(f'Você informou {n} questões, mas este retorno tem apenas {review_available} disponíveis. Se fez uma lista do tema, escolha “Esta foi uma lista do tema” abaixo. Os valores digitados serão mantidos.'
+                      if review_available is not None and n>review_available else None)
+        if review_error:
+            submitted=st.form_submit_button('Salvar resultado e atualizar meu plano',type='primary')
+        else:
+            submitted=confirm_submit('Salvar resultado e atualizar meu plano',type='primary',action_key='study_registration_ui_129',details=detail)
+        if review_parent and not editing:
+            st.caption('Uma lista do tema não encerra automaticamente o lote vinculado. Não precisamos inventar quais acertos pertenciam a ele.')
+            st.form_submit_button('Esta foi uma lista do tema',key='study_detach_review',on_click=_detach_review)
         general_hint=st.empty()
     if submitted:
         entry=StudyEntry(lookup[selected]['path'],day.isoformat(),int(n),int(correct) if correct is not None else None,percent,kind,mode,duration,last or None,
                          confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'),
                          cards_created=int(cards_created))
         errors=entry_validation(entry)
+        if review_error and not errors:errors={'general':review_error}
         if errors:
             if 'correct' in errors:correct_hint.error(errors['correct'])
             elif 'confident' in errors:confident_hint.error(errors['confident'])
