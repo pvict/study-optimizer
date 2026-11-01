@@ -9,6 +9,32 @@ AREAS=('Clínica Médica','Clínica Cirúrgica','Pediatria','Ginecologia e Obste
 EXCLUSIVE={'final_review','final_rest','mock_day','mock_reserved'}
 
 
+def recover_area_occurrences(occurrences,results,anchor,end,profile,settings,overrides,sessions=(),exam_dates=()):
+    """Projeção de recuperação, sem mudar identidade, resultado ou data original."""
+    from copy import deepcopy
+    from .study_replanning import effective_routine
+    rows=deepcopy(occurrences)
+    completed={r['exam'].get('practice_id') for r in results}
+    occupied={r['date'] for r in rows if r.get('date') and (r['date']>=anchor or r['id'] in completed)}
+    for row in sorted(rows,key=lambda r:(r.get('date') or '9999',r['id'])):
+        if not row.get('date') or row['date']>=anchor or row['id'] in completed:continue
+        missed=row['date']; chosen=None
+        for offset in range(max(0,(_date(end)-_date(anchor)).days+1)):
+            day=(_date(anchor)+timedelta(days=offset)).isoformat()
+            cfg=settings.get(day,{'questions':profile.max_questions,'kind':'normal'})
+            override=overrides.get(day,{})
+            if day in occupied or day in exam_dates or cfg['kind']=='descanso' or override.get('mode') in EXCLUSIVE:continue
+            _,budget=effective_routine(profile,cfg,{k:v for k,v in override.items() if k!='area_reserved'})
+            used=sum(s['entry']['questions'] for s in sessions if s['entry']['day']==day and s['entry']['kind']=='bloco')
+            used+=area_extra_volume(results,sessions,day).get(day,0)
+            if row['questions']<=max(0,budget-used):chosen=day;break
+        row.update(missed_date=missed,days_late=(_date(anchor)-_date(missed)).days,
+                   recovery=True,status='recovery' if chosen else 'waiting',
+                   reason='Treino não realizado; recuperação automática.' if chosen else 'Treino atrasado sem capacidade: escolha outra data ou ajuste a meta.')
+        if chosen:row['date']=chosen;occupied.add(chosen)
+    return rows
+
+
 def next_correction_day(exam_day, weekday=2):
     _number(weekday,'Dia da semana',integer=True,maximum=6)
     day=_date(exam_day)+timedelta(days=1)

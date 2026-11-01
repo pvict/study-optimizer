@@ -74,6 +74,9 @@ def test_latest_summary_does_not_compare_accuracy_with_cutoff(tmp_path, monkeypa
     app = AppTest.from_string(APP, default_timeout=30).run()
     assert not app.exception
     assert any('Corte informado: 60.0%' in item.value for item in app.info)
+    assert not any('o acerto das questões não é comparado' in item.value for item in app.caption)
+    app.session_state['show_explanations']=True
+    app.run()
     assert any('o acerto das questões não é comparado' in item.value for item in app.caption)
     assert not any('Diferença para a referência' in item.value for item in app.caption)
 

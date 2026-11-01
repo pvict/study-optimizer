@@ -1,4 +1,5 @@
 """Calendário em cards semanais/mensais e detalhe do dia, com previsão identificada."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 import calendar
@@ -94,6 +95,7 @@ def _day_summary(day,plan,context,today):
         st.caption('Antes do início · sem meta')
         return
     for task in plan.get('area_tasks',[]):
+        if task.get('recovery'):st.warning('Treino atrasado desde '+ '/'.join(reversed(task['missed_date'].split('-')))+' · recuperação nesta data.')
         st.caption('Treino por área · '+task['institution']+' · '+task['area']+f" · {task['questions']} questões"+(' · realizado' if task['completed'] else ''))
     if plan.get('historical'):
         done=plan.get('done_questions')
@@ -153,7 +155,7 @@ def render_calendar(service,go_record,go_review=None):
         if key in by_date:
             by_date[key]['routine_override']=override
     days=[reference-timedelta(days=reference.weekday())+timedelta(days=i) for i in range(7)] if mode!='Mês' else list(calendar.Calendar().itermonthdates(reference.year,reference.month))
-    st.caption('Escolha um dia para ver os blocos. Previsões mudam com seus resultados.')
+    explain('Escolha um dia para ver os blocos. Previsões mudam com seus resultados.')
     render_exam_dates(service,days[0].isoformat(),days[-1].isoformat())
     selected=st.session_state.get('calendar_selected',reference.isoformat())
     if selected not in by_date: selected=reference.isoformat()
@@ -200,6 +202,7 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         if correction['date']==selected:
             st.info('Correção de '+correction['name']+'. '+('Informe os temas errados na aba Simulados → Correção para distribuir a prática.' if correction['needs_details'] else 'Os temas de reforço usam parte da meta normal deste dia.'))
     for task in plan.get('area_tasks',[]):
+        if task.get('recovery'):st.warning('Treino atrasado desde '+ '/'.join(reversed(task['missed_date'].split('-')))+' · recuperado nesta data.')
         st.info(task['institution']+' · '+task['area']+f" · treino de {task['questions']} questões dentro da meta diária. Registre o resultado em Simulados → Treinos por área.")
     override=plan.get('routine_override',{})
     if override.get('mode')=='mock_day': st.success(f"Dia feito por simulado · {override['mock_questions']} questões, separadas dos blocos.")
@@ -211,7 +214,7 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         if moved:
             import pandas as pd
             st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Nova data prevista':r['after_date'] or 'Sem vaga no horizonte da prévia'} for r in moved]),hide_index=True,width='stretch')
-            st.caption('Fotografia da prévia aplicada. As datas atuais dos próximos blocos acompanham seus resultados e ajustes de rotina.')
+            explain('Fotografia da prévia aplicada. As datas atuais dos próximos blocos acompanham seus resultados e ajustes de rotina.')
         return
     elif override.get('mode')=='final_rest': st.info('Véspera da prova · descanso reservado.')
     elif override.get('mode')=='final_review': st.caption('Programação temporária de revisão final.')
@@ -225,7 +228,7 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         for row in plan.get('delayed_topics',[]): st.warning(row['path'][-1]+f" · {row['days_late']} dias de atraso · abra Reorganizar acima para mudar a data.")
         return
     if selected>today.isoformat() and plan.get('forecast_mode')=='next_contact':
-        st.caption('Datas e quantidades previstas para o próximo bloco de cada tema. Os encontros seguintes dependem do resultado; não são compromissos repetidos automaticamente.')
+        explain('Datas e quantidades previstas para o próximo bloco de cada tema. Os encontros seguintes dependem do resultado; não são compromissos repetidos automaticamente.')
         st.caption(f"Meta deste dia: {plan['target_questions']} questões. A previsão parcial não reduz sua meta; o plano será recalculado após os próximos resultados.")
     if selected>today.isoformat() and plan.get('backlog_items'):
         import pandas as pd

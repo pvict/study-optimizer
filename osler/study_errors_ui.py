@@ -1,4 +1,5 @@
 """Registro opcional após o bloco e consulta de conceitos ainda em revisão."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 import pandas as pd
@@ -57,7 +58,7 @@ def _close_error(store, key, version, action):
 def render_errors(service):
     store = ErrorStore(service.repository)
     st.subheader('Erros')
-    st.caption('Guarde apenas o conceito que faltou, nas suas palavras. Enunciados da plataforma não devem ser copiados.')
+    explain('Guarde apenas o conceito que faltou, nas suas palavras. Enunciados da plataforma não devem ser copiados.')
     if message := st.session_state.pop('study_error_notice', None):
         st.success(message)
     if message := st.session_state.pop('study_error_failure', None):

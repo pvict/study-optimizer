@@ -32,7 +32,8 @@ def test_incident_unpracticed_and_zero_are_distinct_from_absent():
     absent=overview()['rows'][0]
     assert zero['incidences'][0]['value']==0 and not zero['incident_unpracticed']
     assert not absent['incidences'] and not absent['incident_unpracticed']
-    assert '0 questões' in attention_table([zero])[0]['Incidência bruta']
+    assert attention_table([zero])[0]['Incidência bruta']==0
+    assert attention_table([absent])[0]['Incidência bruta'] is None
     assert attention_table([absent])[0]['Acerto']=='Sem medição'
 
 
@@ -52,11 +53,32 @@ def test_parent_incidence_does_not_claim_specific_incidence_or_add_sources():
     model=overview(datasets=[dataset(path=PATH[:-1])])
     row=model['rows'][0]
     assert not row['incident_unpracticed'] and not row['incidences'][0]['exact']
-    assert 'não individual' in attention_table([row])[0]['Incidência bruta']
+    assert attention_table([row])[0]['Incidência bruta'] is None
+    assert 'não individual' in attention_table([row])[0]['Fonte da incidência']
     joint=dataset(institutions=['USP','UNIFESP'])
     model=overview(datasets=[joint],profile={'institution_weights':{'USP':1,'UNIFESP':1}})
     assert model['rows'][0]['incidences'][0]['institutions']==['USP','UNIFESP']
     assert len(model['rows'][0]['incidences'])==1
+
+
+def test_incidence_counts_sort_numerically_in_both_directions():
+    rows=[]
+    for value in (36,4,11,100,0):
+        rows.extend(overview(datasets=[dataset(value)])['rows'])
+    table=attention_table(rows)
+    assert sorted(r['Incidência bruta'] for r in table)==[0,4,11,36,100]
+    assert sorted((r['Incidência bruta'] for r in table),reverse=True)==[100,36,11,4,0]
+
+
+def test_multiple_incidence_sources_and_percentages_are_not_added_or_mislabeled():
+    tables=[dataset(36,institutions=['USP','UNIFESP']),
+            dataset(11,id=2),dataset(2.5,id=3,institutions=['UNIFESP'],unit='percentual')]
+    row=overview(datasets=tables,profile={'institution_weights':{'USP':1,'UNIFESP':1}})['rows'][0]
+    table=attention_table([row])[0]
+    assert table['Incidência · USP, UNIFESP · tabela #1']==36
+    assert table['Incidência · USP · tabela #2']==11
+    assert table['Incidência (%)']==2.5
+    assert '36 questões · tema' in table['Fonte da incidência']
 
 
 def test_scope_matches_selected_contexts_and_ignores_future_tables():

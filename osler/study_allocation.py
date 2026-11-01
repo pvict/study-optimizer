@@ -20,7 +20,7 @@ def _fill(selected,counts,target,capped=False):
 
 
 def category_allocation(available,states,profile,budget,day_target,today):
-    by_path={tuple(normalize_path(t['path'])):t for t in states}
+    by_path={tuple(normalize_path(t['path'])):t for t in states} if today else {}
     done_new=done_reviews=unknown=0
     for e in today:
         t=by_path.get(tuple(normalize_path(e['path'])))
@@ -60,18 +60,20 @@ def category_allocation(available,states,profile,budget,day_target,today):
                 result.append((t,required))
                 used+=required
         return result
+    capped=profile.workload_mode=='adaptive' or profile.review_strategy=='balanced_v2'
+    new_picks=[pick(pools[0],want_new,n) for n in range(profile.max_topics+1)]
+    review_picks=[pick(pools[1],want_reviews,n) for n in range(profile.max_topics+1)]
     best=None
     for n in range(profile.max_topics+1):
         for r in range(profile.max_topics-n+1):
-            groups=[pick(pools[0],want_new,n),pick(pools[1],want_reviews,r)]
+            groups=[new_picks[n],review_picks[r]]
             selected=[t for group in groups for t,q in group]
-            filled=sum(min(quota,sum(t['allocation_capacity'] for t,q in group)) for group,quota in zip(groups,[want_new,want_reviews]))
+            filled=sum(min(quota,sum(min(t['allocation_capacity'],t.get('recommended_questions',t['allocation_capacity'])) if capped else t['allocation_capacity'] for t,q in group)) for group,quota in zip(groups,[want_new,want_reviews]))
             score=(filled,len(selected),-abs(len(groups[0])-len(selected)*profile.new_share),len(groups[0]))
             if best is None or score>best[0]: best=(score,groups)
     _,groups=best
     selected=[t for group in groups for t,q in group]
     counts={t['topic_id']:q for group in groups for t,q in group}
-    capped=profile.workload_mode=='adaptive' or profile.review_strategy=='balanced_v2'
     for group,quota in zip(groups,[want_new,want_reviews]): _fill([t for t,q in group],counts,quota,capped)
     # Ceder sobra é explícito; uma preferência de 0%/100% permanece estrita.
     if 0<profile.new_share<1:

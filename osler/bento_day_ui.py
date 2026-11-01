@@ -1,4 +1,5 @@
 """Composição de Hoje; os controles e regras existentes continuam em seus módulos."""
+from .ui_help import explain
 from html import escape
 from math import ceil
 from time import monotonic
@@ -29,6 +30,12 @@ def _advance():
     st.session_state['bento_advance_open']=True
 
 
+def _reschedule_area():
+    st.session_state['mock_sections']='Treinos por área'
+    st.session_state['area_reschedule_requested']=True
+    go_view('Plano de questões','Simulados')
+
+
 def _dismiss_pause():
     st.session_state['bento_pause_dismissed']=True
     st.session_state.pop('bento_pause_until',None)
@@ -43,7 +50,7 @@ def _pause():
     if st.session_state.get('bento_pause_dismissed'):return
     with st.container(key='bento-pause'):
         st.subheader('Um intervalo, se quiser')
-        st.caption('Você já registrou um bloco hoje. Pode fazer uma pausa e voltar quando preferir.')
+        explain('Você já registrou um bloco hoje. Pode fazer uma pausa e voltar quando preferir.')
         remaining=pause_remaining(st.session_state.get('bento_pause_until'),monotonic())
         if remaining is None:
             st.button('Iniciar pausa de 10 min',key='bento_pause_start',icon=':material/timer:',on_click=_start_pause)
@@ -68,8 +75,16 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
             errors=next((s.get('open_error_count',0) for s in view['planning_states'] if s['topic_id']==item['topic_id']),0)
             text+='<p class="o-path">'+escape(' › '.join(item['path'][:-1]))+'</p><div class="o-block-context">'+chip('',state)+chip(item['stage'])
             if errors:text+=chip(str(errors)+(' erro aberto' if errors==1 else ' erros abertos'))
-            text+='</div><p class="o-reason">'+escape(item['reason'])+'</p>'
+            text+='</div>'
+            if st.session_state.get('show_explanations',False):
+                text+='<p class="o-reason">'+escape(item['reason'])+'</p>'
         st.html(text)
+        if item.get('group_members'):
+            st.html(chip(f"Agrupamento · {len(item['group_member_paths'])} temas"))
+            with st.popover('Ver temas agrupados',icon=':material/account_tree:'):
+                st.markdown('**'+escape(item['path'][-1])+'**')
+                for path in item['group_member_paths']:
+                    st.write(' › '.join(path[len(item['path']):]))
         if hero and view['time_source']=='Mediana de blocos registrados':
             minutes=ceil(n*view['plan']['effective_profile']['minutes_per_question'])
             st.caption(f'≈ {minutes} min · estimativa a partir dos seus blocos')
@@ -143,14 +158,17 @@ def _metrics(summary,exam):
         a,b,c,d=st.columns(4,gap='medium')
         with a,st.container(key='bento-metric-volume'):
             st.metric('Questões na semana',str(summary['questions']))
-            st.caption(f"Semana anterior: {summary['previous_questions']} · blocos registrados; inclui repetições.")
+            st.caption(f"Semana anterior: {summary['previous_questions']}")
+            explain('Blocos registrados; inclui repetições.')
         with b,st.container(key='bento-metric-accuracy'):
             st.metric('Acerto em novas','—' if summary['new_accuracy'] is None else f"{100*summary['new_accuracy']:.1f}%".replace('.',','))
-            st.caption(f"n = {summary['new_n']} · contagens exatas nesta semana. Repetidas, mistas, simulados e PDFs separados.")
+            st.caption(f"n = {summary['new_n']} questões novas")
+            explain('Contagens exatas nesta semana. Repetidas, mistas, simulados e PDFs separados.')
             if summary['new_unknown']:st.caption(f"{summary['new_unknown']} novas sem acerto exato informado, fora do percentual.")
         with c,st.container(key='bento-metric-mastery'):
             st.metric('Temas dominados','—' if summary['mastered'] is None else str(summary['mastered']))
-            st.caption('Estado atual dos temas registrados.' if summary['mastered'] is not None else 'Importe um relatório para acompanhar os temas.')
+            if summary['mastered'] is None:st.caption('Importe um relatório para acompanhar os temas.')
+            else:explain('Estado atual dos temas registrados.')
         with d,st.container(key='bento-metric-exam'):
             n=summary['exam_days']
             st.metric('Dias até a prova','—' if n is None or n<0 else str(n))
@@ -168,7 +186,7 @@ def render_today(service,go_record,go_review,go_edit=None):
                 import re
                 name=re.sub(r'([\\`*_{}\[\]()#+\-.!|>])',r'\\\1',name)
             st.title('Olá'+(', '+name if name else ''))
-            st.caption('Um bloco de cada vez.')
+            explain('Um bloco de cada vez.')
         with stamp:st.html('<span class="o-date">'+escape(date_label(day))+'</span>')
     with st.spinner('Preparando seu plano…'):
         view=service.overview(day)
@@ -181,12 +199,20 @@ def render_today(service,go_record,go_review,go_edit=None):
     summary=week_summary(view,service.store.days(),service.guide.days(),exam,service.recorded_mock_days())
     render_approach(service)
     render_absence_notice(service,day)
+    if plan.get('capacity',{}).get('new_floor_shortfall'):
+        st.warning('O piso de temas novos não coube nos blocos disponíveis. Confira o máximo de temas e a divisão em Ajustar meu dia; compromissos já reservados continuam protegidos.')
+    waiting=[r for r in view['agenda'].get('area_practice',[]) if r.get('status')=='waiting']
+    if waiting:
+        st.warning(f'{len(waiting)} treino(s) atrasado(s) sem vaga para recuperação. Ajuste as datas ou a carga em Simulados → Treinos por área.')
     for task in plan.get('area_tasks',[]):
         with st.container(border=True,key='bento-area-today-'+task['id']):
             st.subheader(task['institution']+' · '+task['area'])
+            if task.get('recovery'):st.warning('Treino atrasado desde '+date_label(task['missed_date'])+' · recuperado no plano de hoje.')
             st.write(f"Treino por área · {task['done']} questões registradas" if task['completed'] else f"Treino por área · {task['questions']} questões dentro da meta de hoje")
-            st.caption('Misture os temas dessa área no banco da instituição. O resultado da área fica separado dos percentuais por tema.')
+            explain('Misture os temas dessa área no banco da instituição. O resultado da área fica separado dos percentuais por tema.')
             st.button('Ver resultado e corrigir' if task['completed'] else 'Registrar treino por área',key='area_today_'+task['id'],on_click=go_view,args=('Plano de questões','Simulados'))
+            if not task['completed']:
+                st.button('Reagendar treino',key='move_area_today_'+task['id'],on_click=_reschedule_area)
     corrections=[r for r in service.exam_learning_agenda() if r['date']==day]
     if corrections:
         with st.container(border=True,key='bento-correction-today'):

@@ -3,7 +3,7 @@ import streamlit as st
 
 STUDY=[('Hoje','today','Meu dia','light_mode'),('Temas em atenção','attention','Temas em atenção','priority_high'),('Calendário','calendar','Calendário','calendar_month'),
        ('Evolução','evolution','Evolução','trending_up'),('Temas','topics','Temas e estatísticas','menu_book'),
-       ('Simulados','mocks','Simulados','assignment')]
+       ('Simulados','mocks','Simulados','assignment'),('Agrupamentos','grouping','Agrupamentos','account_tree')]
 
 
 def go_view(main,adaptive=None):
@@ -39,6 +39,7 @@ def render_navigation():
             st.divider()
             with st.container(key='nav_active_settings' if st.session_state['adaptive_view']=='Ajustes' and st.session_state['main_view']=='Plano de questões' else 'nav_idle_settings'):
                 st.button('Ajustes',key='nav_settings',icon=':material/settings:',on_click=go_view,args=('Plano de questões','Ajustes'),width='stretch')
+            st.toggle('Mostrar explicações',key='show_explanations',value=False)
             with st.expander('Sobre o app'):
                 st.caption('Tudo fica no seu computador. As ações na Osler continuam sendo feitas por você.')
     return st.session_state['main_view']

@@ -1,4 +1,5 @@
 """Das pendências laranja à comparação e a um plano preventivo reversível."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 from datetime import timedelta
@@ -31,7 +32,7 @@ def render_prevention(service):
         return
     with st.container(border=True):
         st.subheader('Prevenir atrasos nas próximas semanas')
-        st.caption('Compare antes de mudar a rotina. O cenário supõe execução dos blocos; datas e riscos serão recalculados com seus resultados.')
+        explain('Compare antes de mudar a rotina. O cenário supõe execução dos blocos; datas e riscos serão recalculados com seus resultados.')
         left,right=st.columns(2)
         start=left.date_input('Analisar a partir de',value=today,min_value=today,max_value=latest,key='prevention_start',format='DD/MM/YYYY')
         days=right.number_input('Dias para analisar',1,90,14,key='prevention_days')
@@ -86,7 +87,7 @@ def render_prevention(service):
                                                 'Maior atraso depois':r['max_delay_days']} for r in preview['worsened_risk_topics']]),hide_index=True,width='stretch')
                 if after['risk_topics']: st.warning('Ainda há pendências previstas. Você pode mudar a estratégia, ampliar a janela ou ajustar a quantidade de temas por dia em Ajustes.')
                 if after['late_topic_days']>before['late_topic_days']: st.warning('O total de pendências somadas nos dias aumentou. Alguns temas aguardariam mais tempo, mesmo que outros tenham melhorado.')
-                st.caption('O primeiro contato continua no plano normal. Revisões podem ser antecipadas em 1–2 dias quando o intervalo permite; lotes de 7 dias aguardam seu retorno. Agendar não marca estudo como feito.')
+                explain('O primeiro contato continua no plano normal. Revisões podem ser antecipadas em 1–2 dias quando o intervalo permite; lotes de 7 dias aguardam seu retorno. Agendar não marca estudo como feito.')
                 stale=preview['token']!=context['token']
                 if stale: st.warning('Os dados mudaram. Compare novamente antes de aplicar.')
                 if confirm_button('Aplicar plano preventivo',key='apply_prevention',type='primary',disabled=stale,action_key='study_prevention_ui_90'):

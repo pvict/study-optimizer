@@ -14,7 +14,7 @@ from .study_triage_policy import apply_triage
 from .exam_practice import practice_context,decorate_practice_plan
 
 
-def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False):
+def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False,progress=None):
     from .evolution_spacing import SCENARIOS,advance_projected_spacing
     if spacing_scenario not in SCENARIOS: raise ValueError('Escolha um cenário de espaçamento válido.')
     if next_contact_only and spacing_scenario!='unchanged': raise ValueError('Próximos contatos não presumem sucesso futuro.')
@@ -25,6 +25,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
     output=[]
     agenda=deepcopy(agenda or {'rows':[],'overrides':{}})
     for offset in range(days):
+        if progress and (offset%7==0 or offset==days-1):progress(offset,days)
         day=(_date(start)+timedelta(days=offset)).isoformat()
         if agenda.get('triage_policies'):
             for state in working:
@@ -131,4 +132,5 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
                        'pending_backlog':sum(q['remaining'] for q in pending.values() if q['due_date']<=day),
                        'topic_backlog':len(backlog),'backlog_items':backlog,
                        'initial_topics_waiting':sum(not t.get('review_committed',True) and t['status']!='sem_registro' for t in working)})
+    if progress:progress(days,days)
     return output

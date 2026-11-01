@@ -1,4 +1,5 @@
 """Visão geral local com a origem de cada indicador visível."""
+from .ui_help import explain
 
 import pandas as pd
 import streamlit as st
@@ -50,7 +51,7 @@ def render_dashboard(repo):
               "qbank_metric": "Acerto PDF · tentativa desconhecida", "flashcards_studied": "Cartões estudados", "flashcards_total": "Cartões disponíveis",
               "flashcards_metric": "% revisado · cobertura"}
     st.dataframe(frame.reindex(columns=labels).rename(columns=labels), hide_index=True, width="stretch")
-    st.caption("Cada linha vem diretamente do nível de área. % revisado é cobertura; acerto PDF não foi atribuído à primeira ou última tentativa.")
+    explain("Cada linha vem diretamente do nível de área. % revisado é cobertura; acerto PDF não foi atribuído à primeira ou última tentativa.")
     left, right = st.columns(2)
     with left:
         st.write("**Diagnóstico dos indicadores**")
@@ -68,4 +69,4 @@ def render_dashboard(repo):
     if not data["longitudinal_available"]:
         st.info("Há apenas uma data de relatórios. Ainda não é possível apresentar evolução longitudinal.")
     else:
-        st.caption("Há múltiplas datas na biblioteca. Compare fontes equivalentes no módulo de evolução.")
+        explain("Há múltiplas datas na biblioteca. Compare fontes equivalentes no módulo de evolução.")

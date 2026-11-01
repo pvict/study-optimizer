@@ -1,4 +1,5 @@
 """Recuperação do lote pessoal; decisões curtas e detalhes acessíveis."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 from datetime import date
@@ -73,7 +74,7 @@ def _record(service,view):
             covered=st.number_input('Cards diferentes deste lote que você respondeu agora',0,item['remaining'],min(item['planned'],item['remaining']),key='ec_covered')
         else:
             covered=0;st.write('Primeira passagem deste tema já registrada. Informe somente as repetições.')
-        st.caption('Conte cada card uma vez na primeira passagem. Se ele reaparecer depois, registre como repetição.')
+        explain('Conte cada card uma vez na primeira passagem. Se ele reaparecer depois, registre como repetição.')
         repeats=st.number_input('Respostas repetidas a cards já registrados',0,5000,10 if not item['remaining'] else 0,key='ec_repeats')
         with st.expander('Repetições e lembrança (opcional)'):
             include=st.checkbox('Também anotei quantas respostas lembrei antes de virar',key='ec_include_recalled')
@@ -151,7 +152,7 @@ def _topics(view):
 
 def _forecast(service,view):
     st.subheader('Primeira passagem pelos próximos dias')
-    st.caption('Cenário a carga constante, sem novos cards e sem contabilizar retornos individuais da Osler. Não é previsão de domínio nem de fim de todas as revisões.')
+    explain('Cenário a carga constante, sem novos cards e sem contabilizar retornos individuais da Osler. Não é previsão de domínio nem de fim de todas as revisões.')
     if not view['settings']['daily'] and not any(view['settings']['days'].values()):
         st.info('A passagem pelos cards está pausada. Sua fila fica guardada; ajuste a carga ou reserve um dia quando houver espaço na rotina.');return
     forecast=service.forecast(view,548)
@@ -184,10 +185,10 @@ def _import_and_settings(service,view):
                 st.session_state.pop('ec_recording',None);st.session_state['ec_notice']='Árvore importada. Confira o plano na aba Hoje.';st.rerun()
         except (ValueError,UnicodeError) as exc:st.error(str(exc))
     st.subheader('Carga que cabe na sua rotina')
-    st.caption('Esta é uma parte da sua capacidade total de flashcards, junto dos retornos da Osler. Não some esta carga por cima do seu limite de revisões. Com muitos retornos, zero pausa novas passagens sem perder a fila.')
+    explain('Esta é uma parte da sua capacidade total de flashcards, junto dos retornos da Osler. Não some esta carga por cima do seu limite de revisões. Com muitos retornos, zero pausa novas passagens sem perder a fila.')
     with st.form('ec_settings'):
         daily=st.number_input('Cards de erros por dia',0,2000,view['settings']['daily'],step=10)
-        st.caption('Referência separada das questões, com até10% de margem para fechar decks inteiros. Descansos e simulados ficam sem carga automática; os retornos individuais continuam na Osler.')
+        explain('Referência separada das questões, com até10% de margem para fechar decks inteiros. Descansos e simulados ficam sem carga automática; os retornos individuais continuam na Osler.')
         save=confirm_submit('Salvar carga de cards',action_key='error_cards_ui_189')
     if save:
         try:notify_success(service.configure(int(daily),view['settings']['days'],view['token']),'Alterações salvas.');st.rerun()
@@ -217,7 +218,7 @@ def _import_and_settings(service,view):
 def render_error_cards(repo):
     service=ErrorCardsService(repo);view=service.overview()
     st.title('Seus cards de erros')
-    st.caption('Uma passagem viável pelo que você criou, em temas específicos. As questões continuam no seu plano habitual.')
+    explain('Uma passagem viável pelo que você criou, em temas específicos. As questões continuam no seu plano habitual.')
     if 'ec_notice' in st.session_state:st.success(st.session_state.pop('ec_notice'))
     show_queue=bool(view['snapshot'] or view['has_queue'] or view['history'])
     if show_queue:

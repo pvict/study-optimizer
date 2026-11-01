@@ -127,6 +127,16 @@ class StudyAgenda:
         results=[r for r in MockExams(self.repo).active() if r['exam'].get('practice_id')]
         practice_agenda={'area_practice':area_rows,'area_results':results}
         day_settings=self.store.days()
+        if area_rows:
+            from .exam_practice import recover_area_occurrences
+            from .study_models import AdaptiveProfile
+            from .planner_service import today_local
+            from .exam_goals import ExamGoals
+            profile=AdaptiveProfile(**self.store.profile()['profile'])
+            anchor=min(as_of,today_local().isoformat())
+            exams={r['target']['exam_date'] for r in ExamGoals(self.repo).active()}
+            area_rows=recover_area_occurrences(area_rows,results,anchor,min(practice['request']['end'],profile.exam_date),profile,day_settings,overrides,sessions,exams)
+            practice_agenda['area_practice']=area_rows
         for day in {r['date'] for r in area_rows}|{r['exam']['day'] for r in results}:
             prior=overrides.get(day,{})
             config=day_settings.get(day,{})

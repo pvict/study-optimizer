@@ -38,17 +38,22 @@ def _day_settings(service,view,day):
             st.session_state['adaptive_notice']='Meta de hoje atualizada.'
             st.rerun()
         st.divider()
-        st.markdown('**Dividir novos e revisões**')
+        st.markdown('**Temas e divisão da rotina**')
         record=st.session_state.setdefault('distribution_profile_snapshot',service.store.profile())
         p=AdaptiveProfile(**record['configured_profile'])
         with st.form('today_distribution'):
+            max_topics=st.number_input('Máximo de temas por dia',min_value=1,max_value=10,value=p.max_topics,step=1,key='today_max_topics',
+                                       help='Limite padrão dos blocos planejados. Vale para hoje e os próximos dias; revisões extras adicionadas manualmente podem ultrapassá-lo.')
             share=st.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='today_new_share')
+            minimum_share=st.slider('Piso de questões em temas novos (%)',0,100,round(p.minimum_new_share*100),step=5,key='today_minimum_new_share',
+                                    help='No adaptativo, preserva esta parcela quando há candidatos e capacidade para um bloco. Nunca ultrapassa a proporção desejada acima. Descanso e compromissos explícitos são preservados.')
             workload_mode=st.radio('Distribuição',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
                                    format_func={'adaptive':'Adaptativa','fixed':'Fixa'}.get,key='today_workload_mode',horizontal=True)
             st.caption(f"Em uma meta de {plan['base_questions']}: {round(plan['base_questions']*share/100)} questões em temas novos e {plan['base_questions']-round(plan['base_questions']*share/100)} em revisões. Revisões incluem diagnóstico de temas já estudados; questões novas do banco podem aparecer nos dois grupos.")
-            save_share=confirm_submit('Salvar divisão da rotina',key='save_today_distribution',action_key='study_day_ui_47')
+            save_share=confirm_submit('Salvar divisão da rotina',key='save_today_distribution',action_key='study_day_ui_47',
+                                      details=f'Máximo de {max_topics} temas por dia, {share}% em temas novos e piso adaptativo de {min(share,minimum_share)}%. Hoje e os próximos dias serão recalculados.')
         if save_share:
-            try: notify_success(service.store.save_profile(replace(p,new_share=share/100,workload_mode=workload_mode),record['id']),'Alterações salvas.')
+            try: notify_success(service.store.save_profile(replace(p,new_share=share/100,minimum_new_share=minimum_share/100,workload_mode=workload_mode,max_topics=int(max_topics)),record['id']),'Alterações salvas.')
             except ValueError:
                 st.session_state.pop('distribution_profile_snapshot',None)
                 raise

@@ -17,6 +17,9 @@ def covered(days):
 
 def test_conditional_spacing_opens_capacity_without_modifying_real_evidence():
     states,p=scenario(); before=deepcopy(states)
+    # Isola o efeito dos intervalos; o piso de novos também abre cobertura.
+    from dataclasses import replace
+    p=replace(p,minimum_new_share=0)
     frozen=forecast_calendar(states,p,'2026-10-15',120,[],{})
     advancing=forecast_calendar(states,p,'2026-10-15',120,[],{},spacing_scenario='progressive')
     assert len(covered(advancing))>len(covered(frozen))

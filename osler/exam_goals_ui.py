@@ -1,4 +1,5 @@
 """Minhas provas: referência documentada, versões preservadas e principal explícita."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 from dataclasses import replace
@@ -38,7 +39,7 @@ def render_exam_goals(service):
     rows=goals.active()
     if st.session_state.pop('exam_reset_pending',False): _reset_exam()
     st.subheader('Minhas provas')
-    st.caption('Cadastre datas e cortes com fonte. O percentual do corte é apenas referência; não prevê sua nota nem sua aprovação.')
+    explain('Cadastre datas e cortes com fonte. O percentual do corte é apenas referência; não prevê sua nota nem sua aprovação.')
     st.button('Recarregar provas',on_click=_reload_exams,key='reload_exams')
     current=service.store.profile()
     if rows:

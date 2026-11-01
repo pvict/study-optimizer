@@ -131,11 +131,11 @@ def test_future_rebooking_cannot_steal_todays_protected_slot():
     assert [i['topic_id'] for i in plan['items']]==['B']
 
 
-def test_review_and_protected_intake_keep_slots_before_new_admissions():
+def test_new_floor_preserves_coverage_instead_of_initial_backlog_taking_last_slot():
     p=AdaptiveProfile(max_questions=60,max_topics=2,new_share=.5,workload_mode='adaptive')
     states=topic_states([imported('old',57),imported('real',57),imported('new',n=0,contact=None)],[],[],{},'2026-10-28',p)
     real=next(t for t in states if t['topic_id']=='real')
     real.update(review_committed=True,next_review='2026-10-28',theme_review_due='2026-10-28',recommended_questions=30,theme_recommended_questions=30)
     old=next(t for t in states if t['topic_id']=='old');old.update(recommended_questions=10,theme_recommended_questions=10)
     plan=allocate_day(states,p,None,'normal',[],'2026-10-28',question_target=60)
-    assert {i['topic_id'] for i in plan['items']}=={'real','old'}
+    assert {i['topic_id'] for i in plan['items']}=={'real','new'}

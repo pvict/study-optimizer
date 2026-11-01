@@ -136,8 +136,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         snapshot=topic.get('planner_snapshot')
         if snapshot and snapshot['observed_date']>as_of: snapshot=None
         safety_rate=snapshot['confident_accuracy_pct']/100 if snapshot and snapshot['confident_accuracy_pct'] is not None else None
-        entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') else by_path[key]
-        pending=[q for q in queued if tuple(normalize_path(q['path']))==key or topic.get('rollup') and tuple(normalize_path(q['path']))[:len(key)]==key]
+        entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') and not topic.get('group_members') else by_path[key]
+        pending=[q for q in queued if tuple(normalize_path(q['path']))==key or topic.get('rollup') and not topic.get('group_members') and tuple(normalize_path(q['path']))[:len(key)]==key]
         linked_adverse=balanced and unresolved_linked_failure(entries,pending)
         committed=bool(pending or topic.get('cards_reduced_day') or any(e['kind']=='bloco' and (not profile.start_date or e['day']>=profile.start_date) for e in entries))
         recent=[e for e in entries if e['kind']=='bloco' and (day-_date(e['day'])).days<=profile.recent_days]
@@ -427,7 +427,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     candidates,allocation_profile,capacity=capacity_policy(capacity_states if capacity_states is not None else states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits,
         eligible_ids={t['topic_id'] for t in states if t['topic_id'] not in recovery_ids|excluded|swapped_ids and
                       (not t.get('reschedule_date') or t['reschedule_date']<=as_of)},
-        allocated_questions=allocated_questions,available_slots=max(0,profile.max_topics-len(recovered)-len(base_pins)))
+        allocated_questions=allocated_questions,available_slots=max(0,profile.max_topics-len(recovered)-len(base_pins)),
+        new_done_questions=max(0,round((question_target if question_target is not None else target)*profile.new_share)-group_targets['new']))
     if swaps:
         latest=max(swaps,key=lambda r:r.get('id',0))
         if 'allowed_peers' in latest:
@@ -438,7 +439,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             allocation_profile=replace(profile,new_share=share)
             capacity.update(effective_share=share,user_swaps=True,deferred_admissions=0)
     candidate_ids={t['topic_id'] for t in candidates}
-    candidates=[{**t,'intake_protected':t['topic_id']==capacity.get('protected_intake_topic')} for t in states if t['topic_id'] in candidate_ids]
+    candidates=[{**t,'intake_protected':t['topic_id']==capacity.get('protected_intake_topic') or t['topic_id'] in capacity.get('protected_new_topic_ids',[])} for t in states if t['topic_id'] in candidate_ids]
     available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in candidates
                if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and

@@ -1,4 +1,5 @@
 """Registro curto de simulados e detalhes opcionais, separado dos blocos de estudo."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 from dataclasses import replace
@@ -66,7 +67,7 @@ def _render_summary(exam, targets):
         st.subheader('Por área')
         if exam['areas']:
             st.html(_area_results_html(exam['areas']))
-            st.caption('Faixa descritiva de incerteza pelo método Wilson (95%). Questões podem não ser independentes; não é previsão de nota ou aprovação.')
+            explain('Faixa descritiva de incerteza pelo método Wilson (95%). Questões podem não ser independentes; não é previsão de nota ou aprovação.')
         else:
             st.caption('Sem resultado por área informado neste simulado.')
 
@@ -111,7 +112,7 @@ def _comparison(exam, targets):
         percentage = 100*exam['score']/exam['max_score']
         st.caption(f'Nota informada no simulado: {percentage:.1f}%. Diferença para a referência: {percentage-cutoff:+.1f} pontos percentuais. Escalas e pesos podem diferir.')
     else:
-        st.caption('Sem nota e nota máxima informadas, o acerto das questões não é comparado ao corte ponderado.')
+        explain('Sem nota e nota máxima informadas, o acerto das questões não é comparado ao corte ponderado.')
 
 
 def _history(mocks):
@@ -123,13 +124,23 @@ def _history(mocks):
 
 
 def render_mock_exams(service):
+    # A seleção solicitada por outra aba é consumida antes de criar widgets.
+    selected=st.session_state.pop('mock_selection_pending',None)
+    if selected is not None:
+        st.session_state['mock_selected']=selected
+        st.session_state['correction_exam']=selected
+    tab=st.session_state.pop('mock_tab_pending',None)
+    if tab is not None:st.session_state['mock_sections']=tab
     from .mock_schedule_ui import render_mock_schedule
     from .exam_practice_ui import render_area_practice,render_mock_correction
-    programming,results,practice,correction=st.tabs(['Programação','Resultados','Treinos por área','Correção'])
+    programming,results,practice,correction=st.tabs(['Programação','Resultados','Treinos por área','Correção'],key='mock_sections',on_change='rerun')
     with programming: render_mock_schedule(service)
     with results: _render_mock_results(service)
     with practice: render_area_practice(service)
     with correction: render_mock_correction(service)
+    if st.session_state.get('mock_error_prompt') and not st.session_state.get('_action_pending'):
+        from .mock_result_followup_ui import render_error_prompt
+        render_error_prompt(service)
 
 
 def _render_mock_results(service):
@@ -137,7 +148,7 @@ def _render_mock_results(service):
     rows = mocks.active()
     targets = ExamGoals(service.repository).active()
     if st.session_state.pop('mock_reset_pending', False): _reset()
-    st.caption('Um simulado não é a prova real; bancas diferem. Os resultados ficam separados dos PDFs e dos blocos registrados. Não representam probabilidade de aprovação.')
+    explain('Um simulado não é a prova real; bancas diferem. Os resultados ficam separados dos PDFs e dos blocos registrados. Não representam probabilidade de aprovação.')
     notice = st.session_state.pop('mock_notice', None)
     if notice: st.success(notice)
     if rows:
@@ -190,8 +201,9 @@ def _render_mock_results(service):
                                     score=score, max_score=max_score, conditions='realista' if realistic else 'nao_realista',
                                     unseen_questions=unseen, note=note, areas=_details(areas, 'area', 'Área'), topics=_details(topics, 'path', 'Tema completo'),practice_id=initial.get('practice_id'))
                     saved = notify_success(mocks.save(exam, exam_key=edit['exam_key'] if edit else None, expected_version=edit['version'] if edit else 0),'Alterações salvas.')
-                    st.session_state['mock_selected'] = saved['exam_key']
-                    st.session_state['correction_exam'] = saved['exam_key']
+                    st.session_state['mock_selection_pending'] = saved['exam_key']
+                    from .mock_result_followup_ui import request_error_topics
+                    request_error_topics(saved)
                     st.session_state['mock_reset_pending'] = True
                     st.session_state['mock_notice'] = 'Simulado salvo. Informe os temas errados na aba Correção agora ou depois; nada foi somado aos blocos automaticamente.'
                     st.rerun()
@@ -215,7 +227,7 @@ def _render_mock_results(service):
         if exam['areas']:
             st.write('Resultado por grande área')
             st.html(_area_results_html(exam['areas']))
-            st.caption('Faixa Wilson 95% descritiva; não representa probabilidade de aprovação.')
+            explain('Faixa Wilson 95% descritiva; não representa probabilidade de aprovação.')
         if exam['topics']:
             with st.expander('Resultados por tema específico'):
                 st.dataframe(_table(exam['topics'], 'path', 'Tema completo'), hide_index=True, width='stretch')
@@ -276,7 +288,7 @@ def _render_mock_results(service):
 
 def render_mock_settings(service):
     st.subheader('Frequência de simulados')
-    st.caption('Intervalo sugerido para novas programações. Reserve ou mova datas em Simulados → Programação ou no Calendário. Alterar este valor não muda uma série já programada; 0 desliga apenas o lembrete.')
+    explain('Intervalo sugerido para novas programações. Reserve ou mova datas em Simulados → Programação ou no Calendário. Alterar este valor não muda uma série já programada; 0 desliga apenas o lembrete.')
     snapshot = st.session_state.setdefault('mock_profile_snapshot', service.store.profile())
     profile = AdaptiveProfile(**snapshot['configured_profile'])
     with st.form('mock_settings'):

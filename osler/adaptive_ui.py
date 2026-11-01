@@ -1,4 +1,5 @@
 """Planejamento diário com atualização curta, sem configuração por subtema."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 from dataclasses import replace
@@ -28,7 +29,7 @@ from .study_triage_ui import render_triage
 from .parameter_ui import render_parameter_settings
 from .consolidated_export import consolidated_csv
 
-VIEWS=['Meu dia','Temas em atenção','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Simulados','Ajustes']
+VIEWS=['Meu dia','Temas em atenção','Calendário','Evolução','Temas e estatísticas','Registrar resultados','Simulados','Ajustes','Agrupamentos']
 
 
 def _go_record(topic_id,questions,mode=None):
@@ -71,15 +72,15 @@ def render_adaptive(repo):
     if st.session_state.get('adaptive_view') not in VIEWS: st.session_state['adaptive_view']='Meu dia'
     view=st.session_state['adaptive_view']
     current=st.session_state['adaptive_view']
-    if current!='Meu dia': st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
-              'Temas em atenção':'Temas em atenção','Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução','Simulados':'Seus simulados'}[current])
-    if current!='Meu dia': st.caption({'Meu dia':'Faça os blocos abaixo e registre o resultado para atualizar o plano.',
+    if current not in {'Meu dia','Registrar resultados'}: st.title({'Meu dia':'Seu plano de hoje','Calendário':'Calendário de estudos','Temas e estatísticas':'Temas e desempenho',
+              'Temas em atenção':'Temas em atenção','Registrar resultados':'Registrar resultado','Ajustes':'Ajustes do plano','Evolução':'Sua evolução','Simulados':'Seus simulados','Agrupamentos':'Divisão das revisões'}[current])
+    if current not in {'Meu dia','Registrar resultados'}: explain({'Meu dia':'Faça os blocos abaixo e registre o resultado para atualizar o plano.',
                 'Temas em atenção':'Veja os temas incidentes sem prática, as dificuldades e o tempo sem contato.',
                 'Calendário':'Consulte os próximos dias e abra espaço para suas revisões.',
                 'Temas e estatísticas':'Encontre o que precisa de atenção e acompanhe seu rendimento.',
                 'Registrar resultados':'Registre o que fez. O próximo plano acompanha seus resultados.',
                 'Ajustes':'Defina sua rotina uma vez. Ajuste quando precisar.','Evolução':'Enxergue o que já construiu e explore os próximos capítulos da preparação.',
-                'Simulados':'Acompanhe simulados, treinos por área e a correção dos erros.'}[current])
+                'Simulados':'Acompanhe simulados, treinos por área e a correção dos erros.','Agrupamentos':'Compare os temas separados com uma divisão por categorias específicas.'}[current])
     if 'adaptive_notice' in st.session_state: st.success(st.session_state.pop('adaptive_notice'))
     if 'adaptive_error' in st.session_state: st.error(st.session_state.pop('adaptive_error'))
     if view!='Ajustes': st.session_state.pop('adaptive_profile_snapshot',None)
@@ -96,7 +97,11 @@ def render_adaptive(repo):
             render_attention(service,service.overview(today_local().isoformat()),today_local().isoformat(),_go_record)
         elif view=='Calendário': render_calendar(service,_go_record,_go_review)
         elif view=='Registrar resultados':
-            with st.container(key='study_registration'): _register(service)
+            with st.container(key='study_registration'):
+                with st.container(key='registration_header'):
+                    st.title('Registrar resultado')
+                    explain('Registre o que fez. O próximo plano acompanha seus resultados.')
+                _register(service)
         elif view=='Temas e estatísticas':
             stats,errors,cut,goal=st.tabs(['Desempenho dos temas','Erros abertos','Plano de corte','Minha meta'],key='topics_tabs',on_change='rerun')
             with stats: render_topic_table(service,_go_record)
@@ -105,9 +110,12 @@ def render_adaptive(repo):
             with goal: render_goal_risk(service)
             with st.container(key='bento-topics-export'):
                 st.download_button('Exportar CSV consolidado',consolidated_csv(service,today_local().isoformat()),'historico-consolidado.csv','text/csv',key='consolidated_export')
-                st.caption('Fontes e versões em linhas separadas. Não some os denominadores entre PDFs, acumulados, blocos e simulados.')
+                explain('Fontes e versões em linhas separadas. Não some os denominadores entre PDFs, acumulados, blocos e simulados.')
         elif view=='Evolução': render_evolution(service)
         elif view=='Simulados': render_mock_exams(service)
+        elif view=='Agrupamentos':
+            from .grouping_ui import render_grouping
+            render_grouping(service)
         else:
             with st.container(key='bento-settings-navigation'):
                 settings=st.radio('O que ajustar?',['Meta e rotina','Minhas provas','Instituições e incidências'],horizontal=True,key='study_settings_section')
@@ -164,7 +172,7 @@ def _settings(service):
     with st.expander('Nome e ajustes salvos (opcional)'):
         st.text_input('Como quer ser chamado? (opcional)',value=st.session_state.get('interface_name',''),max_chars=40,
                       key='settings_display_name',on_change=_set_display_name)
-        st.caption('Nome usado somente nesta sessão do aplicativo. Não altera os dados do seu plano.')
+        explain('Nome usado somente nesta sessão do aplicativo. Não altera os dados do seu plano.')
         if st.button('Recarregar ajustes salvos'):
             st.session_state.pop('adaptive_profile_snapshot',None)
             st.rerun()
@@ -174,7 +182,7 @@ def _settings(service):
         left,right=st.columns(2)
         count=left.number_input('Meta padrão de questões por dia',min_value=1,max_value=1000,value=p.max_questions)
         share_percent=right.slider('Questões em temas novos (%)',0,100,round(p.new_share*100),step=5,key='settings_new_share')
-        st.caption('A meta é por questões. Para mudar só um dia, use Hoje → Ajustar meu dia.')
+        explain('A meta é por questões. Para mudar só um dia, use Hoje → Ajustar meu dia.')
         share=share_percent/100
         workload_mode=st.radio('Como distribuir a rotina?',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
                                format_func={'adaptive':'Adaptativa — abre espaço para revisões','fixed':'Fixa — mantém a proporção escolhida'}.get,key='settings_workload_mode')
@@ -183,8 +191,8 @@ def _settings(service):
         left,right=st.columns(2)
         start=left.date_input('Início do cronograma',value=date.fromisoformat(p.start_date) if p.start_date else None,key='settings_start_date',format='DD/MM/YYYY')
         target=right.number_input('Meta de acerto nos temas (%)',min_value=1.,max_value=100.,value=float(p.target_accuracy))
-        st.caption('Antes do início, sem metas nem faltas. O histórico anterior continua valendo para as revisões.')
-        st.caption('Objetivo de aprendizagem: acerto em questões novas e amostra suficiente; convicção é informação complementar. Não é nota de prova nem probabilidade de aprovação.' if p.review_strategy=='balanced_v2' else 'Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
+        explain('Antes do início, sem metas nem faltas. O histórico anterior continua valendo para as revisões.')
+        explain('Objetivo de aprendizagem: acerto em questões novas e amostra suficiente; convicção é informação complementar. Não é nota de prova nem probabilidade de aprovação.' if p.review_strategy=='balanced_v2' else 'Objetivo de aprendizagem: acerto com convicção em questões novas e amostra suficiente. Não é nota de prova nem probabilidade de aprovação.')
         if ExamGoals(service.repository).active():
             exam=date.fromisoformat(p.exam_date)
             st.caption('Data efetiva do plano: '+record['profile']['exam_date']+'. Gerencie em Minhas provas.')
@@ -200,7 +208,7 @@ def _settings(service):
             area_frame=st.data_editor(pd.DataFrame(values,columns=['Área','Usar meta própria','Meta (%)']),hide_index=True,width='stretch',disabled=['Área'],key='area_targets_'+str(record['id']),
                                       column_config={'Meta (%)':st.column_config.NumberColumn(min_value=1.,max_value=100.,step=1.)})
             st.caption('Ative só as áreas que quiser personalizar. As demais usam a meta global; não há configuração por subtema.')
-        st.caption(f"{share_percent}% de questões em temas novos · {100-share_percent}% em revisões e diagnósticos. A proporção pode ser aproximada se faltarem temas elegíveis ou vagas por dia.")
+        explain(f"{share_percent}% de questões em temas novos · {100-share_percent}% em revisões e diagnósticos. A proporção pode ser aproximada se faltarem temas elegíveis ou vagas por dia.")
         with st.expander('Instituições, distribuição e detalhes'):
             st.caption('A importância das provas é ajustada em Minhas provas, com incidência individual e prévia antes de aplicar. As instituições do conjunto ficam em Instituições e incidências.')
             max_topics=st.number_input('Máximo de temas por dia',min_value=1,max_value=10,value=p.max_topics)

@@ -16,6 +16,9 @@ def forecast_topic_contacts(service,view):
     for plan in calendar:
         for item in plan['items']:
             contacts.setdefault(item['topic_id'],{'date':plan['date'],'stage':item['stage'],'questions':item['questions']})
+            for member in item.get('group_members',[]):
+                contacts.setdefault(member,{'date':plan['date'],'stage':'Bloco conjunto: '+item['path'][-1],
+                                             'questions':None,'group_topic_id':item['topic_id']})
     if token!=service.agenda.token(): raise ValueError('O plano mudou. Atualize a tabela para calcular as próximas revisões.')
     ids={t['topic_id'] for t in view['planning_states']}
     return {'contacts':contacts,'end':calendar[-1]['date'],'finished':False,

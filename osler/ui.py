@@ -1,4 +1,5 @@
 """Interface local do Marco 1: biblioteca, importação, inspeção e auditoria."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 from .action_feedback import bind_actions,flush_toast
 
@@ -44,7 +45,7 @@ def _date(value) -> str:
 
 def _library(repo: Repository):
     st.subheader("Sua biblioteca de relatórios")
-    st.caption("Cada arquivo é preservado. Relatórios equivalentes ficam identificados e não são somados.")
+    explain("Cada arquivo é preservado. Relatórios equivalentes ficam identificados e não são somados.")
     entries = repo.list_reports()
     if not entries:
         st.info("Nenhum relatório importado. Abra a aba Importar relatórios para começar.")
@@ -88,7 +89,7 @@ def _import_tab(repo: Repository):
                 except (ImportFailure, ValueError, OSError, sqlite3.Error) as exc:
                     st.error(f"{upload.name}: {exc}")
         st.button("Atualizar biblioteca", on_click=lambda: None)
-    st.caption("Originais em data/originals · CSVs e JSONs em data/exports · Nenhuma conexão com a Osler.")
+    explain("Originais em data/originals · CSVs e JSONs em data/exports · Nenhuma conexão com a Osler.")
 
 
 def _inspect(report, repo: Repository):
@@ -100,7 +101,7 @@ def _inspect(report, repo: Repository):
     values = [report.summary.get("total"), report.summary.get("estudados"), sum(r.is_leaf for r in report.records), report.table_pages]
     for col, label, value in zip(columns, labels, values):
         col.metric(label, _number(value))
-    st.caption("Totais de acervo e estudo vêm da capa deste relatório. A tabela pode ter um recorte menor. Pais e filhos não são somados.")
+    explain("Totais de acervo e estudo vêm da capa deste relatório. A tabela pode ter um recorte menor. Pais e filhos não são somados.")
     if report.kind == "qbank":
         st.info("Acerto PDF: tentativa não identificada. Primeira tentativa, última tentativa e número de questões distintas permanecem ausentes.")
     else:

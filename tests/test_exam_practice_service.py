@@ -119,7 +119,9 @@ def test_later_edits_preserve_auto_moved_history_and_expire_manual_topic_dates(t
     frozen=dict(preview['occurrences'][0])
     monkeypatch.setattr(module,'today_local',lambda:date(2026,10,22))
     edited=service.preview_area_schedule(**{**preview['request'],'exceptions':{'area-2026-10-25':'2026-10-27'}})
-    assert edited['occurrences'][0]==frozen
+    recovered=edited['occurrences'][0]
+    assert recovered['id']==frozen['id'] and recovered['original_date']==frozen['original_date']
+    assert recovered['missed_date']==frozen['date'] and recovered['date']=='2026-10-22'
     assert not edited['request']['topic_dates']
 
 

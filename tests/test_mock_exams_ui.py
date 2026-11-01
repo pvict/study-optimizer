@@ -26,12 +26,14 @@ def test_mock_short_form_save_edit_void_preserves_versions(tmp_path, monkeypatch
     assert not app.exception and not app.error
     mocks = MockExams(Repository(tmp_path))
     assert len(mocks.active()) == 1
+    app.button(key='mock_error_later').click().run()
     app.button(key='mock_edit').click().run()
     app.number_input(key='mock_field_correct').set_value(80)
     app.button(key='mock_save').click().run()
     app.button(key='action_confirm').click().run()
     assert not app.exception and not app.error
     assert mocks.active()[0]['exam']['correct'] == 80
+    app.button(key='mock_error_later').click().run()
     app.button(key='mock_void').click().run()
     app.button(key='action_confirm').click().run()
     assert not app.exception and not mocks.active()
@@ -62,6 +64,9 @@ def test_mock_cutoff_only_same_institution_and_no_automatic_entries(tmp_path, mo
     monkeypatch.setenv('MOCK_TEST_ROOT', str(tmp_path))
     app = AppTest.from_string(APP, default_timeout=30).run()
     assert not app.exception and not StudyStore(repo).events()
+    assert not any('bancas diferem' in c.value.lower() for c in app.caption)
+    app.session_state['show_explanations']=True
+    app.run()
     assert any('bancas diferem' in c.value.lower() for c in app.caption)
     assert not any('Corte informado:' in c.value for c in app.info)
     MockExams(repo).save(MockExam('2026-10-15', 100, 80, institution='Banca A', target_id=target['target_id'], score=80, max_score=100))

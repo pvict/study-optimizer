@@ -1,4 +1,5 @@
 """Troca pontual com prévia do tema escolhido e da reserva do tema retirado."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 import streamlit as st
@@ -66,7 +67,7 @@ def render_swap_controls(service,day,item,scope='today',button_container=None):
             st.markdown('**'+chosen['path'][-1]+'**')
             st.caption(' › '.join(chosen['path'][:-1]))
             st.write(_describe(chosen))
-            st.caption('Mesmo tipo de bloco; prioridade igual ou de uma categoria vizinha. Entre essas opções, buscamos a pontuação mais próxima.')
+            explain('Mesmo tipo de bloco; prioridade igual ou de uma categoria vizinha. Entre essas opções, buscamos a pontuação mais próxima.')
             confirm_button('Usar esta sugestão',key=f'swap_suggest_{scope}_{item["topic_id"]}',type='primary',disabled=reservation is None,
                       on_click=_apply,args=(service,day,item['topic_id'],chosen['topic_id'],options['token'],'recommended'),action_key='study_swap_ui_68')
         else: st.info('Não há outra opção do mesmo tipo e com prioridade semelhante disponível hoje. Você pode escolher manualmente.')

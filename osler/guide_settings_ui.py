@@ -1,4 +1,5 @@
 """Poucas escolhas globais e importação de uma tabela inteira."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 import json
@@ -19,7 +20,7 @@ def render_guide_settings(repo,*,incidence_only=False):
     settings = GuideSettings(**record["settings"])
     if incidence_only:
         st.subheader('Instituições e incidências')
-        st.caption('Escolha o conjunto de provas e confira as fontes usadas para priorizar os temas.')
+        explain('Escolha o conjunto de provas e confira as fontes usadas para priorizar os temas.')
     else:
         st.title("Ajustar meu plano")
         st.write("Estas escolhas valem para o plano inteiro. Você não precisa configurar cada assunto.")
@@ -32,7 +33,7 @@ def render_guide_settings(repo,*,incidence_only=False):
         if not incidence_only:
             normal = st.select_slider("Tempo de estudo em um dia normal", times, value=settings.normal_minutes, format_func=time_label)
             shift = st.select_slider("Tempo em um plantão ou dia cansativo", times, value=settings.shift_minutes, format_func=time_label)
-            st.caption("Meta inicial: novembro de 2027. Os tempos sugeridos podem ser alterados quando sua rotina mudar.")
+            explain("Meta inicial: novembro de 2027. Os tempos sugeridos podem ser alterados quando sua rotina mudar.")
         save = confirm_submit("Salvar instituições" if incidence_only else "Salvar meu plano", type="primary",action_key='guide_settings_ui_34')
     if save:
         try:
@@ -52,7 +53,7 @@ def render_guide_settings(repo,*,incidence_only=False):
             st.success(f"Sua tabela já está carregada: {len(current['rows'])} temas, {sum(r['path'] is not None for r in current['rows'])} reconhecidos nos PDFs.")
         else:
             st.warning("A tabela está guardada, mas não está sendo usada para as provas deste plano: os nomes do conjunto são diferentes. Envie a tabela indicando as instituições selecionadas naquela consulta. Se não souber os nomes, deixe as provas do plano em branco para usar o conjunto original.")
-        st.caption("Os demais nomes foram preservados para ajuste. Você não precisa completá-los para começar.")
+        explain("Os demais nomes foram preservados para ajuste. Você não precisa completá-los para começar.")
         with st.expander("Ver de onde vieram os dados"):
             st.text("Instituições/recorte: " + ", ".join(current["institutions"]))
             st.caption(f"Tabela recebida em {current['observed_date']}. Anos e filtros não presentes no arquivo não são presumidos.")

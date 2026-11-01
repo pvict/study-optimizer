@@ -44,7 +44,7 @@ def practice_state(state,day,profile):
     return {'recommended_questions':q,'review_kind':'lot_only' if only_lot else 'theme'}
 
 
-def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=None,allocated_questions=None,available_slots=None):
+def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=None,allocated_questions=None,available_slots=None,new_done_questions=0):
     meta={'mode':profile.workload_mode,'reference_share':profile.new_share,'effective_share':profile.new_share,
           'deferred_admissions':0,'horizon_days':HORIZON,'protected_intake_topic':None,'intake_future_pressure':False}
     if profile.workload_mode!='adaptive' or budget<=0: return states,profile,meta
@@ -80,6 +80,22 @@ def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=
     # A proporção de referência cede espaço à revisão devida; 0% e100% fixos seguem no modo fixo.
     meta['due_questions']=loads[0]
     admitted=set()
+    # A dívida estimada não elimina a expansão de cobertura. Compromissos
+    # explícitos já consumiram orçamento/vagas antes desta chamada.
+    desired=min(round(target*profile.new_share),max(profile.min_block,round(target*min(profile.new_share,profile.minimum_new_share)))) if profile.new_share>0 and profile.minimum_new_share>0 else 0
+    floor=max(0,desired-new_done_questions)
+    protected_new=0; new_slots=0; protected_ids=[]
+    for t in sorted(states,key=lambda t:(t['total']<profile.min_block,review_order(t,day))):
+        if not floor or protected_new>=floor or new_slots>=available_slots:break
+        if not topic_is_new(t) or t.get('review_committed',True) or eligible_ids is not None and t['topic_id'] not in eligible_ids:continue
+        due=t.get('allocation_due',t.get('next_review'))
+        if due and due>day:continue
+        q=min(dose(t),max(practice_minimum(t,profile.min_block),floor-protected_new),budget-protected_new,
+              max(0,round(target*profile.new_share)-new_done_questions-protected_new))
+        if q<practice_minimum(t,profile.min_block):continue
+        admitted.add(t['topic_id']);protected_ids.append(t['topic_id']);protected_new+=q;new_slots+=1
+    meta.update(minimum_new_questions=floor,protected_new_questions=protected_new,
+                protected_new_topic_ids=protected_ids,new_floor_shortfall=protected_new<floor)
     def expired(t):
         deadline=t.get('initial_contact_deadline')
         return bool(not t.get('review_committed',True) and not topic_is_new(t) and
@@ -110,8 +126,8 @@ def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=
     reference_new=round(target*profile.new_share)
     exploration=min(reference_new,max(profile.min_block,round(target*profile.parameters.exploration_reserve))) if reference_new else 0
     review_reserve=min(max(0,budget-loads[0]-exploration),demand)
-    new_questions=min(reference_new,max(0,budget-loads[0]-review_reserve))
-    if slots[0]>=available_slots:new_questions=0
+    new_questions=max(protected_new+min(new_done_questions,reference_new),min(reference_new,max(0,budget-loads[0]-review_reserve)))
+    if slots[0]>=available_slots and not protected_new:new_questions=0
     meta.update(initial_waiting_questions=waiting_questions,initial_recovery_demand=demand,
                 initial_capacity_shortfall=demand+meta['due_questions']>budget)
     effective=replace(profile,new_share=new_questions/max(1,target))

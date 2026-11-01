@@ -206,8 +206,30 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         from .study_errors import ErrorStore
         error_paths=ErrorStore(self.repository).adverse_paths(as_of)
         states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
-        planning_topics=planning_frontier(all_topics,effective.min_block)
+        from .topic_grouping import grouping_candidates,grouped_frontier,protect_group_evidence
+        blocked={r['topic_id'] for r in agenda['rows']}
+        blocked.update(t['topic_id'] for t in states if t.get('pending_reviews'))
+        blocked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]))
+        for swap in agenda.get('swaps',[]):
+            blocked.update(swap.get('excluded_ids',[])); blocked.add(swap.get('to_topic_id',swap.get('topic_id','')))
+        for cfg in agenda['overrides'].values():
+            blocked.update(r['topic_id'] for r in cfg.get('rows',[]))
+        groups=grouping_candidates(all_topics,self.guide.datasets(),effective,as_of,blocked)
+        planning_topics=grouped_frontier(all_topics,effective,groups)
+        # Trocar de modo não pode apagar retornos de blocos conjuntos já registrados.
+        from .topic_grouping import key as group_key
+        pending_paths={group_key(q['path']) for q in review_queue(sessions)}
+        saved_groups={group_key(g['path']):g for r in self.agenda.records() if r.get('kind')=='grouping.change'
+                      for g in r['preview'].get('groups',[])}
+        for parent in all_topics:
+            k=group_key(parent['path'])
+            if k not in pending_paths or k not in saved_groups or any(t['topic_id']==parent['topic_id'] for t in planning_topics):continue
+            members=[t for t in topics if group_key(t['path'])[:len(k)]==k]
+            planning_topics=[t for t in planning_topics if t['topic_id'] not in {m['topic_id'] for m in members}]
+            planning_topics.append({**parent,'rollup':True,'is_practice_unit':True,'group_members':[m['topic_id'] for m in members],
+                                   'group_member_paths':[m['path'] for m in members],'retained_group_return':True})
         planning_states=topic_states(planning_topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
+        protect_group_evidence(planning_states,states)
         opened=ErrorStore(self.repository).active(as_of)
         booked={r['topic_id'] for r in agenda['rows']}
         booked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]))
@@ -283,7 +305,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         return {'date':as_of,'planning_token':snapshot_token,'plan':plan,'states':states,'profile':profile.to_dict(),'profile_id':record['id'],'day':day,
                 'sessions':sessions,'sources':sources,'warnings':warnings,'portfolio':portfolio,'planning_states':planning_states,'review_queue':review_queue(sessions),
                 'time_source':'Mediana de blocos registrados' if measured else 'Estimativa inicial ajustável',
-                'incidence':incidence,'agenda':agenda}
+                'incidence':incidence,'agenda':agenda,'grouping_candidates':groups}
 
     def export(self,view):
         self.store.save_plan(view['plan'])

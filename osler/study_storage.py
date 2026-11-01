@@ -144,7 +144,7 @@ class StudyStore:
                 if profile.exam_weight_basis!=policy['basis']: raise ValueError('Confirme os pesos em uma prévia antes de salvar.')
             profile_id=db.execute('INSERT INTO study_profiles(payload,created_at) VALUES(?,?)',(_encoded(profile.to_dict()),utc_now())).lastrowid
             if audit_preview is not None:
-                payload=_encoded({'kind':'review_strategy.change','profile_before':expected_id,'profile_after':profile_id,'preview':audit_preview})
+                payload=_encoded({'kind':audit_preview.get('audit_kind','review_strategy.change'),'profile_before':expected_id,'profile_after':profile_id,'preview':audit_preview})
                 db.execute('INSERT INTO study_plan_runs(payload,digest,created_at) VALUES(?,?,?)',
                     (payload,hashlib.sha256(payload.encode()).hexdigest(),utc_now()))
             return profile_id
