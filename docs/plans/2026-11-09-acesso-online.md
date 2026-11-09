@@ -10,8 +10,8 @@
 
 ## Entregas
 
-- [ ] Persistência: testes de reinício, concorrência, gravação recusada, caminhos inseguros e integridade; cliente HTTPS, manifesto e SQL com RLS e funções limitadas a service_role.
-- [ ] Interface: entrada cloud separada, senha, importação inicial de backup verificado, persistência antes do toast, proteção para fragments/dialogs e download de recuperação. Manter execução local sem rede.
+- [x] Persistência: testes de reinício, concorrência, gravação recusada, caminhos inseguros e integridade; conexão TLS validada, manifesto e SQL com RLS e papel restrito.
+- [x] Interface: entrada cloud separada, senha, importação inicial de backup verificado, persistência antes do toast, proteção para fragments/dialogs e download de recuperação. Manter execução local sem rede.
 - [ ] Publicação: backup local, fonte completa em branch de deploy, dependências/configuração Linux, projeto Supabase gratuito e app privado; migrar e verificar dados reais sem criar resultados fictícios.
 - [ ] Verificação: testes locais e persistência real, revisão independente, URL no celular, instruções para backup e limites gratuitos.
 
@@ -26,3 +26,7 @@
 ## Registro
 
 Inspeção: branch codex/attention-menu com mudanças anteriores preservadas; SQLite ~10 MiB, originais ~2 MiB, exportações ~46 MiB. Nenhum dado enviado antes de configurar privacidade. Usuário criou contas em ambos os serviços.
+
+Decisão: usar conexão PostgreSQL via session pooler, com papel osler_cloud limitado às cinco funções. Evita hospedar a senha administrativa ou uma service_role abrangente. Certificado CA baixado da URL oficial exibida no painel; TLS verify-full verificado em conexão real. Permissões reais confirmadas: app sem acesso direto ao schema, anon/authenticated sem execução.
+
+Revisão independente identificou falha de finalização de formulário após erro remoto e pendência marcada tarde demais quando snapshot falhava. Ambos corrigidos e cobertos por regressões. 44 testes de nuvem/UI afetada passaram; após as correções, 21 testes de nuvem, confirmação e importação local passaram, incluindo 14 testes cloud. Branch de deploy gerado com índice separado, compilação do artefato, overlays verificados e varredura sem credenciais. Publicado no GitHub em codex/cloud-mobile-20261109; checkout local preservado.

@@ -25,6 +25,37 @@ def test_no_credentials_sent_to_untrusted_host():
             SupabasePostgres(host,'osler_cloud.abcdefghijklmnopqrst','secret')
 
 
+def test_postgres_reuses_verified_tls_and_commits_each_rpc(monkeypatch):
+    psycopg=pytest.importorskip('psycopg')
+    calls=[]
+    class Fake:
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+        def execute(self,query,args):
+            self.query=query
+            return self
+        def fetchone(self):return ('ok',)
+    fake=Fake()
+    def connect(**kwargs):
+        calls.append(kwargs)
+        return fake
+    monkeypatch.setattr(psycopg,'connect',connect)
+    remote=SupabasePostgres('aws-1-us-west-2.pooler.supabase.com','osler_cloud.abcdefghijklmnopqrst','secret')
+    with remote.session():
+        assert remote.acquire('owner',0)=='ok'
+        assert remote.get('digest')=='ok'
+        assert len(calls)==1
+    assert remote._db is None
+    assert calls[0]['autocommit'] is True
+    assert calls[0]['sslmode']=='verify-full'
+    assert Path(calls[0]['sslrootcert']).is_file()
+    def unavailable(*args,**kwargs):raise psycopg.OperationalError('PRIVATE CREDENTIAL')
+    monkeypatch.setattr(fake,'execute',unavailable)
+    with remote.session():
+        with pytest.raises(CloudError) as error:remote.get('digest')
+        assert 'PRIVATE' not in str(error.value)
+
+
 def test_local_import_does_not_load_network_or_cloud_runtime():
     import subprocess,sys
     result = subprocess.run([sys.executable,'-c',

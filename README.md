@@ -2,6 +2,8 @@
 
 Aplicativo local para organizar a preparação para residência médica: plano diário por quantidade de questões, acompanhamento de desempenho e revisões espaçadas por tema específico.
 
+Também pode ser hospedado para acesso privado pelo celular com o PC desligado. A versão online usa armazenamento persistente no Supabase; a cópia local continua independente. [Configuração, backups e limites dos planos gratuitos](cloud/README.md).
+
 O **dia de estudo vira às 04h, no horário de Brasília**: 22/10 inclui o período
 de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendário,
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários

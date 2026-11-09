@@ -4,7 +4,7 @@ Um workspace gerenciado por processo; o lease remoto também protege contra
 dois processos. Nunca aceitar uma base vazia como substituta de dados remotos.
 """
 import base64
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, nullcontext
 from contextvars import ContextVar
 import hashlib
 from pathlib import Path
@@ -163,7 +163,7 @@ class CloudWorkspace:
         if _active.get() is self:
             yield self
             return
-        with self._lock:
+        with self._lock, self.remote.session() if hasattr(self.remote,'session') else nullcontext():
             token = None
             try:
                 state = self.remote.acquire(self.owner, self.revision)
