@@ -7,7 +7,9 @@ from osler.study_calendar import forecast_calendar
 from test_initial_review_policy import imported
 
 
-def profile(**kwargs): return AdaptiveProfile(workload_mode='adaptive',**kwargs)
+# Estes cenários isolam o controle de admissões SEM piso obrigatório de novos.
+# O piso padrão é verificado em test_new_floor_and_missed_practice.py.
+def profile(**kwargs): return AdaptiveProfile(workload_mode='adaptive',minimum_new_share=0,**kwargs)
 
 
 def test_due_reviews_reduce_new_quota_without_raising_daily_load():

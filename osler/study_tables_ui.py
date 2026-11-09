@@ -1,4 +1,5 @@
 """Tabela de temas e resultados com filtros de calendário e ações no contexto."""
+from .ui_help import explain
 import pandas as pd
 import streamlit as st
 import hashlib
@@ -103,29 +104,31 @@ def _topic_list(rows,signature,go_record,cumulative=False,objective_goal=False,*
 
 def render_topic_table(service,go_record):
     view=service.overview(today_local().isoformat())
-    counts={phase:sum(t.get('learning_state')==phase and t['status']!='sem_registro' for t in view['planning_states']) for phase in ['dominado','aprendendo','alerta']}
+    specific_states=[t for t in view['states'] if not t.get('historical_aggregate')]
+    counts={phase:sum(t.get('learning_state')==phase and t['status']!='sem_registro' for t in specific_states) for phase in ['dominado','aprendendo','alerta']}
     with st.container(key='bento-topics-filters'):
-        st.caption('Situação atual dos temas · selecione um grupo para filtrar')
+        explain('Situação atual dos temas · selecione um grupo para filtrar')
         with st.container(key='topic_states'):
             panels=st.columns(4)
             for panel,phase,label,icon in zip(panels[:3],['dominado','aprendendo','alerta'],['Dominados','Aprendendo','Em alerta'],['check_circle','trending_up','priority_high']):
                 panel.button(f'{label} · {counts[phase]}',key='focus_'+phase,on_click=_set_focus,args=(label,),icon=':material/'+icon+':',width='stretch',type='primary' if st.session_state.get('statistics_focus')==label else 'secondary')
-            panels[3].button('Não vistos · '+str(sum(t['status']=='sem_registro' for t in view['planning_states'])),key='focus_unseen',on_click=_set_focus,args=('Sem estudo registrado',),icon=':material/radio_button_unchecked:',width='stretch',type='primary' if st.session_state.get('statistics_focus')=='Sem estudo registrado' else 'secondary')
+            panels[3].button('Não vistos · '+str(sum(t['status']=='sem_registro' for t in specific_states)),key='focus_unseen',on_click=_set_focus,args=('Sem estudo registrado',),icon=':material/radio_button_unchecked:',width='stretch',type='primary' if st.session_state.get('statistics_focus')=='Sem estudo registrado' else 'secondary')
         with st.container(key='topic_filters'):
             search_col,focus_col=st.columns([2,1])
             search=search_col.text_input('Buscar tema',placeholder='Ex.: trauma, diabetes, pediatria',key='statistics_search')
             focus=focus_col.selectbox('Mostrar',['Todos os temas','Priorizar agora','Segurança alta na Osler','Dominados','Aprendendo','Em alerta','Sem estudo registrado','Erros abaixo de 60%','Com questões no período'],key='statistics_focus')
         has_snapshot=any(t.get('planner_safety') for t in view['states'])
-        cumulative=has_snapshot and st.radio('Histórico ou resultados registrados?',['Histórico da Osler','Blocos registrados no app'],horizontal=True,key='statistics_source')=='Histórico da Osler'
+        source_column,layout_column=st.columns([2,1])
+        cumulative=has_snapshot and source_column.radio('Histórico ou resultados registrados?',['Histórico da Osler','Blocos registrados no app'],horizontal=True,key='statistics_source',label_visibility='collapsed')=='Histórico da Osler'
+        layout=layout_column.radio('Como visualizar?',['Tabela','Lista'],horizontal=True,key='statistics_layout',label_visibility='collapsed')
         if cumulative:
             period='Todo o período'; reference=today_local().isoformat()
-            st.caption('Uma convicção principal, com fonte e base identificadas. Questões no app e no histórico permanecem separadas; as duas medições originais ficam nos detalhes.')
+            explain('Uma convicção principal, com fonte e base identificadas. Questões no app e no histórico permanecem separadas; as duas medições originais ficam nos detalhes.')
         else:
             period=st.radio('Ver resultados de',PERIODS,horizontal=True,key='statistics_period')
         more_filters=st.expander('Mais filtros e definições')
         if not cumulative:
             reference=more_filters.date_input('Data de referência',value=today_local(),max_value=today_local(),key='statistics_date',format='DD/MM/YYYY').isoformat()
-        specific_states=[t for t in view['states'] if not t.get('historical_aggregate')]
         all_rows=topic_statistics(specific_states,view['sessions'],period,reference)
         aggregate_paths={tuple(normalize_path(t['path'])) for t in view['states'] if t.get('historical_aggregate')}
         all_rows=[r for r in all_rows if tuple(normalize_path(r['Caminho'].split(' → '))) not in aggregate_paths]
@@ -174,12 +177,12 @@ def render_topic_table(service,go_record):
     rows=apply_next_contacts(rows,cached['forecast'])
     coverage=cached['forecast'].get('coverage')
     if coverage:
-        st.caption(f"Próximo contato com data: {coverage['scheduled']} de {coverage['total']} temas no horizonte da preparação. As datas acompanham seus próximos resultados.")
+        st.caption(f"{len(specific_states)} subtemas · {coverage['scheduled']} de {coverage['total']} blocos de agenda com data")
         if coverage['scheduled']<coverage['total']:
             st.warning('Há temas sem encaixe com a carga, os dias de descanso e a divisão atuais. A cobertura completa exige reorganizar esses limites; não foi criada uma data fictícia.')
     n=sum(r['Questões com acertos exatos'] for r in rows)
     correct=sum(r['Acertos'] for r in rows)
-    with st.container(key='topic_summary'):
+    with st.expander('Resumo dos resultados'),st.container(key='topic_summary'):
         a,b,c=st.columns(3)
     if cumulative:
         a.metric('Questões no app',sum(r['Questões'] for r in rows))
@@ -190,13 +193,13 @@ def render_topic_table(service,go_record):
         b.metric('Acerto no período',f'{100*correct/n:.1f}%' if n else '—')
         c.metric('Temas praticados',sum(r['Questões']>0 for r in rows))
         if not n: st.caption('Acerto no período: ainda não há registro com quantidade exata de acertos nesses filtros.')
-    st.caption(f'Base do acerto: {n} tentativas com contagem exata de acertos no recorte. Fontes importadas permanecem separadas.')
+    explain(f'Base do acerto: {n} tentativas com contagem exata de acertos no recorte. Fontes importadas permanecem separadas.')
     start,end=period_bounds(period,reference)
     def label(day): return '/'.join(reversed(day.split('-')))
     st.caption(f"{len(rows)} temas nos filtros · histórico importado mais recente por tema." if cumulative else f"{label(start) if start else 'Todo o histórico'} até {label(end)} · {len(rows)} temas nos filtros. Semana começa na segunda; mês segue o calendário.")
     st.button('Limpar filtros',key='statistics_clear',on_click=_clear_filters,disabled=not(search or area!='Todas' or focus!='Todos os temas' or mode!='Todas' or detail))
     fields=['Tema','Estado','Próxima revisão','Questões','Acerto (%)','Convicção principal (%)','Base da convicção','Questões realizadas','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Estado','Próxima revisão','Área','Questões','Acerto (%)','Convicção principal (%)','Base da convicção']
-    st.caption('Próxima revisão: vaga prevista no calendário atual, até '+cached['forecast']['end']+'. Para temas não vistos, é o primeiro contato. As datas serão recalculadas com seus resultados; o vencimento original fica nos detalhes.')
+    explain('Próxima revisão: vaga prevista no calendário atual, até '+cached['forecast']['end']+'. Para temas não vistos, é o primeiro contato. As datas serão recalculadas com seus resultados; o vencimento original fica nos detalhes.')
     has_planner=any(r.get('Retrato Osler') for r in rows)
     if detail: fields+=['Tipo do próximo bloco','Revisão devida','Meta do tema (%)','Lotes consolidados (%)','Questões com convicção informada','Prioridade','Último contato','Incidência relativa (%)','Respondidas no PDF','Acerto no PDF','Situação','Novas','Repetidas','Mistas','Questões com acertos exatos','Questões aproximadas','Acerto aproximado (%)','Caminho']
     if detail and has_planner: fields+=['Questões distintas Osler','Retrato Osler','Pendências no retrato Osler','Posição na fila inicial']
@@ -207,14 +210,13 @@ def render_topic_table(service,go_record):
         displayed=displayed.rename(columns={'Questões':'Questões no app','Acerto (%)':'Acerto no app (%)',
             'Questões realizadas':'Questões no histórico'})
     signature=hashlib.sha256(json.dumps([cumulative,period,reference,mode,[r['topic_id'] for r in rows]]).encode()).hexdigest()[:16]
-    layout=st.radio('Como visualizar?',['Tabela','Lista'],horizontal=True,key='statistics_layout')
     selected=None
     if layout=='Lista':
         cards=_topic_card_rows(rows,specific_states,view['sessions'],period,reference,mode)
         open_paths={tuple(normalize_path(e['path'])) for e in ErrorStore(service.repository).active(today_local().isoformat())}
         _topic_list(cards,signature,go_record,cumulative,view['profile'].get('review_strategy')=='balanced_v2',open_error_paths=open_paths)
     else:
-        st.caption('Selecione uma linha para agir no tema. Deslize a tabela para ver mais colunas ou escolha Lista.')
+        explain('Selecione uma linha para agir no tema. Deslize a tabela para ver mais colunas ou escolha Lista.')
         selected=st.dataframe(displayed,hide_index=True,width='stretch',height=510,key='study_topics_table_'+signature,on_select='rerun',selection_mode='single-row',
                           column_config={'Acerto (%)':st.column_config.NumberColumn(format='%.1f%%'),
                                          'Acerto no app (%)':st.column_config.NumberColumn(format='%.1f%%'),

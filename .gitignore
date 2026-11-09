@@ -29,6 +29,8 @@ dist/
 .env.*
 !.env.example
 .streamlit/secrets.toml
+**/secrets.toml
+/.osler-cloud/
 *.pem
 *.key
 *.p12
@@ -61,3 +63,5 @@ Thumbs.db
 # Sessões e direção geradas por ferramentas de revisão visual
 /.taste-skill/
 /.playwright-cli/
+/.osler-runtime/
+/static/osler-instance.txt

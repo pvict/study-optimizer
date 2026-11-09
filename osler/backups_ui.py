@@ -14,6 +14,9 @@ from .workspace import activate_data_dir
 
 
 def render_backups(repo, project_root):
+    if os.environ.get('OSLER_CLOUD') == '1':
+        from .cloud_ui import render_cloud_backups
+        return render_cloud_backups(repo)
     st.subheader("Backup e restauração")
     st.write("O backup inclui o banco consistente, os PDFs originais e as exportações. Os arquivos permanecem nesta máquina.")
     st.caption(f"Pasta de dados em uso: {repo.root}")

@@ -250,3 +250,8 @@ Backup remoto: tag `backup/pre-apple-ui-2026-10-29`. Apple Design prevalece sobr
 Registros e alterações de dados usam diálogo nativo com título, resumo, Cancelar e verbo concreto. Desfazer, retirar e restaurar destacam o risco com aviso e ação vermelha. Superfície neutra, raio20, sombra moderada, alvos44px e foco de teclado visível. No celular, duas ações lado a lado e rótulos curtos. Escape/X equivalem a cancelar; a janela mantém o foco.
 
 Toast de sucesso somente após a operação retornar, preservado entre reruns. Mensagens de erro e resultados detalhados continuam na tela. Buscar, navegar e recalcular prévias não pedem confirmação. Implementação Streamlit `st.dialog`/`st.toast`, sem frontend React paralelo. Método e validação: `docs/plans/2026-10-29-confirmacoes-toast.md`.
+# Texto auxiliar
+
+Grupos de botões e opções devem manter pelo menos 8 px entre alvos, tanto lado a lado quanto ao quebrar linha. Usar o token compartilhado `--o-control-gap`; não recriar controles unidos em telas individuais. Validar a distância no navegador em computador e celular.
+
+Resultados, datas, quantidades, rótulos de campos, erros e consequências das ações ficam visíveis. Orientações e explicações metodológicas usam `ui_help.explain`, controlado pela opção de sessão “Mostrar explicações” na barra lateral, desligada por padrão. Não ocultar legendas globalmente por CSS. Detalhes técnicos de um resultado ficam em um único expander nativo, fechado, independente da opção global. Não transformar cada frase em outro cartão ou acordeão.

@@ -2,7 +2,7 @@
 from math import ceil
 from .planning import _date
 
-POLICY_VERSION='4.5'
+POLICY_VERSION='4.7'
 
 
 def initial_interval(snapshot,profile,incidence_strength):

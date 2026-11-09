@@ -45,6 +45,7 @@ from osler.storage import Repository
 from osler.error_cards_ui import render_error_cards
 render_error_cards(Repository(os.environ['ERROR_CARDS_TEST_ROOT']))
 ''',default_timeout=60).run()
+    app.session_state['ec_tabs']='Temas';app.run()
     app.button(key='ec_manual_'+topic).click().run()
     assert not app.exception
     confirm_action(app.button(key='FormSubmitter:ec_record-Salvar bloco de cards').click().run())

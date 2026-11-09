@@ -1,4 +1,5 @@
 """Demanda e capacidade visíveis; uma proposta segura pode permanecer vazia."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 
 from datetime import date,timedelta
@@ -27,7 +28,7 @@ def render_triage(service):
         summary=propose_triage(view['planning_states'],calendar,start,end,max_gap=p.max_contact_gap)
         balance=f"{summary['deficit_questions']:,} acima da carga" if summary['balance_questions']>=0 else f"{-summary['balance_questions']:,} de folga na carga"
         st.write(f"Demanda condicional: {summary['demand_questions']:,} questões · capacidade: {summary['capacity_questions']:,} · diferença: {balance}.")
-        st.caption('Revisões já iniciadas e retornos conhecidos, repetindo doses e intervalos atuais. Temas na fila inicial não viram revisões recorrentes. A capacidade é a carga total; parte dela também atende temas novos. Este cenário não é uma quantidade comprovadamente necessária.')
+        explain('Revisões já iniciadas e retornos conhecidos, repetindo doses e intervalos atuais. Temas na fila inicial não viram revisões recorrentes. A capacidade é a carga total; parte dela também atende temas novos. Este cenário não é uma quantidade comprovadamente necessária.')
     with st.container(key='bento-triage-controls'):
         with st.expander('Como montar a proposta'):
             factor=st.number_input('Multiplicar o intervalo futuro por',1.,3.,1.5,.25,key='triage_factor')

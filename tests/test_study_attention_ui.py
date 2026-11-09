@@ -22,10 +22,17 @@ def test_overview_sources_unknown_contact_and_science_are_present():
     test=app(); assert not test.exception
     assert any('temas para olhar' in m.value for m in test.markdown)
     table=test.dataframe[0].value
-    assert len(table)==1 and '12 questões' in table.iloc[0]['Incidência bruta']
+    assert len(table)==1 and table.iloc[0]['Incidência bruta']==12
+    import json
+    config=json.loads(test.dataframe[0].proto.columns)
+    assert config['Incidência bruta']['type_config']['type']=='number'
+    assert config['Incidência bruta']['type_config']['format']=='%d questões'
     assert 'tabela #1' in table.iloc[0]['Fonte da incidência']
     assert table.iloc[0]['Último contato']=='Desconhecido'
-    assert test.expander[0].label=='Como ler os dados e a ordem' and not test.expander[0].proto.expanded
+    details=next(e for e in test.expander if e.label=='Fonte da incidência deste tema')
+    assert not details.proto.expanded
+    methodology=next(e for e in test.expander if e.label=='Como ler os dados e a ordem')
+    assert not methodology.proto.expanded
 
 
 def test_search_complete_table_and_register_exact_selected_topic():

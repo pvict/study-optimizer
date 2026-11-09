@@ -10,11 +10,13 @@ MODES={'balanced':'Distribuir na carga atual','reviews':'Priorizar revisões por
        'extra':'Acrescentar questões temporariamente','custom':'Escolher datas por tema'}
 
 
-def collect_backlog(states,sessions,saved,as_of,start_date=None):
+def collect_backlog(states,sessions,saved,as_of,start_date=None,completions=()):
     if start_date and as_of<=start_date: return []
     latest={}
+    latest_ids={}
     for r in saved:
-        if r['plan']['date']<as_of and (not start_date or r['plan']['date']>=start_date): latest[r['plan']['date']]=r['plan']
+        if r['plan']['date']<as_of and (not start_date or r['plan']['date']>=start_date):
+            latest[r['plan']['date']]=r['plan'];latest_ids[r['plan']['date']]=r.get('id',0)
     done=defaultdict(int)
     for s in sessions:
         e=s['entry']
@@ -35,6 +37,9 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None):
     for state in states:
         key=tuple(normalize_path(state['path']))
         failures=missed[key]
+        closure=max((r for r in completions if r.get('manual_partial') and tuple(normalize_path(r['path']))==key),key=lambda r:(r['day'],r['id']),default=None)
+        closed=closure['day'] if closure else None
+        if closed:failures=[(d,n) for d,n in failures if d>closed or d==closed and latest_ids.get(d,0)>closure['id']]
         # Um encontro útil posterior recupera planos anteriores; não acumular dívida de repetições.
         recovered=max(state.get('spacing',{}).get('block_days',[])+covered_days[key],default=None)
         required=max(state['recommended_questions'],max((n for day,n in failures),default=0))
@@ -47,6 +52,8 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None):
         due=due if due and due<as_of else None
         if failures: due=min([d for d,n in failures]+([due] if due else []))
         if not due: continue
+        if state.get('return_not_before'): due=max(due,state['return_not_before'])
+        if closed and due<=closed and not failures:due=(_date(closed)+timedelta(days=1)).isoformat()
         if start_date: due=max(due,start_date)
         if due>=as_of: continue
         late=(_date(as_of)-_date(due)).days
@@ -64,6 +71,7 @@ def effective_routine(profile,config,override):
     from .final_review import special_config
     config=special_config(config,override)
     q=config['questions']
+    if override.get('mode')=='external_day': return profile,0
     if override.get('mode')=='extra':
         total=min(1000,q+override['extra_questions'])
         return replace(profile,new_share=q*profile.new_share/total),max(0,total-override.get('area_reserved',0))

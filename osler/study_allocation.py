@@ -11,6 +11,12 @@ def practice_minimum(topic,minimum):
     return min(minimum,topic['total'])
 
 
+def practice_capacity(topic,profile):
+    if profile.review_strategy=='balanced_v2' and topic_is_new(topic) and topic['total']<profile.min_block and topic.get('review_kind')!='lot_only':
+        return max(topic['total'],topic.get('recommended_questions',topic['total']))
+    return topic['total']
+
+
 def _fill(selected,counts,target,capped=False):
     while sum(counts.get(t['topic_id'],0) for t in selected)<target:
         candidates=[t for t in selected if counts.get(t['topic_id'],0)<min(t['allocation_capacity'],t.get('recommended_questions',t['allocation_capacity']))] if capped else [t for t in selected if counts.get(t['topic_id'],0)<t['allocation_capacity']]
@@ -20,7 +26,7 @@ def _fill(selected,counts,target,capped=False):
 
 
 def category_allocation(available,states,profile,budget,day_target,today):
-    by_path={tuple(normalize_path(t['path'])):t for t in states}
+    by_path={tuple(normalize_path(t['path'])):t for t in states} if today else {}
     done_new=done_reviews=unknown=0
     for e in today:
         t=by_path.get(tuple(normalize_path(e['path'])))
@@ -60,18 +66,22 @@ def category_allocation(available,states,profile,budget,day_target,today):
                 result.append((t,required))
                 used+=required
         return result
+    capped=profile.workload_mode=='adaptive' or profile.review_strategy=='balanced_v2'
+    new_picks=[pick(pools[0],want_new,n) for n in range(profile.max_topics+1)]
+    review_picks=[pick(pools[1],want_reviews,n) for n in range(profile.max_topics+1)]
+    protected_floor=min(want_new,max(0,round(day_target*min(profile.new_share,profile.minimum_new_share))-done_new-round(unknown*profile.new_share))) if profile.workload_mode=='adaptive' and any(t.get('intake_protected') for t in pools[0]) else 0
     best=None
     for n in range(profile.max_topics+1):
         for r in range(profile.max_topics-n+1):
-            groups=[pick(pools[0],want_new,n),pick(pools[1],want_reviews,r)]
+            groups=[new_picks[n],review_picks[r]]
             selected=[t for group in groups for t,q in group]
-            filled=sum(min(quota,sum(t['allocation_capacity'] for t,q in group)) for group,quota in zip(groups,[want_new,want_reviews]))
-            score=(filled,len(selected),-abs(len(groups[0])-len(selected)*profile.new_share),len(groups[0]))
+            filled=sum(min(quota,sum(min(t['allocation_capacity'],t.get('recommended_questions',t['allocation_capacity'])) if capped else t['allocation_capacity'] for t,q in group)) for group,quota in zip(groups,[want_new,want_reviews]))
+            new_filled=min(want_new,sum(min(t['allocation_capacity'],t.get('recommended_questions',t['allocation_capacity'])) if capped else t['allocation_capacity'] for t,q in groups[0]))
+            score=(min(protected_floor,new_filled),filled,len(selected),-abs(len(groups[0])-len(selected)*profile.new_share),len(groups[0]))
             if best is None or score>best[0]: best=(score,groups)
     _,groups=best
     selected=[t for group in groups for t,q in group]
     counts={t['topic_id']:q for group in groups for t,q in group}
-    capped=profile.workload_mode=='adaptive' or profile.review_strategy=='balanced_v2'
     for group,quota in zip(groups,[want_new,want_reviews]): _fill([t for t,q in group],counts,quota,capped)
     # Ceder sobra é explícito; uma preferência de 0%/100% permanece estrita.
     if 0<profile.new_share<1:

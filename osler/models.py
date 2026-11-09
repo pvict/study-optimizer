@@ -3,11 +3,18 @@ import hashlib
 import json
 import re
 import unicodedata
+from functools import lru_cache
+
+
+@lru_cache(maxsize=8192)
+def _normalized_part(part: str) -> str:
+    return " ".join("".join(c for c in unicodedata.normalize("NFKD", part)
+                            if not unicodedata.combining(c)).casefold().split())
 
 
 def normalize_path(path: list[str]) -> list[str]:
-    return [" ".join("".join(c for c in unicodedata.normalize("NFKD", part)
-                             if not unicodedata.combining(c)).casefold().split()) for part in path]
+    # Strings são imutáveis; a lista de cada chamador continua independente.
+    return [_normalized_part(part) for part in path]
 
 
 def stable_topic_id(path: list[str]) -> str:

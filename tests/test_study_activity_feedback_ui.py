@@ -29,6 +29,7 @@ def test_save_shows_feedback_then_today_lists_result_and_allows_correction(tmp_p
     assert not app.exception
     assert any(t.label=='Feito hoje (30)' for t in app.tabs)
     event=AdaptiveService(repo).store.active('2026-10-15')[0]
+    app.session_state['today_blocks_tab']='Feito hoje (30)';app.run()
     app.button(key='activity_edit_'+event['session_id']).click().run()
     assert app.session_state['adaptive_view']=='Registrar resultados'
     assert app.number_input(key='study_n').value==30
@@ -44,6 +45,7 @@ def test_save_shows_feedback_then_today_lists_result_and_allows_correction(tmp_p
 
 def test_today_shows_empty_state_and_feedback_keeps_missing_conviction_unknown(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
+    app.session_state['today_blocks_tab']='Feito hoje (0)';app.run()
     assert any('Nenhum bloco registrado hoje' in i.value for i in app.info)
     next(b for b in app.button if b.label=='Registrar este bloco').click().run()
     app.number_input(key='study_n').set_value(20)

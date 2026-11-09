@@ -9,8 +9,53 @@ import sqlite3
 import time
 
 import streamlit as st
+import os
+from .cloud_boundary import cloud_boundary
 
 PREFIX='_action_'
+
+
+def preserve_drafts(*keys, prefixes=()):
+    """Desvincula valores de widgets antes da limpeza das abas recolhidas.
+
+    Somente chaves de campos editáveis: botões e uploads não aceitam atribuição.
+    Reatribuir antes de criar o widget conserva o rascunho na sessão.
+    """
+    for key in list(st.session_state):
+        if key in keys or key.startswith(prefixes):
+            value=st.session_state[key]
+            # data_editor é somente leitura; seu DataFrame usa chave separada.
+            if isinstance(value,dict) and {'edited_rows','added_rows','deleted_rows'}<=value.keys():continue
+            st.session_state[key]=st.session_state[key]
+
+
+def preserve_editor_draft(key,active):
+    """Consolida as alterações do editor ao sair da aba, antes da limpeza nativa."""
+    baseline=st.session_state.get(PREFIX+'editor_'+key)
+    changes=st.session_state.get(key)
+    if active or baseline is None or not changes:return
+    frame=baseline.copy()
+    for index,values in changes.get('edited_rows',{}).items():
+        for column,value in values.items():frame.loc[int(index),column]=value
+    frame=frame.drop(index=changes.get('deleted_rows',[]),errors='ignore')
+    import pandas as pd
+    additions=changes.get('added_rows',[])
+    if additions:frame=pd.concat([frame,pd.DataFrame(additions)],ignore_index=True)
+    st.session_state[PREFIX+'editor_'+key]=frame.reset_index(drop=True)
+    st.session_state.pop(key,None)
+
+
+def draft_editor(data,*,key,**options):
+    baseline=st.session_state.setdefault(PREFIX+'editor_'+key,data)
+    return st.data_editor(baseline,key=key,**options)
+
+
+def append_editor_draft(key,row):
+    preserve_editor_draft(key,False)
+    baseline=st.session_state.get(PREFIX+'editor_'+key)
+    if baseline is not None:
+        import pandas as pd
+        st.session_state[PREFIX+'editor_'+key]=pd.concat([baseline,pd.DataFrame([row])],ignore_index=True)
 
 
 def bind_actions(repo):
@@ -59,12 +104,19 @@ def _values(fields=None):
 
 
 def flush_toast():
+    if os.environ.get('OSLER_CLOUD') == '1':
+        from .cloud_store import has_pending_save
+        if has_pending_save():
+            return
     message=st.session_state.pop(PREFIX+'toast',None)
     if message:st.toast(message,icon=':material/check_circle:')
 
 
 def notify_success(result,message='Alterações salvas.'):
     """Avaliado somente após a chamada de gravação retornar, nunca no clique."""
+    if os.environ.get('OSLER_CLOUD') == '1':
+        from .cloud_store import persist_before_success
+        persist_before_success()
     st.session_state[PREFIX+'toast']=message
     return result
 
@@ -96,6 +148,7 @@ def _request(key,label,details,callback,args,kwargs):
 
 
 @st.dialog('Confirmar ação',width='small',on_dismiss=_cancel)
+@cloud_boundary
 def _dialog():
     pending=st.session_state.get(PREFIX+'pending')
     if not pending:return
@@ -119,6 +172,7 @@ def _dialog():
 
 def _button(widget,label,*,action_key,details=None,**options):
     flush_toast()
+    validate=options.pop('validate',None)
     callback=options.pop('on_click',None)
     args=options.pop('args',()) or ();kwargs=options.pop('kwargs',{}) or {}
     action_key=action_key+'::'+str(options.get('key',label))
@@ -136,7 +190,12 @@ def _button(widget,label,*,action_key,details=None,**options):
         st.session_state.pop(PREFIX+'approved',None)
         if not options.get('disabled',False) and approved['label']==label and approved['details']==details and approved['guard']==_guard() and approved['values']==_values(approved['fields']):return True
         st.error('A ação mudou. Revise os dados e confirme novamente.');return False
-    if pressed and not callback:_request(action_key,label,details,None,args,kwargs)
+    if pressed and not callback:
+        try:
+            if validate and validate() is False:return False
+        except ValueError as exc:
+            st.error(str(exc));return False
+        _request(action_key,label,details,None,args,kwargs)
     if st.session_state.get(PREFIX+'pending',{}).get('key')==action_key:_dialog()
     return False
 

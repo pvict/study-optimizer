@@ -1,4 +1,5 @@
 """Interface local do Marco 1: biblioteca, importação, inspeção e auditoria."""
+from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success
 from .action_feedback import bind_actions,flush_toast
 
@@ -11,22 +12,9 @@ import pandas as pd
 import streamlit as st
 
 from .exports import record_dicts, records_csv, report_json
-from .extraction import ImportFailure
 from .models import normalize_path
-from .service import import_bytes
 from .storage import Repository
-from .matching_ui import render_crossing
-from .assessment_ui import render_assessment
-from .dashboard_ui import render_dashboard
-from .planner_ui import render_planner
-from .planning_ui import render_planning
-from .longitudinal_ui import render_evolution
-from .backups_ui import render_backups
 from .workspace import active_data_dir, activate_data_dir
-from .guided_ui import render_today, render_path
-from .guide_settings_ui import render_guide_settings
-from .reduction_ui import render_reduction
-from .adaptive_ui import render_adaptive
 from .study_style import apply_study_style
 
 
@@ -44,7 +32,7 @@ def _date(value) -> str:
 
 def _library(repo: Repository):
     st.subheader("Sua biblioteca de relatórios")
-    st.caption("Cada arquivo é preservado. Relatórios equivalentes ficam identificados e não são somados.")
+    explain("Cada arquivo é preservado. Relatórios equivalentes ficam identificados e não são somados.")
     entries = repo.list_reports()
     if not entries:
         st.info("Nenhum relatório importado. Abra a aba Importar relatórios para começar.")
@@ -73,6 +61,8 @@ def _import_tab(repo: Repository):
     st.write("Selecione os PDFs exportados manualmente. O tipo, o filtro e a data serão lidos do conteúdo.")
     uploads = st.file_uploader("Relatórios PDF", type=["pdf"], accept_multiple_files=True, key="pdf_uploads")
     if confirm_button("Importar arquivos selecionados", type="primary", disabled=not uploads,action_key='ui_72',details='Arquivos: '+', '.join(u.name for u in uploads or [])+'. Os originais serão preservados e os dados ficarão disponíveis no app.'):
+        from .extraction import ImportFailure
+        from .service import import_bytes
         for upload in uploads or []:
             with st.spinner(f"Validando {upload.name}…"):
                 try:
@@ -88,7 +78,7 @@ def _import_tab(repo: Repository):
                 except (ImportFailure, ValueError, OSError, sqlite3.Error) as exc:
                     st.error(f"{upload.name}: {exc}")
         st.button("Atualizar biblioteca", on_click=lambda: None)
-    st.caption("Originais em data/originals · CSVs e JSONs em data/exports · Nenhuma conexão com a Osler.")
+    explain("Originais em data/originals · CSVs e JSONs em data/exports · Nenhuma conexão com a Osler.")
 
 
 def _inspect(report, repo: Repository):
@@ -100,7 +90,7 @@ def _inspect(report, repo: Repository):
     values = [report.summary.get("total"), report.summary.get("estudados"), sum(r.is_leaf for r in report.records), report.table_pages]
     for col, label, value in zip(columns, labels, values):
         col.metric(label, _number(value))
-    st.caption("Totais de acervo e estudo vêm da capa deste relatório. A tabela pode ter um recorte menor. Pais e filhos não são somados.")
+    explain("Totais de acervo e estudo vêm da capa deste relatório. A tabela pode ter um recorte menor. Pais e filhos não são somados.")
     if report.kind == "qbank":
         st.info("Acerto PDF: tentativa não identificada. Primeira tentativa, última tentativa e número de questões distintas permanecem ausentes.")
     else:
@@ -189,12 +179,18 @@ def run():
     from .study_navigation_ui import render_navigation
     view=render_navigation()
     if view == "Plano de questões":
+        from .adaptive_ui import render_adaptive
         render_adaptive(repo)
         flush_toast()
         return
     if view == "Diminuir revisões":
         from .error_cards_ui import render_flashcards
         render_flashcards(repo)
+        flush_toast()
+        return
+    if view == 'Atualizar dados':
+        from .data_updates_ui import render_updates
+        render_updates(repo)
         flush_toast()
         return
     _advanced_tools(repo, project_root)
@@ -204,6 +200,8 @@ def run():
 def _advanced_tools(repo, project_root):
     st.title("Arquivos e ferramentas")
     st.caption("Seus relatórios, importações e cópias de segurança.")
+    from .data_updates_ui import open_updates
+    st.button('Atualizar Planner e cards de erros',key='files_updates',icon=':material/sync:',on_click=open_updates)
     all_entries = repo.list_reports()
     entries = repo.list_reports(include_duplicates=False)
     def open_backup(): st.session_state['advanced_view']='Backup e restauração'
@@ -238,23 +236,31 @@ def _file_tool(repo,project_root,report,view,legacy):
         render_legacy_details(repo,_open_tool)
         return
     if view == "Roteiro simples":
+        from .guided_ui import render_today
         render_today(repo)
         return
     if view == "Meu caminho":
+        from .guided_ui import render_path
         render_path(repo)
         return
     if view == "Preferências do roteiro":
+        from .guide_settings_ui import render_guide_settings
         render_guide_settings(repo)
         return
     if view == "Painel":
+        from .dashboard_ui import render_dashboard
         render_dashboard(repo)
     elif view == "Planejador de Suspensões":
+        from .planner_ui import render_planner
         render_planner(repo)
     elif view == "Simulação e rotina":
+        from .planning_ui import render_planning
         render_planning(repo)
     elif view == "Evolução":
+        from .longitudinal_ui import render_evolution
         render_evolution(repo)
     elif view == "Backup e restauração":
+        from .backups_ui import render_backups
         render_backups(repo, project_root)
     if view == "Dados e classificação":
         _data_tabs(repo, report)
@@ -278,7 +284,9 @@ def _data_tabs(repo, report):
     with audit:
         _validation(report, repo)
     with crossing:
+        from .matching_ui import render_crossing
         render_crossing(repo)
     with assessment:
+        from .assessment_ui import render_assessment
         st.caption('Classificação A–D · legado')
         render_assessment(repo)

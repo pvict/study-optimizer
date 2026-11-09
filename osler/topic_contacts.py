@@ -1,8 +1,9 @@
 """A próxima vaga no calendário não é a data ideal de vencimento da revisão."""
 from copy import deepcopy
+from datetime import timedelta
 from .planning import _date
 from .study_models import AdaptiveProfile
-from .study_calendar import forecast_calendar
+from .study_calendar import iter_forecast_calendar
 
 
 def forecast_topic_contacts(service,view):
@@ -11,14 +12,18 @@ def forecast_topic_contacts(service,view):
         raise ValueError('O plano mudou. Atualize a tabela para calcular as próximas revisões.')
     days=min(548,(_date(p.exam_date)-_date(day)).days+1)
     if days<=0: return {'contacts':{},'end':day,'finished':True}
-    calendar=forecast_calendar(view['planning_states'],p,day,days,view['sessions'],service.store.days(),view['plan'],view['agenda'],next_contact_only=True)
+    calendar=iter_forecast_calendar(view['planning_states'],p,day,days,view['sessions'],service.store.days(),view['plan'],view['agenda'],next_contact_only=True)
+    ids={t['topic_id'] for t in view['planning_states']}
     contacts={}
     for plan in calendar:
         for item in plan['items']:
             contacts.setdefault(item['topic_id'],{'date':plan['date'],'stage':item['stage'],'questions':item['questions']})
+            for member in item.get('group_members',[]):
+                contacts.setdefault(member,{'date':plan['date'],'stage':'Bloco conjunto: '+item['path'][-1],
+                                             'questions':None,'group_topic_id':item['topic_id']})
+        if ids.issubset(contacts): break
     if token!=service.agenda.token(): raise ValueError('O plano mudou. Atualize a tabela para calcular as próximas revisões.')
-    ids={t['topic_id'] for t in view['planning_states']}
-    return {'contacts':contacts,'end':calendar[-1]['date'],'finished':False,
+    return {'contacts':contacts,'end':(_date(day)+timedelta(days=days-1)).isoformat(),'finished':False,
             'coverage':{'scheduled':len(ids&contacts.keys()),'total':len(ids)},
             'unassigned_ids':sorted(ids-contacts.keys())}
 

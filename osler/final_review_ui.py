@@ -11,6 +11,7 @@ from dataclasses import replace
 
 
 def open_final_review():
+    st.session_state['calendar_management_open']=True
     st.session_state['adaptive_view']='Calendário'
     st.session_state['final_review_open']=True
 

@@ -11,6 +11,7 @@ def test_calendar_with_applied_final_review_can_render_and_undo(tmp_path,sample_
     monkeypatch.setenv('OSLER_DATA_DIR',str(service.repository.root))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     open_view(app,adaptive='Calendário')
+    app.session_state['calendar_management_open']=True;app.run()
     assert not app.exception
     from datetime import date
     app.date_input(key='calendar_reference').set_value(date(2026,10,29)).run()
@@ -30,6 +31,7 @@ def test_calendar_mock_day_undo_survives_new_browser_session(tmp_path,sample_pdf
     monkeypatch.setenv('OSLER_DATA_DIR',str(service.repository.root))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     open_view(app,adaptive='Calendário')
+    app.session_state['calendar_management_open']=True;app.run()
     assert not app.exception
     undo=next(b for b in app.button if b.key and b.key.startswith('calendar_undo_mock_'))
     confirm_action(undo.click().run())
@@ -45,5 +47,6 @@ def test_final_review_undo_remains_available_after_exam_is_void(tmp_path,sample_
     monkeypatch.setenv('OSLER_DATA_DIR',str(service.repository.root))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     open_view(app,adaptive='Calendário')
+    app.session_state['calendar_management_open']=True;app.run()
     assert not app.exception
     assert any(b.key and b.key.startswith('final_undo_') for b in app.button)

@@ -137,18 +137,27 @@ def attention_filter(rows,group='Atenção',search=''):
 
 
 def attention_table(rows):
-    """Texto explícito para a tabela nativa, inclusive em telas estreitas."""
+    """Incidências numéricas ordenáveis, sem somar fontes ou atribuir valores de pais."""
+    contexts={i['dataset_id']:i for row in rows for i in row['incidences']}
+    columns={}
+    for dataset_id,i in contexts.items():
+        label='Incidência (%)' if i['unit']=='percentual' else 'Incidência'
+        if sum(c['unit']==i['unit'] for c in contexts.values())>1:
+            label+=' · '+', '.join(i['institutions'])+f' · tabela #{dataset_id}'
+        elif i['unit']=='questoes':label+=' bruta'
+        columns[dataset_id]=label
+    empty={label:None for label in columns.values()} or {'Incidência bruta':None}
     result=[]
     for row in rows:
-        a=row['accuracy']; c=row['conviction']; incidence=[]; sources=[]
+        a=row['accuracy']; c=row['conviction']; incidence=dict(empty); sources=[]
         for i in row['incidences']:
             value=f"{i['value']:g}"+('%' if i['unit']=='percentual' else ' questões')
             scope='tema' if i['exact'] else 'grupo '+i['path'][-1]+' (não individual)'
             institutions=', '.join(i['institutions'])
-            incidence.append(institutions+': '+value+' · '+scope)
-            sources.append(f"{institutions} · {i['observed_date']} · tabela #{i['dataset_id']}")
+            if i['exact']:incidence[columns[i['dataset_id']]]=i['value']
+            sources.append(f"{institutions}: {value} · {scope} · {i['observed_date']} · tabela #{i['dataset_id']}")
         result.append({'Tema':row['path'][-1],'Caminho':' → '.join(row['path']),
-                       'Incidência bruta':' | '.join(incidence) or 'Não informada',
+                       **incidence,
                        'Fonte da incidência':' | '.join(sources) or 'Sem tabela aplicável',
                        'Acerto':(f"{100*a['rate']:.1f}% · n={a['n']} · {a['mode']}"+
                                  (' · aproximado' if a['approximate'] else ' · contagens exatas')) if a['rate'] is not None else 'Sem medição',

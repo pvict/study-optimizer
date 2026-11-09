@@ -40,7 +40,8 @@ def test_registration_visible_kind_inline_error_and_next_action_are_idempotent(t
     assert any(g.key=='study_kind' for g in app.get('button_group'))
     app.number_input(key='study_n').set_value(20)
     app.number_input(key='study_correct').set_value(21)
-    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
+    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    assert not any(b.key=='action_confirm' for b in app.button)
     assert not app.exception and any('Acertos não podem passar de 20' in e.value for e in app.error)
     assert app.number_input(key='study_correct').value==21
     assert not AdaptiveService(repo).store.events()

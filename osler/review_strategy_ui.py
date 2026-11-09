@@ -29,17 +29,22 @@ def _show(preview):
 def render_review_strategy(service):
     record=service.store.profile(); current=record['configured_profile']['review_strategy']
     with st.expander('Como o app calcula as revisões'):
-        st.write('Estratégia atual: '+STRATEGIES[current]+'. Acertos e amostra orientam doses e intervalos. A convicção mantém seus retornos específicos. As regras precisam de validação com seu histórico.')
+        st.write('Estratégia atual: '+STRATEGIES[current]+'. Acertos e amostra orientam doses e intervalos.')
+        mode=st.radio('Como organizar os retornos',['theme','linked'],index=0 if record['configured_profile']['return_mode']=='theme' else 1,
+            format_func={'theme':'Uma revisão por tema','linked':'Tema e lotes de retorno separados'}.get,key='return_mode_'+str(record['id']))
+        with st.expander('O que muda nesta escolha?'):
+            st.write('Por tema: os erros orientam a próxima prática espaçada. Lotes de sete dias ficam apenas como referência, sem tarefas extras. No modo vinculado, eles também disputam vagas no calendário. Resultados e convicção são preservados nos dois modos.')
         selected=st.radio('Estratégia de revisão',list(STRATEGIES),index=list(STRATEGIES).index(current),
             format_func=STRATEGIES.get,key='review_strategy_'+str(record['id']))
-        if st.button('Ver prévia da estratégia',key='review_strategy_preview',disabled=selected==current):
-            try: st.session_state['review_strategy_preview_data']=service.preview_review_strategy(selected)
+        changed=selected!=current or mode!=record['configured_profile']['return_mode']
+        if st.button('Ver prévia da estratégia',key='review_strategy_preview',disabled=not changed):
+            try: st.session_state['review_strategy_preview_data']=service.preview_review_strategy(selected,mode)
             except ValueError as exc: st.error(str(exc))
         preview=st.session_state.get('review_strategy_preview_data')
-        if preview and preview['strategy']==selected and preview['profile_id']==record['id']:
+        if preview and preview['strategy']==selected and preview.get('return_mode')==mode and preview['profile_id']==record['id']:
             _show(preview); stale=preview['token']!=service.agenda.token()
             if stale: st.info('Os dados mudaram. Recalcule a prévia antes de aplicar.')
-            if confirm_button('Aplicar estratégia',type='primary',key='review_strategy_apply',disabled=stale or selected==current,action_key='review_strategy_ui_40'):
+            if confirm_button('Aplicar estratégia',type='primary',key='review_strategy_apply',disabled=stale or not changed,action_key='review_strategy_ui_40'):
                 try: notify_success(service.apply_review_strategy(preview),'Agenda atualizada.')
                 except ValueError as exc: st.error(str(exc)); return
                 st.session_state.pop('review_strategy_preview_data',None)

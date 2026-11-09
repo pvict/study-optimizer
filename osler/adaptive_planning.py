@@ -12,7 +12,7 @@ from .planning import _date, _number
 from .topic_spacing import spacing_state, learning_state
 from .review_queue import review_queue
 from .topic_trajectory import question_dose, next_stage
-from .study_allocation import category_allocation,practice_minimum
+from .study_allocation import category_allocation,practice_minimum,practice_capacity
 from .review_policy import initial_interval,domain_evidence,review_order
 from .balanced_reviews import confirmed_deficit,coordinate_due,unresolved_linked_failure,daily_evidence,operational_contact_due
 
@@ -111,7 +111,7 @@ def _series(entries):
     return stats
 
 
-def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None,error_paths=()):
+def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None,error_paths=(),return_dates=None):
     day=_date(as_of)
     params=profile.parameters
     balanced=profile.review_strategy=='balanced_v2'
@@ -126,7 +126,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         key=tuple(normalize_path(path))
         if contact<=as_of: contact_paths[key]=max(contact,contact_paths.get(key,contact))
     states=[]
-    queued=review_queue(sessions) if all('session_id' in s for s in sessions) else []
+    queued=review_queue(sessions,return_dates) if all('session_id' in s for s in sessions) else []
     base_profile=profile
     error_keys={tuple(normalize_path(p)) for p in error_paths}
     for topic in topics:
@@ -136,9 +136,10 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         snapshot=topic.get('planner_snapshot')
         if snapshot and snapshot['observed_date']>as_of: snapshot=None
         safety_rate=snapshot['confident_accuracy_pct']/100 if snapshot and snapshot['confident_accuracy_pct'] is not None else None
-        entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') else by_path[key]
-        pending=[q for q in queued if tuple(normalize_path(q['path']))==key or topic.get('rollup') and tuple(normalize_path(q['path']))[:len(key)]==key]
-        linked_adverse=balanced and unresolved_linked_failure(entries,pending)
+        entries=[e for p,values in by_path.items() if p[:len(key)]==key for e in values] if topic.get('rollup') and not topic.get('group_members') else by_path[key]
+        evidence_pending=[q for q in queued if tuple(normalize_path(q['path']))==key or topic.get('rollup') and not topic.get('group_members') and tuple(normalize_path(q['path']))[:len(key)]==key]
+        pending=evidence_pending if profile.return_mode=='linked' else []
+        linked_adverse=balanced and unresolved_linked_failure(entries,evidence_pending,profile)
         committed=bool(pending or topic.get('cards_reduced_day') or any(e['kind']=='bloco' and (not profile.start_date or e['day']>=profile.start_date) for e in entries))
         recent=[e for e in entries if e['kind']=='bloco' and (day-_date(e['day'])).days<=profile.recent_days]
         fresh=[e for e in recent if e['mode']=='novas']
@@ -192,7 +193,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if not committed: interval=initial_interval(snapshot if snapshot_current else None,profile,incidence_strength)
         if alert and not balanced: interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
         if balanced:
-            latest_primary=next((e for e in reversed(daily_evidence(entries,as_of)) if e['mode']==source and e['n']>=profile.min_block),None)
+            latest_primary=next((e for e in reversed(daily_evidence(entries,as_of,profile.min_block)) if e['mode']==source and e['n']>=profile.min_block),None)
             if latest_primary and latest_primary['rate']<params.failure_threshold: interval=min(interval,params.failure_interval)
         if balanced and (manual_adverse or registered_error): interval=min(interval,params.failure_interval)
         if reported_difficulty: interval=min(interval,params.first_interval)
@@ -324,12 +325,14 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     return sorted(states,key=lambda t:review_order(t,as_of))
 
 
-def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=(),allocation_credits=None):
+def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=(),allocation_credits=None,unavailable_ids=()):
     profile.validate()
     not_started=bool(profile.start_date and as_of<profile.start_date)
     if not_started: kind='descanso'; extra_topics=None; reservations=None
     swaps=[] if not_started else swaps
-    excluded={topic_id for row in swaps for topic_id in row['excluded_ids']}
+    unavailable_ids=set(unavailable_ids)
+    if extra_topics: extra_topics=[e for e in extra_topics if e['topic_id'] not in unavailable_ids]
+    excluded={topic_id for row in swaps for topic_id in row['excluded_ids']}|unavailable_ids
     swapped_ids={row['topic_id'] for row in swaps}
     if question_target is None: _number(minutes,'Tempo disponível',integer=True,positive=True,maximum=720)
     else: _number(question_target,'Meta de questões',integer=True,maximum=1000)
@@ -382,8 +385,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     pinned=[]
     for row in swaps:
         t=by_id.get(row['topic_id'])
-        if not t or not row.get('extra_only') and sum(not p.get('is_extra_swap') for p in pinned)>=profile.max_topics: continue
-        q=min(row['remaining'],t['total'],max(0,budget-sum(p['questions'] for p in pinned)))
+        if not t or t['topic_id'] in unavailable_ids or not row.get('extra_only') and sum(not p.get('is_extra_swap') for p in pinned)>=profile.max_topics: continue
+        q=min(row['remaining'],practice_capacity(t,profile),max(0,budget-sum(p['questions'] for p in pinned)))
         if q:
             pinned.append({**t,'questions':q,'new_questions':min(q,t['available_new']),
                            'repeat_questions':max(0,q-t['available_new']),'added_by_user':False,
@@ -407,15 +410,16 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
         remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
-        group_budget=remaining_budget if row.get('manual_date') or row.get('daily_proposal') or row.get('swap_return') or row.get('final_review') or row.get('correction') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
-        q=min(row['remaining'],t['total'],group_budget,remaining_budget)
+        group_budget=remaining_budget if row.get('manual_date') or row.get('daily_proposal') or row.get('swap_return') or row.get('return_unavailable') or row.get('final_review') or row.get('correction') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        q=min(row['remaining'],t['total'] if row.get('correction') else practice_capacity(t,profile),group_budget,remaining_budget)
         if q:
             group_targets[group]=max(0,group_targets[group]-q)
             recovered.append({**t,'questions':q,'new_questions':min(q,t['available_new']),'repeat_questions':max(0,q-t['available_new']),
                               'added_by_user':False,'rescheduled':not row.get('daily_proposal',False),'daily_proposal_preserved':bool(row.get('daily_proposal')),'reschedule_date':row['date'],'original_due':row['original_due'],
                               'swap_return':row.get('swap_return'),
+                              'return_unavailable':bool(row.get('return_unavailable')),
                               'correction':bool(row.get('correction')),'source_exam_key':row.get('source_exam_key'),
-                              'reason':'Prática dos temas errados no simulado' if row.get('correction') else 'Data escolhida na prévia do rodízio' if row.get('manual_date') else 'Bloco já previsto para hoje; as questões excedentes não o substituem' if row.get('daily_proposal') else 'Recuperação reagendada; atraso original preservado'})
+                              'reason':'Retorno adiado por indisponibilidade na Osler' if row.get('return_unavailable') else 'Prática dos temas errados no simulado' if row.get('correction') else 'Data escolhida na prévia do rodízio' if row.get('manual_date') else 'Bloco já previsto para hoje; as questões excedentes não o substituem' if row.get('daily_proposal') else 'Recuperação reagendada; atraso original preservado'})
     budget-=sum(r['questions'] for r in recovered)
     recovery_ids={r['topic_id'] for r in recovered}
     extra_counts={t['topic_id']:t['questions'] for t in extras}
@@ -427,8 +431,9 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     candidates,allocation_profile,capacity=capacity_policy(capacity_states if capacity_states is not None else states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits,
         eligible_ids={t['topic_id'] for t in states if t['topic_id'] not in recovery_ids|excluded|swapped_ids and
                       (not t.get('reschedule_date') or t['reschedule_date']<=as_of)},
-        allocated_questions=allocated_questions,available_slots=max(0,profile.max_topics-len(recovered)-len(base_pins)))
-    if swaps:
+        allocated_questions=allocated_questions,available_slots=max(0,profile.max_topics-len(recovered)-len(base_pins)),
+        new_done_questions=max(0,round((question_target if question_target is not None else target)*profile.new_share)-group_targets['new']))
+    if swaps and not swapped_ids & unavailable_ids:
         latest=max(swaps,key=lambda r:r.get('id',0))
         if 'allowed_peers' in latest:
             active_targets={r['origin_id']:r['topic_id'] for r in swaps if 'origin_id' in r}
@@ -438,8 +443,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             allocation_profile=replace(profile,new_share=share)
             capacity.update(effective_share=share,user_swaps=True,deferred_admissions=0)
     candidate_ids={t['topic_id'] for t in candidates}
-    candidates=[{**t,'intake_protected':t['topic_id']==capacity.get('protected_intake_topic')} for t in states if t['topic_id'] in candidate_ids]
-    available=[{**t,'allocation_capacity':t['total']-extra_counts.get(t['topic_id'],0)} for t in candidates
+    candidates=[{**t,'intake_protected':t['topic_id']==capacity.get('protected_intake_topic') or t['topic_id'] in capacity.get('protected_new_topic_ids',[])} for t in states if t['topic_id'] in candidate_ids]
+    available=[{**t,'allocation_capacity':practice_capacity(t,profile)-extra_counts.get(t['topic_id'],0)} for t in candidates
                if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and
                t['total']>0 and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,min(practice_minimum(t,minimum),t['recommended_questions']) if t.get('allow_small_lot') else practice_minimum(t,minimum))]
@@ -481,6 +486,9 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     from .planner_snapshot import planner_supply
     bookings={r['topic_id']:r for r in reservations or []}
     for item in items:
+        if topic_is_new(item) and item['questions']>item['total']:
+            item['external_bank_questions']=item['questions']-item['new_questions']
+            item['repeat_questions']=0
         row=bookings.get(item['topic_id']) if item.get('rescheduled') or item.get('daily_proposal_preserved') else None
         completed=sum(e['questions'] for e in today if e['kind']=='bloco' and normalize_path(e['path'])==normalize_path(item['path']))
         required=item['questions']+completed

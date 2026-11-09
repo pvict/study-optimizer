@@ -1,10 +1,12 @@
 """Treino, resultado e reforço em controles nativos no Bento existente."""
-from .action_feedback import confirm_button,confirm_submit,notify_success
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success,draft_editor,append_editor_draft
 
 from datetime import date,timedelta
 
 import pandas as pd
 import streamlit as st
+from .cloud_boundary import cloud_boundary
 
 from .exam_practice import next_correction_day
 from .mock_exams import MockExams
@@ -40,23 +42,34 @@ def _apply(service,preview,key,method,label):
         except ValueError as exc: st.error(str(exc))
 
 
+@st.fragment
+@cloud_boundary
 def render_area_practice(service):
     _notice(); today=today_local(); old=service.area_schedule(); p=service.store.profile()['profile']
     request=(old or {}).get('request',{})
+    if st.session_state.pop('area_reschedule_requested',False) and old:
+        st.session_state['area_apply_preview']=service.preview_area_schedule(**request)
     with st.container(key='bento-area-practice-intro'):
         st.subheader('Treine por área e instituição')
         st.write('Misture os temas de uma grande área. O rodízio percorre as cinco áreas e todas as instituições escolhidas.')
-        st.caption('Comece com 1 treino de 20 questões por semana, dentro da meta diária. Ajuste a frequência na prévia.')
+        explain('Comece com 1 treino de 20 questões por semana, dentro da meta diária. Ajuste a frequência na prévia.')
+    pending=[r for r in (old or {}).get('occurrences',[]) if r.get('recovery')]
+    if pending:
+        st.warning(f'{len(pending)} treino(s) atrasado(s). A recuperação automática preserva a data original.')
+        st.dataframe(pd.DataFrame([{'Treino':r['institution']+' · '+r['area'],'Atrasado desde':_day(r['missed_date']),
+            'Recuperação':_day(r['date']) if r['status']!='waiting' else 'Sem vaga','Questões':r['questions']} for r in pending]),hide_index=True,width='stretch')
+    if old and st.button('Reagendar treinos · abrir prévia',key='area_open_reschedule'):
+        st.session_state['area_apply_preview']=service.preview_area_schedule(**old['request']);st.rerun()
     with st.expander('Configurar o rodízio',expanded=not bool(old)):
         institutions=st.text_area('Instituições · uma por linha',value='\n'.join(request.get('institutions') or service.guide.settings()['settings'].get('institutions') or ['UNESP']),key='area_institutions')
-        with st.form('area_schedule_form'):
+        with st.container(key='area_schedule_form'):
             left,right=st.columns(2)
             first=left.date_input('Primeiro treino',value=date.fromisoformat(request.get('first',max(today.isoformat(),p.get('start_date') or today.isoformat()))),key='area_first',format='DD/MM/YYYY')
             end=right.date_input('Programar até',value=date.fromisoformat(request.get('end',p['exam_date'])),key='area_end',format='DD/MM/YYYY')
             frequency=left.radio('Treinos por semana',[1,2],index=request.get('frequency',1)-1,horizontal=True,key='area_frequency')
             questions=right.number_input('Questões por treino',min_value=1,max_value=1000,value=request.get('questions',20),step=1,key='area_questions')
             st.caption('Com dois treinos, as sugestões ficam separadas por três e quatro dias. Você pode mover cada data depois. Nenhum peso de instituição é alterado.')
-            submitted=st.form_submit_button('Ver prévia do rodízio',key='area_preview')
+            submitted=st.button('Ver prévia do rodízio',key='area_preview')
         if submitted:
             try: st.session_state['area_apply_preview']=service.preview_area_schedule(first.isoformat(),end.isoformat(),frequency,int(questions),[i.strip() for i in institutions.splitlines() if i.strip()],request.get('exceptions',{}),request.get('topic_dates',{}))
             except ValueError as exc: st.error(str(exc))
@@ -89,7 +102,7 @@ def render_area_practice(service):
         with st.container(border=True,key='bento-area-preview'):
             st.subheader('Confira antes de aplicar')
             st.write(f"{preview['request']['questions']} questões por treino serão reservadas dentro da meta de cada dia. Os temas comuns usam o restante. Resultados anteriores ficam preservados.")
-            st.caption('Conflitos são encaixados em até sete dias da sugestão, respeitando capacidade e compromissos protegidos. Entre datas igualmente próximas, a agenda favorece menor pressão de revisões prioritárias. Confira o impacto antes de aplicar.')
+            explain('Conflitos são encaixados em até sete dias da sugestão, respeitando capacidade e compromissos protegidos. Entre datas igualmente próximas, a agenda favorece menor pressão de revisões prioritárias. Confira o impacto antes de aplicar.')
             st.dataframe(pd.DataFrame([{'Sugestão original':_day(r['original_date']),'Data prevista':_day(r['date']),'Instituição':r['institution'],'Área':r['area'],'Situação':r.get('reason','Data escolhida' if r.get('status')=='manual' else 'Programado') if r['date'] else 'Removido'} for r in preview['occurrences']]),hide_index=True,width='stretch')
             blocked=sum(r.get('status')=='blocked' for r in preview['occurrences'])
             moved=sum(r.get('status')=='moved' for r in preview['occurrences'])
@@ -111,9 +124,9 @@ def _edit_area_preview(service,preview):
             st.session_state['area_apply_preview']=service.preview_area_schedule(**request)
             st.rerun()
         except ValueError as exc: st.error(str(exc))
-    with st.expander('Ajustar um treino nesta prévia'):
+    with st.expander('Ajustar um treino nesta prévia',expanded=True):
         recorded={r['exam'].get('practice_id') for r in MockExams(service.repository).active()}
-        choices={r['id']:r for r in preview['occurrences'] if (r['date'] or r['original_date'])>=today.isoformat() and r['id'] not in recorded}
+        choices={r['id']:r for r in preview['occurrences'] if r['id'] not in recorded and r.get('date')}
         if choices:
             _valid_choice('area_preview_train',choices)
             key=st.selectbox('Treino a ajustar',list(choices),format_func=lambda k:_day(choices[k]['date'])+' · '+choices[k]['institution']+' · '+choices[k]['area'],key='area_preview_train')
@@ -151,35 +164,44 @@ def _area_result(service):
         if not available:
             st.caption('Todos os treinos disponíveis já têm resultado ou estão pausados.')
             return
+        requested=st.session_state.pop('area_result_pending',None)
+        if requested in available:st.session_state['area_result_id']=requested
         _valid_choice('area_result_id',available)
         chosen=st.selectbox('Qual treino você fez?',list(available),format_func=lambda k:_day(available[k]['date'])+' · '+available[k]['institution']+' · '+available[k]['area'],key='area_result_id')
         row=available[chosen]
         if st.session_state.get('area_result_current')!=chosen:
             for key in ('area_result_day','area_result_questions','area_result_correct','area_result_unseen'): st.session_state.pop(key,None)
             st.session_state['area_result_current']=chosen
-        with st.form('area_result_form'):
+        with st.container(key='area_result_form'):
             day=st.date_input('Data em que foi realizado',value=min(today_local(),date.fromisoformat(row['date'])),max_value=today_local(),key='area_result_day',format='DD/MM/YYYY')
             total=st.number_input('Questões realizadas',min_value=1,max_value=1000000,value=row['questions'],key='area_result_questions')
             correct=st.number_input('Acertos no treino',min_value=0,max_value=1000000,value=None,key='area_result_correct')
             unseen=st.checkbox('Todas eram questões inéditas para mim',key='area_result_unseen')
-            submitted=confirm_submit('Salvar resultado do treino',key='area_result_save',type='primary',action_key='exam_practice_ui_163',details=f"{row['institution']} · {row['area']} · {total} questões · {correct} acertos · {day.strftime('%d/%m/%Y') if day else 'não informada'}")
+            def validate():
+                if day is None:raise ValueError('Informe a data do treino.')
+                if correct is None:raise ValueError('Informe o número de acertos.')
+                if correct>total:raise ValueError('Acertos não podem passar do total de questões.')
+            submitted=confirm_button('Salvar resultado do treino',key='area_result_save',type='primary',action_key='exam_practice_ui_163',details=f"{row['institution']} · {row['area']} · {total} questões · {correct} acertos · {day.strftime('%d/%m/%Y') if day else 'não informada'}",validate=validate)
         if submitted:
             try:
                 if correct is None: raise ValueError('Informe o número de acertos.')
                 saved=notify_success(service.register_area_result(chosen,day.isoformat(),int(total),int(correct),unseen=unseen,token=service.agenda.token()),'Resultado registrado.')
-                st.session_state['correction_exam']=saved['exam_key']
-                st.session_state['mock_selected']=saved['exam_key']
+                st.session_state['mock_selection_pending']=saved['exam_key']
+                from .mock_result_followup_ui import request_error_topics
+                request_error_topics(saved)
                 st.session_state['practice_notice']='Treino salvo. Na aba Correção, informe os temas errados agora ou depois.'
                 st.rerun()
             except ValueError as exc: st.error(str(exc))
 
 
+@st.fragment
+@cloud_boundary
 def render_mock_correction(service):
     _notice()
     with st.container(key='bento-correction-intro'):
         st.subheader('Transforme os erros em próximos passos')
         st.write('Confira as respostas do simulado. Depois, pratique os temas errados em uma data própria, dentro da sua carga habitual.')
-        st.caption('Quarta-feira é apenas uma sugestão de organização. Os temas recebem quantidades diferentes conforme incidência disponível, dificuldade registrada e erros informados.')
+        explain('Quarta-feira é apenas uma sugestão de organização. Os temas recebem quantidades diferentes conforme incidência disponível, dificuldade registrada e erros informados.')
     sources=service.exam_learning_agenda()
     if sources:
         with st.expander('Agenda de correção · ver ou mudar datas'):
@@ -222,14 +244,16 @@ def render_mock_correction(service):
             path=' → '.join(topic['path'])
             if any(r['Tema completo']==path for r in draft): st.info('Esse tema já está na lista abaixo.')
             else:
-                draft.append({'Tema completo':path,'Erros':count})
+                new={'Tema completo':path,'Erros':count}
+                draft.append(new)
+                append_editor_draft(draft_key+'_editor',new)
                 st.rerun()
-    with st.form('correction_errors_form'):
-        edited=st.data_editor(pd.DataFrame(draft,columns=['Tema completo','Erros']),num_rows='dynamic',hide_index=True,width='stretch',
+    with st.container(key='correction_errors_form'):
+        edited=draft_editor(pd.DataFrame(draft,columns=['Tema completo','Erros']),num_rows='dynamic',hide_index=True,width='stretch',
             column_config={'Tema completo':st.column_config.TextColumn('Tema específico · caminho completo',required=True),
                            'Erros':st.column_config.NumberColumn('Erros · opcional',min_value=1,step=1)},key=draft_key+'_editor')
-        st.caption('Se não souber a quantidade, deixe Erros vazio. O app usa o tema para o reforço sem inventar seu percentual de acerto. Exclua uma linha para retirar um tema.')
-        submitted=confirm_submit('Salvar temas errados',key='correction_save_errors',action_key='exam_practice_ui_230')
+        explain('Se não souber a quantidade, deixe Erros vazio. O app usa o tema para o reforço sem inventar seu percentual de acerto. Exclua uma linha para retirar um tema.')
+        submitted=confirm_button('Salvar temas errados',key='correction_save_errors',action_key='exam_practice_ui_230')
     if submitted:
         try:
             checked=[]
@@ -249,7 +273,7 @@ def render_mock_correction(service):
         marker=next((r for r in sources if r['exam_key']==selected),{})
         start=st.date_input('Primeiro dia de prática',value=max(today_local(),date.fromisoformat((active or {}).get('start',marker.get('date',next_correction_day(exam['day']))))),min_value=today_local(),key='correction_start',format='DD/MM/YYYY')
         budget=st.number_input('Até quantas questões de correção por dia?',min_value=1,max_value=1000,value=(active or {}).get('questions',40),key='correction_budget')
-        st.caption('Essa quantidade faz parte da meta diária. Os temas comuns usam o restante. Doses limitadas à recomendação atual; não aumentamos o bloco apenas para preencher espaço.')
+        explain('Essa quantidade faz parte da meta diária. Os temas comuns usam o restante. Doses limitadas à recomendação atual; não aumentamos o bloco apenas para preencher espaço.')
         if st.button('Ver prévia da distribuição',key='correction_distribution_preview'):
             try: st.session_state['correction_apply_preview']=service.preview_mock_correction(selected,start.isoformat(),int(budget))
             except ValueError as exc: st.error(str(exc))
@@ -265,7 +289,7 @@ def render_mock_correction(service):
                 st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Questões':r['questions'],'Motivo':r['reason']} for r in preview['unassigned']]),hide_index=True,width='stretch')
             else: _apply(service,preview,'correction_apply','apply_mock_correction','Reservar prática dos erros')
         if active:
-            st.caption('Programação aplicada. Registre os blocos em Hoje; fazer o reforço não apaga os erros do simulado nem comprova domínio.')
+            explain('Programação aplicada. Registre os blocos em Hoje; fazer o reforço não apaga os erros do simulado nem comprova domínio.')
             st.dataframe(_rows(active['rows']),hide_index=True,width='stretch')
             if confirm_button('Desfazer esta distribuição',key='correction_undo',action_key='exam_practice_ui_268'):
                 try: notify_success(service.cancel_replan(active['id']),'Agenda atualizada.');st.rerun()

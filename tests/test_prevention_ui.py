@@ -34,6 +34,7 @@ def test_preventive_panel_handles_no_forecast_risk(tmp_path,monkeypatch,project_
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     open_view(app,adaptive='Calendário')
+    app.session_state['calendar_management_open']=True;app.run()
     app.toggle(key='prevention_enabled').set_value(True).run()
     assert not app.exception
     assert any('nenhuma pendência prevista' in i.value.lower() for i in app.info)

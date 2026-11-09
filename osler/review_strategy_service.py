@@ -12,10 +12,10 @@ class ReviewStrategyServiceMixin:
     def review_strategy_history(self):
         return [r for r in self.agenda.records() if r.get('kind')=='review_strategy.change']
 
-    def preview_review_strategy(self,strategy):
+    def preview_review_strategy(self,strategy,return_mode=None):
         if strategy not in STRATEGIES: raise ValueError('Escolha uma estratégia de revisão válida.')
         day=today_local().isoformat(); token=self.agenda.token(); record=self.store.profile()
-        effective=replace(AdaptiveProfile(**record['profile']),review_strategy=strategy)
+        effective=replace(AdaptiveProfile(**record['profile']),review_strategy=strategy,return_mode=return_mode or record['profile']['return_mode']).validate()
         before=self.overview(day); after=self.overview(day,_profile_override=effective.to_dict())
         count=max(1,min(28,(_date(effective.exam_date)-_date(day)).days+1))
         def forecast(view):
@@ -37,14 +37,14 @@ class ReviewStrategyServiceMixin:
                 changes.append({'topic_id':t['topic_id'],'path':t['path'],
                     'before':{k:previous.get(k) for k in fields},'after':{k:t.get(k) for k in fields}})
         if token!=self.agenda.token(): raise ValueError('Os dados mudaram. Recalcule a prévia.')
-        return {'strategy':strategy,'token':token,'created_day':day,'profile_id':record['id'],
+        return {'strategy':strategy,'return_mode':effective.return_mode,'token':token,'created_day':day,'profile_id':record['id'],
                 'before':summary(before),'after':summary(after),'state_changes':changes,
                 'contacts':calendar_changes(a,b,include_quantities=True,include_additions=True),'window_end':b[-1]['date']}
 
     def apply_review_strategy(self,preview):
         if preview['token']!=self.agenda.token() or preview['created_day']!=today_local().isoformat():
             raise ValueError('Os dados mudaram. Recalcule a prévia.')
-        if self.preview_review_strategy(preview['strategy'])!=preview: raise ValueError('A prévia mudou. Recalcule antes de aplicar.')
+        if self.preview_review_strategy(preview['strategy'],preview['return_mode'])!=preview: raise ValueError('A prévia mudou. Recalcule antes de aplicar.')
         record=self.store.profile()
-        return self.store.save_profile(replace(AdaptiveProfile(**record['configured_profile']),review_strategy=preview['strategy']),
+        return self.store.save_profile(replace(AdaptiveProfile(**record['configured_profile']),review_strategy=preview['strategy'],return_mode=preview['return_mode']),
             preview['profile_id'],expected_planning_token=preview['token'],audit_preview=preview)

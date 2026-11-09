@@ -71,6 +71,10 @@ class ExamPracticeServiceMixin:
             day=row['date']
             if day and (day in exams or settings.get(day,{}).get('kind')=='descanso' or overrides.get(day,{}).get('mode') in EXCLUSIVE):
                 row.update(status='blocked',reason='Conflito com prova, simulado completo ou programação protegida; mova este treino.')
+        from .exam_practice import recover_area_occurrences
+        p=AdaptiveProfile(**self.store.profile()['profile'])
+        record['occurrences']=recover_area_occurrences(record['occurrences'],MockExams(self.repository).active(),today_local().isoformat(),
+            min(p.exam_date,record['request']['end']),p,settings,overrides,self.store.active(today_local().isoformat()),exams)
         return record
 
     def preview_area_schedule(self,first,end,frequency,questions,institutions,exceptions=None,topic_dates=None):
@@ -107,13 +111,15 @@ class ExamPracticeServiceMixin:
         if old:
             after={r['id']:r for r in occurrences}
             for row in old['occurrences']:
-                if (row['date'] or row['original_date'])<current or row['id'] in protected:
+                if row['id'] in protected or row['original_date']<current and row['id'] not in (exceptions or {}):
                     if row['id'] in (exceptions or {}) and exceptions[row['id']]!=row['date']:
                         raise ValueError('Preserve treinos passados e com resultado. Mude apenas as próximas ocorrências.')
                     after[row['id']]=dict(row)
             occurrences=sorted(after.values(),key=lambda r:(r['original_date'],r['id']))
         base=self.agenda.active(sessions,current,excluded_plan_ids=[old['id']] if old else [])
         settings=self.store.days(); exams={r['date'] for r in self.exam_dates() if r['kind']=='exam_date'}
+        from .exam_practice import recover_area_occurrences
+        occurrences=recover_area_occurrences(occurrences,results,current,end,p,settings,base['overrides'],sessions,exams)
         from .study_calendar import forecast_calendar
         horizon=min(90,max(1,(_date(end)-_date(current)).days+1))
         def project(agenda):
@@ -242,7 +248,10 @@ class ExamPracticeServiceMixin:
         if start>p.exam_date: raise ValueError('Escolha uma data dentro da preparação.')
         catalog,_=self.catalog(current)
         errors=validate_errors(context['errors'],catalog,exam['exam']['questions']-exam['exam']['correct'])
-        states=view['planning_states']
+        # A anotação pertence ao tema específico. Grupos são unidades da agenda,
+        # não substitutos da evidência individual nem novos denominadores.
+        catalog_ids={t['topic_id'] for t in catalog}
+        states=[t for t in view['states'] if t['topic_id'] in catalog_ids and not t.get('group_members')]
         institution=exam['exam'].get('institution')
         datasets=[d for d in self.guide.datasets() if institution and
             {tuple(normalize_path([i])) for i in d['institutions']}=={tuple(normalize_path([institution]))}]

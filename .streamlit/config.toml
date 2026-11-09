@@ -1,5 +1,5 @@
 [server]
-address = "127.0.0.1"
+address = "0.0.0.0"
 port = 8501
 headless = true
 enableStaticServing = true
@@ -9,7 +9,6 @@ enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false
-serverAddress = "127.0.0.1"
 
 [client]
 toolbarMode = "minimal"

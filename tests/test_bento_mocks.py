@@ -37,6 +37,8 @@ def test_summary_html_and_area_bars_escape_external_text_and_show_wilson():
 
 APP = '''
 import os
+import streamlit as st
+st.session_state.setdefault('mock_sections','Resultados')
 from osler.storage import Repository
 from osler.adaptive_service import AdaptiveService
 from osler.mock_exams_ui import render_mock_exams
@@ -74,6 +76,9 @@ def test_latest_summary_does_not_compare_accuracy_with_cutoff(tmp_path, monkeypa
     app = AppTest.from_string(APP, default_timeout=30).run()
     assert not app.exception
     assert any('Corte informado: 60.0%' in item.value for item in app.info)
+    assert not any('o acerto das questões não é comparado' in item.value for item in app.caption)
+    app.session_state['show_explanations']=True
+    app.run()
     assert any('o acerto das questões não é comparado' in item.value for item in app.caption)
     assert not any('Diferença para a referência' in item.value for item in app.caption)
 
@@ -100,6 +105,7 @@ def test_schedule_preview_is_separate_from_apply_and_keeps_study_unchanged(tmp_p
     monkeypatch.setenv('BENTO_MOCK_ROOT', str(tmp_path))
     service = AdaptiveService(Repository(tmp_path))
     app = AppTest.from_string(APP, default_timeout=30).run()
+    app.session_state['mock_sections']='Programação';app.run()
     assert not app.exception
     app.date_input(key='mock_schedule_first').set_value(date(2026, 10, 18))
     app.button(key='mock_schedule_preview').click().run()

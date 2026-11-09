@@ -205,9 +205,31 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         contacts=[(d['path'],d['day']) for d in self.guide.days() if d['status']!='descanso' and d['path']]
         from .study_errors import ErrorStore
         error_paths=ErrorStore(self.repository).adverse_paths(as_of)
-        states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
-        planning_topics=planning_frontier(all_topics,effective.min_block)
-        planning_states=topic_states(planning_topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)
+        states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))
+        from .topic_grouping import grouping_candidates,grouped_frontier,protect_group_evidence
+        blocked={r['topic_id'] for r in agenda['rows']}
+        blocked.update(t['topic_id'] for t in states if t.get('pending_reviews'))
+        blocked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]))
+        for swap in agenda.get('swaps',[]):
+            blocked.update(swap.get('excluded_ids',[])); blocked.add(swap.get('to_topic_id',swap.get('topic_id','')))
+        for cfg in agenda['overrides'].values():
+            blocked.update(r['topic_id'] for r in cfg.get('rows',[]))
+        groups=grouping_candidates(all_topics,self.guide.datasets(),effective,as_of,blocked)
+        planning_topics=grouped_frontier(all_topics,effective,groups)
+        # Trocar de modo não pode apagar retornos de blocos conjuntos já registrados.
+        from .topic_grouping import key as group_key
+        pending_paths={group_key(q['path']) for q in review_queue(sessions)}
+        saved_groups={group_key(g['path']):g for r in self.agenda.records() if r.get('kind')=='grouping.change'
+                      for g in r['preview'].get('groups',[])}
+        for parent in all_topics:
+            k=group_key(parent['path'])
+            if k not in pending_paths or k not in saved_groups or any(t['topic_id']==parent['topic_id'] for t in planning_topics):continue
+            members=[t for t in topics if group_key(t['path'])[:len(k)]==k]
+            planning_topics=[t for t in planning_topics if t['topic_id'] not in {m['topic_id'] for m in members}]
+            planning_topics.append({**parent,'rollup':True,'is_practice_unit':True,'group_members':[m['topic_id'] for m in members],
+                                   'group_member_paths':[m['path'] for m in members],'retained_group_return':True})
+        planning_states=topic_states(planning_topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))
+        protect_group_evidence(planning_states,states)
         opened=ErrorStore(self.repository).active(as_of)
         booked={r['topic_id'] for r in agenda['rows']}
         booked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]))
@@ -221,9 +243,16 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
             t['reserved']=t['topic_id'] in booked
         states=apply_triage(states,agenda.get('triage_policies',[]),as_of,booked)
         planning_states=apply_triage(planning_states,agenda.get('triage_policies',[]),as_of,booked)
+        from .study_agenda import unavailable_return_ids
+        unavailable_returns=unavailable_return_ids(agenda,as_of)
+        return_not_before={}
+        for record in agenda.get('return_deferrals',[]):
+            for topic_id in record['selected']:
+                return_not_before[topic_id]=max(record['available_from'],return_not_before.get(topic_id,record['available_from']))
         scheduled={r['topic_id']:r for r in agenda['rows']}
         for t in states+planning_states:
             if t['topic_id'] in scheduled: t['reschedule_date']=scheduled[t['topic_id']]['date']
+            if t['topic_id'] in return_not_before:t['return_not_before']=return_not_before[t['topic_id']]
             t.update(preventive_state(t,as_of,agenda.get('policies',[])))
         incidence=incidence_weights(topics,self.guide.datasets(),effective.institution_weights,as_of,effective.parameters)
         extras=[]
@@ -254,7 +283,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                 unavailable={r['topic_id'] for r in reservations}|{e['topic_id'] for e in extras}|{r['topic_id'] for r in swaps}
                 unavailable.update(key for r in swaps for key in r['excluded_ids'])
                 reservations=[*reservations,*[{**i,'date':as_of,'original_due':as_of,'daily_proposal':True} for i in completion['preserve'] if i['topic_id'] not in unavailable]]
-        plan=allocate_day(disjoint,effective,minutes,kind,allocation_sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None)
+        plan=allocate_day(disjoint,effective,minutes,kind,allocation_sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None,unavailable_ids=unavailable_returns)
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')
@@ -266,7 +295,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                      'session_versions':[(s['session_id'],s['version']) for s in sessions],
                      'incidence_contexts':incidence['contexts']})
         from .planner_completion import apply_completions
-        apply_completions(plan,agenda,as_of)
+        apply_completions(plan,agenda,as_of,day_settings.extra_topics)
         decorate_practice_plan(plan,agenda,as_of,sessions)
         exact=[e['entry'] for e in sessions if e['entry']['kind']=='bloco' and e['entry']['mode']=='novas' and e['entry']['correct'] is not None]
         n=sum(e['questions'] for e in exact)
@@ -279,11 +308,13 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         recorded_paths={tuple(normalize_path(e['entry']['path'])) for e in sessions}
         other_parents=[t for t in all_topics if t['topic_id'] not in known_ids and tuple(normalize_path(t['path'])) in recorded_paths]
         if other_parents:
-            states+=[{**t,'historical_aggregate':True} for t in topic_states(other_parents,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths)]
+            states+=[{**t,'historical_aggregate':True} for t in topic_states(other_parents,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))]
         return {'date':as_of,'planning_token':snapshot_token,'plan':plan,'states':states,'profile':profile.to_dict(),'profile_id':record['id'],'day':day,
-                'sessions':sessions,'sources':sources,'warnings':warnings,'portfolio':portfolio,'planning_states':planning_states,'review_queue':review_queue(sessions),
+                'sessions':sessions,'sources':sources,'warnings':warnings,'portfolio':portfolio,'planning_states':planning_states,
+                'review_queue':review_queue(sessions,agenda.get('return_dates')) if effective.return_mode=='linked' else [],
+                'reference_review_queue':review_queue(sessions,agenda.get('return_dates')),
                 'time_source':'Mediana de blocos registrados' if measured else 'Estimativa inicial ajustável',
-                'incidence':incidence,'agenda':agenda}
+                'incidence':incidence,'agenda':agenda,'grouping_candidates':groups}
 
     def export(self,view):
         self.store.save_plan(view['plan'])
@@ -292,17 +323,22 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         folder.mkdir(parents=True,exist_ok=True)
         output=StringIO()
         writer=csv.writer(output,delimiter=';')
-        writer.writerow(['Tema','Questões','Do banco ainda não respondidas (documental)','Repetição sugerida','Motivo'])
-        writer.writerows([_safe_cell(' → '.join(t['path'])),t['questions'],t['new_questions'],t['repeat_questions'],t['reason']] for t in view['plan']['items'])
+        writer.writerow(['Tema','Questões','Do banco ainda não respondidas (documental)','Repetição sugerida','Motivo','Complemento fora do acervo importado'])
+        writer.writerows([_safe_cell(' → '.join(t['path'])),t['questions'],t['new_questions'],t['repeat_questions'],t['reason'],t.get('external_bank_questions',0)] for t in view['plan']['items'])
         write_immutable(folder/'plano.json',data)
         write_immutable(folder/'plano.csv',output.getvalue().encode('utf-8-sig'))
         return folder/'plano.csv'
 
-    def calendar(self,days=60):
+    def calendar(self,days=60,*,view=None):
         from .study_calendar import forecast_calendar
         current=today_local().isoformat()
-        view=self.overview(current)
-        return forecast_calendar(view['planning_states'],AdaptiveProfile(**view['profile']),current,days,view['sessions'],self.store.days(),view['plan'],view['agenda'],next_contact_only=True)
+        if view is None:view=self.overview(current)
+        elif view['date']!=current or view.get('planning_token')!=self.agenda.token():
+            raise ValueError('O plano mudou. Atualize o calendário antes de continuar.')
+        result=forecast_calendar(view['planning_states'],AdaptiveProfile(**view['profile']),current,days,view['sessions'],self.store.days(),view['plan'],view['agenda'],next_contact_only=True)
+        if view.get('planning_token') and view['planning_token']!=self.agenda.token():
+            raise ValueError('O plano mudou durante o cálculo. Atualize o calendário.')
+        return result
 
     def trajectories(self,as_of):
         from .study_calendar import forecast_calendar
@@ -327,13 +363,15 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         from .planner_completion import restore_complement
         return restore_complement(self,day,decision_id,expected_token)
 
-    def replanning(self,as_of=None):
+    def replanning(self,as_of=None,*,view=None):
         from .study_replanning import collect_backlog
         as_of=as_of or today_local().isoformat()
-        view=self.overview(as_of)
+        if view is None:view=self.overview(as_of)
+        elif view['date']!=as_of or view.get('planning_token')!=self.agenda.token():
+            raise ValueError('O plano mudou. Atualize a agenda antes de continuar.')
         start_date=view['profile'].get('start_date')
         saved=[r for r in self.agenda.daily_plans() if view['agenda']['overrides'].get(r['plan']['date'],{}).get('mode') not in {'final_review','final_rest','mock_day','mock_reserved'}]
-        backlog=collect_backlog(view['planning_states'],view['sessions'],saved,as_of,start_date=start_date)
+        backlog=collect_backlog(view['planning_states'],view['sessions'],saved,as_of,start_date=start_date,completions=view['agenda'].get('planner_completions',[]))
         by_id={t['topic_id']:t for t in view['planning_states']}
         known={r['topic_id'] for r in backlog}
         for row in view['agenda']['rows']:

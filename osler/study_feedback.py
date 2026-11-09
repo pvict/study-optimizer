@@ -40,6 +40,8 @@ def result_feedback(view,session_id):
         elif accuracy>=target: level,message='success',f'Acerto na meta de {target:g}% neste bloco. O intervalo depende também da amostra e dos encontros espaçados.'
         else: level,message='info',f'Acerto de {accuracy:.1f}% neste bloco, para uma meta de {target:g}%. A amostra e o histórico orientam o próximo contato; insegurança não foi tratada como erro.'
     pending=next(({'questions':q['questions'],'due_date':q['due_date']} for q in view['review_queue'] if q['session_id']==session_id),None)
+    outstanding=[q for q in view['review_queue'] if q['session_id']!=session_id and q['due_date']<=view['date']
+                 and normalize_path(q['path'])==normalize_path(e['path'])]
     next_contact=next_questions=dose_kind=next_kind=theme_questions=theme_contact=None
     coordinated=False
     next_action='Confira as explicações das respostas erradas e sem convicção antes do próximo contato.'
@@ -52,7 +54,11 @@ def result_feedback(view,session_id):
             from .study_capacity import practice_state
             from .study_models import AdaptiveProfile
             p=AdaptiveProfile(**view['profile'])
-            theme_questions=next_questions;theme_contact=next_contact
+            theme_questions=next_questions
+            # Reserva vencida de um lote anterior não é a próxima revisão geral.
+            theme_due=state.get('theme_review_due') or due
+            reservation=state.get('reschedule_date') if state.get('review_kind')!='lot_only' else None
+            theme_contact=max(reservation if reservation and reservation>view['date'] else theme_due or view['date'],view['date'],p.start_date or view['date'])
             due=min([q['due_date'] for q in state.get('pending_reviews',[])]+([due] if due else []),default=None)
             next_contact=max(due or view['date'],view['date'],p.start_date or view['date'])
             encounter=practice_state(state,next_contact,p)
@@ -70,6 +76,7 @@ def result_feedback(view,session_id):
             'mistakes':n-e['correct'] if e.get('correct') is not None else None,
             'guesses':e['correct']-e['confident_correct'] if conviction is not None else None,
             'pending':pending,'next_contact':next_contact,'next_questions':next_questions,'coordinated_return':coordinated,
+            'outstanding_returns':outstanding,
             'next_review_kind':next_kind,'theme_questions':theme_questions,'theme_contact':theme_contact,
             'planner_supply':planner_supply(state,next_questions,0,view['date']) if state and next_questions is not None else None,
             'dose_kind':dose_kind,'next_action':next_action,'level':level,'message':message,

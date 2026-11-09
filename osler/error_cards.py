@@ -80,7 +80,7 @@ def parse_error_cards(text):
     return {'nodes':nodes,'topics':topics,'unresolved':unresolved,'total':total,'schedulable':schedulable,'unallocated':total-schedulable}
 
 
-def plan_error_cards(topics,progress,states,day,budget,question_ids=(),snapshot_day=None,reference_budget=None,completed_today=None):
+def plan_error_cards(topics,progress,states,day,budget,question_ids=(),snapshot_day=None,reference_budget=None,completed_today=None,max_total=None):
     """Política de triagem explícita; não estima retenção ou probabilidade de aprovação."""
     if type(budget) is not int or not 0<=budget<=2000: raise ValueError('A carga deve estar entre0 e2000 cards.')
     reference_budget=budget if reference_budget is None else reference_budget
@@ -112,6 +112,9 @@ def plan_error_cards(topics,progress,states,day,budget,question_ids=(),snapshot_
                        'reason':' · '.join(reasons) or 'Avançar na primeira passagem pelo lote','planned':0})
     ranked.sort(key=lambda t:(not t['in_progress_today'],-t['score'],-t['remaining'],tuple(normalize_path(t['path']))))
     total=0; ceiling=max(0,budget+reference_budget//10-max(0,completed_today-reference_budget))
+    if max_total is not None:
+        if type(max_total) is not int or max_total<0: raise ValueError('Limite diário de cards inválido.')
+        ceiling=min(ceiling,max_total)
     for t in ranked:
         if (total<budget or t['in_progress_today']) and total+t['remaining']<=ceiling:
             t['planned']=t['remaining'];total+=t['planned']

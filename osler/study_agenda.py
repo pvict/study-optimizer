@@ -33,6 +33,18 @@ def planning_token(db):
     return hashlib.sha256(_encoded(values).encode()).hexdigest()
 
 
+def booking_completed(item,sessions):
+    """Mesmo crédito para saldo da reserva e conclusão parcial."""
+    from .mock_exams import _prefix
+    source=_prefix(item['source_exam_key']) if item.get('source_exam_key') else None
+    key=tuple(normalize_path(item['path']))
+    return sum(s['entry']['questions'] for s in sessions if s['entry']['kind']=='bloco' and
+        (not source or not s['session_id'].startswith(source)) and
+        (not item.get('source_exam_key') or s['entry']['day']>=item['date']) and
+        s.get('first_event_id',s.get('id',0))>item['cutoff'] and s['entry']['day']>=item['created_day'] and
+        tuple(normalize_path(s['entry']['path']))==key)
+
+
 class StudyAgenda:
     def __init__(self,repo):
         self.repo=repo
@@ -55,7 +67,16 @@ class StudyAgenda:
             return db.execute('SELECT id FROM study_plan_runs WHERE digest=?',(digest,)).fetchone()[0]
 
     def daily_plans(self):
-        return [{'id':r['id'],'plan':r['plan']} for r in self.records() if r.get('kind')=='daily_schedule']
+        from .planner_service import today_local
+        records=self.records()
+        unavailable={}
+        for r in effective_applies(records,today_local().isoformat()):
+            if r.get('scope')=='return_unavailable':
+                unavailable.setdefault(r['created_day'],set()).update(r['selected'])
+        # Capturas originais ficam intactas. Indisponibilidade declarada não é falta.
+        return [{'id':r['id'],'plan':{**r['plan'],'items':[i for i in r['plan']['items']
+                if i['topic_id'] not in unavailable.get(r['plan']['date'],set())]}}
+                for r in records if r.get('kind')=='daily_schedule']
 
     def remember(self,view):
         if view['plan'].get('not_started'): return None
@@ -81,8 +102,10 @@ class StudyAgenda:
         payload['previous_daily_id']=previous['id'] if previous else 0
         return self.store.save_plan(payload,expected_planning_token=view.get('planning_token'))
 
-    def active(self,sessions,as_of,excluded_plan_ids=()):
+    def active(self,sessions,as_of,excluded_plan_ids=(),*,proposed=None):
         records=self.records()
+        if proposed is not None:
+            records=[*records,{'id':max((r['id'] for r in records),default=0)+1,**proposed}]
         applies=[r for r in effective_applies(records,as_of) if r['id'] not in excluded_plan_ids]
         rows={}
         overrides={}
@@ -105,12 +128,7 @@ class StudyAgenda:
                 rows[key]={**item,'plan_id':booking,'cutoff':item.get('cutoff',swap['cutoff']),
                                                          'created_day':swap['created_day'],'swap_return':swap['slot_id']}
         for key,item in rows.items():
-            from .mock_exams import _prefix
-            source_prefix=_prefix(item['source_exam_key']) if item.get('source_exam_key') else None
-            used=sum(s['entry']['questions'] for s in sessions if s['entry']['kind']=='bloco' and
-                     (not source_prefix or not s['session_id'].startswith(source_prefix)) and
-                     (not item.get('source_exam_key') or s['entry']['day']>=item['date']) and
-                     s.get('first_event_id',s.get('id',0))>item['cutoff'] and s['entry']['day']>=item['created_day'] and tuple(normalize_path(s['entry']['path']))==key)
+            used=booking_completed(item,sessions)
             item['remaining']=max(0,item['questions']-used)
         from .planner_completion import active_completions
         completions=active_completions(records,sessions,as_of)
@@ -119,7 +137,7 @@ class StudyAgenda:
                          item['plan_id']<r['id'] and item['date']<=r['day']),None)
             if closed:
                 item['planner_completed_day']=closed['day']
-                if as_of>closed['day']:item['remaining']=0
+                if as_of>closed['day'] or closed.get('manual_partial'):item['remaining']=0
         from .mock_exams import MockExams
         from .exam_practice import practice_context,EXCLUSIVE
         practice=next((r for r in reversed(applies) if r.get('scope')=='area_practice'),{})
@@ -127,13 +145,32 @@ class StudyAgenda:
         results=[r for r in MockExams(self.repo).active() if r['exam'].get('practice_id')]
         practice_agenda={'area_practice':area_rows,'area_results':results}
         day_settings=self.store.days()
+        if area_rows:
+            from .exam_practice import recover_area_occurrences
+            from .study_models import AdaptiveProfile
+            from .planner_service import today_local
+            from .exam_goals import ExamGoals
+            profile=AdaptiveProfile(**self.store.profile()['profile'])
+            anchor=min(as_of,today_local().isoformat())
+            exams={r['target']['exam_date'] for r in ExamGoals(self.repo).active()}
+            area_rows=recover_area_occurrences(area_rows,results,anchor,min(practice['request']['end'],profile.exam_date),profile,day_settings,overrides,sessions,exams)
+            practice_agenda['area_practice']=area_rows
         for day in {r['date'] for r in area_rows}|{r['exam']['day'] for r in results}:
             prior=overrides.get(day,{})
             config=day_settings.get(day,{})
             if prior.get('mode') in EXCLUSIVE or config.get('kind')=='descanso': continue
             context=practice_context(practice_agenda,day)
             if context['tasks']: overrides[day]={**prior,'area_reserved':context['reserved']}
+        deferrals=[r for r in applies if r.get('scope')=='return_unavailable']
+        return_dates={}
+        for r in deferrals:
+            for sid,day in r['return_dates'].items():return_dates[sid]=max(day,return_dates.get(sid,day))
         return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'triage_policies':triage_policies,'swaps':swaps,
+                'return_deferrals':deferrals,'return_dates':return_dates,
                 **practice_agenda,
                 'planner_completions':completions,
                 'history':[r for r in records if r.get('kind','').startswith('reschedule.')]}
+
+
+def unavailable_return_ids(agenda,day):
+    return {tid for r in agenda.get('return_deferrals',[]) if r['created_day']<=day<r['available_from'] for tid in r['selected']}

@@ -21,7 +21,8 @@ def test_calendar_and_confidence_registration_are_visible(tmp_path,monkeypatch,p
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=30).run()
     open_view(app,adaptive='Calendário')
     assert not app.exception
-    assert any('previsão' in c.value.lower() for c in app.caption)
+    assert app.radio(key='calendar_mode').value=='Semana'
+    assert any(b.key and b.key.startswith('calendar_cell_') for b in app.button)
     open_view(app,adaptive='Registrar resultados')
     assert not app.exception
     assert app.number_input(key='study_confident').value is None

@@ -13,6 +13,7 @@
   --o-shadow:0 1px 3px rgba(29,29,31,.035);
   --o-shadow-hover:0 3px 12px rgba(29,29,31,.08);
   --o-gap:16px; --o-pad:24px; --o-sand:#F0F1F3; --o-sand-ink:#515154;
+  --o-control-gap:8px;
   --a-clinica-fill:#0066CC; --a-clinica-tint:#EAF3FF; --a-clinica-ink:#005BB5; --a-clinica-solid:#005BB5;
   --a-cirurgia-fill:#FF6B6B; --a-cirurgia-tint:#FFF1F0; --a-cirurgia-ink:#B42318; --a-cirurgia-solid:#B42318;
   --a-pediatria-fill:#10B981; --a-pediatria-tint:#ECFDF5; --a-pediatria-ink:#047857; --a-pediatria-solid:#047857;
@@ -31,6 +32,9 @@
 }
 [data-testid="stApp"] { background:var(--o-bg); color:var(--o-ink); font-family:var(--o-font); font-variant-numeric:tabular-nums; }
 [data-testid="stApp"] :is(h1,h2,h3,p,label,input,textarea,button,select) { font-family:var(--o-font); }
+/* Grupos de opções têm alvos separados, inclusive ao quebrar linha no celular. */
+[data-testid="stApp"] [data-testid="stButtonGroup"] > div { gap:var(--o-control-gap); }
+[data-testid="stApp"] [data-testid="stButtonGroup"] button { margin:0; border-radius:var(--o-radius-sm); }
 [data-testid="stApp"] :is(p,li) { font-size:15px; line-height:22px; }
 [data-testid="stApp"] h1 { padding:0; margin:0; font-size:30px; line-height:36px; font-weight:700; letter-spacing:-.025em; }
 [data-testid="stApp"] :is(h2,h3) { font-size:20px; line-height:26px; font-weight:650; letter-spacing:-.012em; }
@@ -227,15 +231,16 @@
 [data-testid="stHtml"] .o-topic-results { display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:16px; }
 [data-testid="stHtml"] .o-topic-results strong { color:var(--o-ink); font-weight:650; }
 [class*="st-key-bento-topic-"] [data-testid="stExpander"] { background:transparent; }
-.st-key-study_registration { max-width:680px; margin-inline:auto; }
+.st-key-study_registration { width:100%; max-width:680px; margin-inline:auto; gap:24px; }
+.st-key-registration_header { gap:8px; min-height:36px; }
 .st-key-bento-record { gap:16px; }
 .st-key-bento-record h3 { margin:0; padding:0; overflow-wrap:anywhere; }
-.st-key-bento-record [data-testid="stForm"] { border:0; padding:0; }
+.st-key-bento-record [data-testid="stForm"] { border:0; padding:0; margin-block:8px; }
 .st-key-bento-record [data-testid="stWidgetLabel"] p { font-size:13px; line-height:18px; }
 .st-key-bento-record [data-testid="stNumberInputContainer"] { background:var(--o-bg); border:1px solid var(--o-ink-3); border-radius:var(--o-radius-sm); }
 .st-key-bento-record [data-testid="stNumberInputContainer"]:focus-within { border-color:var(--o-primary-strong); outline:none; box-shadow:none; }
 .st-key-bento-record [data-testid="stForm"] [data-testid="stHorizontalBlock"] { align-items:flex-start; gap:16px; }
-.st-key-bento-record [data-testid="stForm"] [data-testid="stWidgetLabel"] { min-height:44px; align-items:flex-start; }
+.st-key-bento-record [data-testid="stForm"] [data-testid="stWidgetLabel"] { min-height:36px; align-items:flex-start; }
 .st-key-bento-record [data-testid="stExpander"] { background:transparent; }
 .st-key-bento-record [data-testid="stAlertContainer"] { background:var(--a-neutral-tint); color:var(--o-ink); }
 .st-key-bento-record [data-testid="stAlertContainer"] :is(p,svg) { color:var(--o-ink); }

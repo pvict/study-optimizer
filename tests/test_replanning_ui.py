@@ -16,6 +16,7 @@ def test_calendar_has_real_delay_and_preview_apply_undo_without_fake_results(tmp
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     open_view(app,adaptive='Calendário')
     assert not app.exception
+    app.session_state['calendar_reorganize_open']=True;app.run()
     assert any('atrasad' in str(m.value).lower() for m in app.caption) or any('atrasad' in str(h.value).lower() for h in app.get('html'))
     app.radio(key='replan_mode').set_value('reviews').run()
     app.button(key='generate_replan_preview').click().run()

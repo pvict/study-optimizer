@@ -69,6 +69,7 @@ class AdaptiveProfile:
     minutes_per_question: float = 3
     max_topics: int = 4
     new_share: float = .2
+    minimum_new_share: float = .2
     institution_weights: dict[str,float] = field(default_factory=dict)
     uncertainty_weight: float = .5
     recent_days: int = 90
@@ -84,13 +85,23 @@ class AdaptiveProfile:
     exam_weight_basis: str = ''
     parameter_values: dict = field(default_factory=dict)
     review_strategy: str = 'legacy_v1'
+    return_mode: str = 'linked'
+    grouping_mode: str = 'osler'
+    grouping_paths: list[list[str]] = field(default_factory=list)
 
     @property
     def parameters(self):
-        from .algorithm_parameters import AlgorithmParameters
-        return AlgorithmParameters(**self.parameter_values).validate()
+        from .algorithm_parameters import parameters_from_values
+        return parameters_from_values(self.parameter_values)
 
     def validate(self):
+        if self.grouping_mode not in {'osler','balanced','custom'}: raise ValueError('Modo de agrupamento inválido.')
+        if self.return_mode not in {'linked','theme'}: raise ValueError('Escolha revisões por tema ou com lotes vinculados.')
+        if not isinstance(self.grouping_paths,list) or any(not isinstance(p,list) or len(p)<3 or any(not isinstance(s,str) or not s.strip() for s in p) for p in self.grouping_paths):
+            raise ValueError('Escolha categorias específicas válidas.')
+        paths=[tuple(normalize_path(p)) for p in self.grouping_paths]
+        if len(paths)!=len(set(paths)) or any(a!=b and a==b[:len(a)] for a in paths for b in paths):
+            raise ValueError('Agrupamentos não podem se sobrepor.')
         if not isinstance(self.review_strategy,str) or self.review_strategy not in {'legacy_v1','balanced_v2'}: raise ValueError('Estratégia de revisão inválida.')
         if not isinstance(self.exam_weight_basis,str) or self.exam_weight_basis and (len(self.exam_weight_basis)!=64 or any(c not in '0123456789abcdef' for c in self.exam_weight_basis)):
             raise ValueError('Confirmação de pesos inválida. Refaça a prévia em Minhas provas.')
@@ -108,6 +119,7 @@ class AdaptiveProfile:
         _number(self.max_topics, 'Temas por dia', integer=True, positive=True, maximum=10)
         _number(self.minutes_per_question, 'Minutos por questão', positive=True, maximum=1440)
         _number(self.new_share, 'Reserva para temas novos', maximum=1)
+        _number(self.minimum_new_share, 'Piso de temas novos', maximum=1)
         _number(self.uncertainty_weight, 'Exploração da incerteza', maximum=2)
         _number(self.recent_days, 'Janela recente', positive=True, integer=True, maximum=730)
         _number(self.min_block,'Mínimo por bloco',positive=True,integer=True,maximum=100)

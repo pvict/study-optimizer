@@ -30,7 +30,7 @@ class _TableReader(HTMLParser):
             self.cell = {"text": [], "primary": [], "secondary": [], "labels": [], "header": tag == "th"}
         elif tag == "span" and self.cell is not None:
             classes = attrs.get("class", "")
-            self.span = "primary" if "PrimaryText" in classes else "secondary" if "SecondaryText" in classes else None
+            self.span = "primary" if "PrimaryText" in classes or "ThemeTitle-" in classes else "secondary" if "SecondaryText" in classes or "ThemePath-" in classes else None
         if self.cell is not None:
             label = attrs.get("aria-label") or attrs.get("title")
             if label and label not in self.cell["labels"]:
@@ -59,7 +59,7 @@ class _TableReader(HTMLParser):
                 value = " ".join(cell["text"] or cell["labels"])
                 if index == 0 and cell["primary"] and cell["secondary"]:
                     primary, secondary = " ".join(cell["primary"]), " ".join(cell["secondary"])
-                    path = [p.strip() for p in re.split(r">>|→|>", secondary) if p.strip()]
+                    path = [p.strip() for p in re.split(r">>|→|>|»|›", secondary) if p.strip()]
                     if not path or normalize_path([path[-1]]) != normalize_path([primary]):
                         path.append(primary)
                     value = " → ".join(path)
@@ -152,6 +152,8 @@ def prepare_incidence(datasets, targets, as_of):
     target_set = set(normalize_path(targets))
     latest = {}
     for dataset in sorted(datasets, key=lambda d: (d["observed_date"], d["id"])):
+        if dataset.get('incidence_included') is False:
+            continue
         group = frozenset(normalize_path(dataset["institutions"]))
         if dataset["observed_date"] <= as_of and (not target_set or group == target_set or (len(group) == 1 and group.issubset(target_set))):
             previous = latest.get(group)

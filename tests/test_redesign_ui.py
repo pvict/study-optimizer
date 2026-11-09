@@ -33,7 +33,8 @@ def test_invalid_contextual_result_keeps_values_and_does_not_save(tmp_path,monke
     count=app.number_input(key='study_n').value
     assert app.number_input(key='study_confident').value is None
     app.number_input(key='study_correct').set_value(count+1)
-    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
+    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    assert not any(b.key=='action_confirm' for b in app.button)
     assert not app.exception and app.error
     assert app.session_state['adaptive_topic']==selected
     assert app.number_input(key='study_n').value==count
