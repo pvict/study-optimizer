@@ -71,6 +71,17 @@ class SupabasePostgres:
     def get(self,digest):
         return self._call('get',digest)
 
+    def get_many(self,digests):
+        """Uma consulta na abertura evita uma ida de rede para cada original."""
+        import psycopg
+        try:
+            with self.session():
+                rows=self._db.execute('select digest, public.osler_get(digest) from unnest(%s::text[]) as item(digest)',
+                                      (list(digests),)).fetchall()
+                return dict(rows)
+        except psycopg.Error as exc:
+            raise _failure(exc) from None
+
     def commit(self,owner,revision,manifest):
         from psycopg.types.json import Jsonb
         return self._call('commit',owner,revision,Jsonb(manifest))

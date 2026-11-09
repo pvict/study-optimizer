@@ -111,8 +111,9 @@ class CloudWorkspace:
             stage = Path(folder)/'incoming'
             stage.mkdir()
             size = 0
+            batch = self.remote.get_many(set(manifest.values())) if hasattr(self.remote,'get_many') else None
             for name, digest in manifest.items():
-                data = unpack(digest, self.remote.get(digest))
+                data = unpack(digest, batch.get(digest) if batch is not None else self.remote.get(digest))
                 size += len(data)
                 if size > MAX_TOTAL_BYTES:
                     raise CloudError('Dados remotos excedem o limite de tamanho.')

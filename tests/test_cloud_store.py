@@ -200,3 +200,18 @@ def test_snapshot_failure_is_pending_and_cannot_be_overwritten(monkeypatch,tmp_p
     with pytest.raises(CloudError,match='conflito'):
         with first.cycle():pass
     assert total(first.root)==17
+
+
+def test_cold_start_downloads_objects_in_one_batch_when_supported(tmp_path):
+    remote=MemoryRemote()
+    with CloudWorkspace(tmp_path/'a',remote).cycle() as ws:seed(ws.root)
+    calls=[]
+    def batch(digests):
+        calls.append(set(digests))
+        return {d:remote.objects[d] for d in digests}
+    def slow(digest):pytest.fail('individual request on batch-capable backend')
+    remote.get_many=batch
+    remote.get=slow
+    with CloudWorkspace(tmp_path/'b',remote).cycle() as ws:
+        assert total(ws.root)==12
+    assert len(calls)==1
