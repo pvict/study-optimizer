@@ -19,6 +19,18 @@ def test_password_hash_and_expiring_session():
     assert not session_valid((fingerprint,100),password_hash('a-different-password'),200)
 
 
+def test_private_platform_mode_does_not_ask_for_second_password():
+    from streamlit.testing.v1 import AppTest
+    app=AppTest.from_string("""
+import streamlit as st
+from osler.cloud_ui import _authenticate
+_authenticate({'auth_mode':'streamlit_private'})
+st.write('Acesso pela conta do Streamlit')
+""").run()
+    assert not app.exception and not app.text_input
+    assert app.markdown[0].value=='Acesso pela conta do Streamlit'
+
+
 def test_no_credentials_sent_to_untrusted_host():
     for host in ['http://example.supabase.co','aws-1-us-west-2.pooler.supabase.com.evil.org','127.0.0.1','aws-1-us-west-2.pooler.supabase.com/api']:
         with pytest.raises(CloudError):

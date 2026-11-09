@@ -47,7 +47,7 @@ def render_navigation():
             with st.expander('Sobre o app'):
                 online=os.environ.get('OSLER_CLOUD')=='1'
                 st.caption(('Seus dados ficam no seu armazenamento online privado.' if online else 'Tudo fica no seu computador.')+' As ações na Osler continuam sendo feitas por você.')
-                if online and st.button('Sair do aplicativo',key='cloud_sign_out'):
+                if online and st.session_state.get('_cloud_auth_mode','password')=='password' and st.button('Sair do aplicativo',key='cloud_sign_out'):
                     st.session_state.clear()
                     st.rerun()
     return st.session_state['main_view']

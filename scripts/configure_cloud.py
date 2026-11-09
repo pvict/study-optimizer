@@ -55,7 +55,7 @@ def main():
     if not config_file.exists():
         login=secrets.token_urlsafe(18)
         import json
-        settings={'host':args.host,'user':'osler_cloud.'+args.project_ref,
+        settings={'auth_mode':'password','host':args.host,'user':'osler_cloud.'+args.project_ref,
                   'password':app_password,'password_hash':password_hash(login)}
         config_file.write_text('[cloud]\n'+'\n'.join(k+' = '+json.dumps(v) for k,v in settings.items())+'\n',encoding='utf-8')
         (private/'app-access.txt').write_text('Senha de acesso ao aplicativo online:\n'+login+'\n',encoding='utf-8')

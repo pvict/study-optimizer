@@ -12,6 +12,8 @@ A mesma aplicação Python roda no Streamlit Community Cloud, com estado persist
 6. Entre com a senha de `app-access.txt`. Importe o ZIP verificado ou use `scripts/seed_cloud.py --backup ARQUIVO --secrets-file CONFIG_PRIVADA`. A inicialização recusa sobrescrever dados online existentes.
 7. Verifique relatórios, totais e calendário. Abra o mesmo endereço no celular. Não misture lançamentos na cópia local e online: elas não têm sincronização bidirecional.
 
+Depois de confirmar **Sharing > Only specific people can view this app**, você pode definir `auth_mode = "streamlit_private"` nos secrets. Esse modo usa somente o login nativo da hospedagem. Mantenha o app privado: não use essa configuração em hospedagem pública. O modo `password` conserva a senha adicional.
+
 ## Persistência e segurança
 
 - TLS `verify-full` verifica CA e hostname. Certificado público obtido no painel oficial em Database > Settings > SSL configuration: https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt . SHA256 do arquivo: `700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7`.

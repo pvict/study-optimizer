@@ -20,7 +20,10 @@ _attempts, _attempt_lock = deque(), threading.Lock()
 def _settings():
     try:
         config = dict(st.secrets['cloud'])
-        if not all(config.get(k) for k in ('host','user','password','password_hash')):
+        mode=config.get('auth_mode','password')
+        if mode not in ('password','streamlit_private'):
+            raise ValueError()
+        if not all(config.get(k) for k in ('host','user','password')) or (mode=='password' and not config.get('password_hash')):
             raise ValueError()
         return config
     except (KeyError, FileNotFoundError, ValueError):
@@ -29,6 +32,10 @@ def _settings():
 
 
 def _authenticate(config):
+    if config.get('auth_mode')=='streamlit_private':
+        # Opt-in administrativo somente depois de confirmar Sharing=private.
+        # A autenticação ocorre no proxy nativo do Community Cloud.
+        return
     now = time.time()
     if session_valid(st.session_state.get('_cloud_login'),config['password_hash'],now):
         return
@@ -96,6 +103,7 @@ def protected_run(function):
     if _active.get() is not None:
         return function()
     config = _settings()
+    st.session_state['_cloud_auth_mode']=config.get('auth_mode','password')
     _authenticate(config)
     workspace = _workspace(config['host'],config['user'],config['password'])
     try:
