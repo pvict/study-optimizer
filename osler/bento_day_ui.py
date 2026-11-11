@@ -250,7 +250,7 @@ def render_today(service,go_record,go_review,go_edit=None):
             st.subheader('Dia de corrigir e reforçar')
             for correction in corrections:
                 st.write(correction['name']+' · '+('informe os temas errados em Simulados → Correção' if correction['needs_details'] else 'os temas do reforço estão nos blocos do plano'))
-                st.button('Abrir correção deste resultado',key='correction_today_'+correction['exam_key'],on_click=_open_correction,args=(correction['exam_key'],))
+                st.button('Abrir correção deste resultado',key=f"correction_today_{corrections.index(correction)}_{correction['exam_key']}",on_click=_open_correction,args=(correction['exam_key'],))
     with st.container(key='bento_top'):
         main,side=st.columns([2,1],gap='medium')
         with main:
