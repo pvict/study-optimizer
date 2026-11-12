@@ -30,7 +30,7 @@ class MockScheduleServiceMixin:
         return next((r for r in reversed(self.agenda.active(self.store.active(day),day)['active'])
                      if r.get('scope')=='mock_schedule'),None)
 
-    def preview_mock_move(self,occurrence_id,new_day):
+    def preview_mock_move(self,occurrence_id,new_day,*,name=None):
         old=self.mock_schedule()
         if not old: raise ValueError('Programe o primeiro simulado antes de mover datas.')
         request=old['request']; changes=dict(request['exceptions'])
@@ -42,9 +42,11 @@ class MockScheduleServiceMixin:
             _date(new_day)
             if new_day<current: raise ValueError('Escolha uma data de hoje em diante.')
         changes[occurrence_id]=new_day
-        return self.preview_mock_schedule(request['first_day'],request['interval'],exceptions=changes,end=request['end'],_editing=True)
+        names=dict(request.get('names',{}))
+        if name is not None: names[occurrence_id]=name.strip()
+        return self.preview_mock_schedule(request['first_day'],request['interval'],exceptions=changes,end=request['end'],_editing=True,names=names)
 
-    def preview_mock_schedule(self,first_day,interval,*,exceptions=None,end=None,_editing=False):
+    def preview_mock_schedule(self,first_day,interval,*,exceptions=None,end=None,_editing=False,names=None):
         current=today_local().isoformat(); token=self.agenda.token(); old=self.mock_schedule(current)
         p=AdaptiveProfile(**self.store.profile()['profile'])
         end=end or min(p.exam_date,(_date(current)+timedelta(days=547)).isoformat())
@@ -53,6 +55,12 @@ class MockScheduleServiceMixin:
         if (not _editing and first_day<(p.start_date or current)) or end>p.exam_date or end>(_date(current)+timedelta(days=547)).isoformat(): raise ValueError('Use datas dentro do cronograma e até 18 meses à frente.')
         request={'first_day':first_day,'interval':interval,'end':end,'exceptions':dict(exceptions or {})}
         occurrences=schedule_dates(first_day,interval,end,request['exceptions'])
+        names=dict(names if names is not None else (old or {}).get('request',{}).get('names',{}))
+        if any(not isinstance(v,str) or len(v)>160 for v in names.values()):
+            raise ValueError('Use nomes de simulados com até 160 caracteres.')
+        if names: request['names']=names
+        for row in occurrences:
+            if names.get(row['occurrence_id']): row['name']=names[row['occurrence_id']]
         if old:
             previous={r['occurrence_id']:r for r in old['occurrences']}
             for origin,row in previous.items():
@@ -117,7 +125,7 @@ class MockScheduleServiceMixin:
     def apply_mock_schedule(self,preview):
         if preview['created_day']!=today_local().isoformat() or preview['token']!=self.agenda.token(): raise ValueError('O plano mudou. Recalcule a prévia antes de aplicar.')
         r=preview['request']
-        fresh=self.preview_mock_schedule(r['first_day'],r['interval'],exceptions=r['exceptions'],end=r['end'],_editing=preview['editing'])
+        fresh=self.preview_mock_schedule(r['first_day'],r['interval'],exceptions=r['exceptions'],end=r['end'],_editing=preview['editing'],names=r.get('names'))
         if fresh!=preview: raise ValueError('A programação mudou. Recalcule a prévia.')
         return self.agenda.append({**fresh,'kind':'reschedule.apply','scope':'mock_schedule',
             'cutoff':max((e['id'] for e in self.store.events()),default=0)},fresh['token'])
