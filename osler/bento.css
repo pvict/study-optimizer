@@ -165,6 +165,7 @@
 .st-key-bento_top [data-testid="stColumn"] > [data-testid="stVerticalBlock"],
 .st-key-bento_body [data-testid="stColumn"] > [data-testid="stVerticalBlock"] { gap:16px; }
 [class*="st-key-bento-hero-"], [class*="st-key-bento-state-"] { min-height:300px; }
+.st-key-bento-state-mock { min-height:0; height:auto; }
 [class*="st-key-bento-hero-"], [class*="st-key-bento-block-"] { gap:12px; }
 [class*="st-key-bento-hero-"] :is(button p,summary p), [class*="st-key-bento-block-"] :is(button p,summary p), [class*="st-key-bento-hero-"] .o-chip, [class*="st-key-bento-block-"] .o-chip { font-size:13px; line-height:18px; }
 [class*="st-key-bento-hero-"] h3, [class*="st-key-bento-block-"] h3 { padding:0; margin:12px 0 0; overflow-wrap:anywhere; }
