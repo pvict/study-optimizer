@@ -147,6 +147,9 @@ def render_mock_exams(service):
     for key in list(st.session_state):
         if key.startswith('correction_draft_') and key.endswith('_editor'):
             preserve_editor_draft(key,st.session_state.get('mock_sections')=='Correção')
+    from .mock_workflow_ui import render_mock_workflow
+    with st.container(border=True,key='mock-main-workflow'):
+        render_mock_workflow(service,'sim_mock_flow')
     from .mock_schedule_ui import render_mock_schedule
     from .exam_practice_ui import render_area_practice,render_mock_correction
     programming,results,practice,correction=st.tabs(['Programação','Resultados','Treinos por área','Correção'],key='mock_sections',on_change='rerun')

@@ -131,7 +131,7 @@ def _hero_empty(state,plan):
             st.subheader('Hoje é dia de simulado')
             st.write('Os blocos normais estão dispensados. Registre o resultado ou altere a data em Simulados.')
             if plan['routine_override'].get('mock_questions'):st.caption(f"{plan['routine_override']['mock_questions']} questões no simulado · resultado separado dos blocos.")
-            st.button('Abrir Simulados',key='bento_mock',type='primary',on_click=go_view,args=('Plano de questões','Simulados'))
+            st.caption('Registre o resultado e os temas errados na seção Simulado de hoje, no início desta página.')
         elif state=='not_started':
             st.subheader('Tudo pronto para começar')
             st.info('Seu cronograma começa em '+ '/'.join(reversed(plan['start_date'].split('-')))+'. Até lá, não há meta diária nem faltas no aplicativo.')
@@ -215,16 +215,10 @@ def _full_mocks_today(service,plan,day):
 
 
 def _render_full_mocks_today(service,plan,day):
-    for index,item in enumerate(_full_mocks_today(service,plan,day)):
-        with st.container(border=True,key=f'bento-full-mock-today-{index}'):
-            st.subheader('Simulado de hoje')
-            st.write(item['name'] or 'Simulado completo · prova a definir')
-            st.caption(date_label(day)+' · Simulado completo · '+('Resultado registrado' if item['recorded'] else 'Programado'))
-            if not item['name']:
-                st.caption('Esta data foi reservada sem nome de prova. Identifique-a em Simulados → Programação.')
-                st.button('Identificar este simulado',key=f'name_mock_today_{index}',on_click=_open_mock_section,args=('Programação',))
-            st.button('Ver resultado do simulado' if item['recorded'] else 'Registrar resultado do simulado',
-                      key=f'result_mock_today_{index}',on_click=_open_mock_section,args=('Resultados',))
+    from .mock_workflow_ui import render_mock_workflow
+    scheduled=_full_mocks_today(service,plan,day)
+    with st.expander('Simulado de hoje · registrar resultado e temas errados',expanded=bool(scheduled)):
+        render_mock_workflow(service,'today_mock_flow')
 
 
 def render_today(service,go_record,go_review,go_edit=None):
