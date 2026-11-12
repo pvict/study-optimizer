@@ -190,6 +190,43 @@ def _metrics(summary,exam):
             st.caption('Cadastre sua prova em Ajustes → Minhas provas.' if exam is None else exam['institution']+' · '+ '/'.join(reversed(exam['exam_date'].split('-'))))
 
 
+def _open_mock_section(section):
+    st.session_state['mock_tab_pending']=section
+    go_view('Plano de questões','Simulados')
+
+
+def _full_mocks_today(service,plan,day):
+    from .mock_exams import MockExams
+    results=[r for r in MockExams(service.repository).active()
+             if r['exam']['day']==day and not r['exam'].get('practice_id')]
+    scheduled=[r for r in (service.mock_schedule(day) or {}).get('occurrences',[])
+               if r.get('date')==day and r.get('status')=='reserved']
+    rows=[]
+    for item in scheduled:
+        match=next((r for r in results if item.get('name') and r['exam']['name']==item['name']),None)
+        if match is None and len(scheduled)==1 and len(results)==1: match=results[0]
+        rows.append({'name':item.get('name') or (match['exam']['name'] if match else None),
+                     'recorded':match is not None})
+    if not rows:
+        rows=[{'name':r['exam']['name'],'recorded':True} for r in results]
+    if not rows and plan.get('routine_override',{}).get('mode') in {'mock_day','mock_reserved'}:
+        rows=[{'name':None,'recorded':False}]
+    return rows
+
+
+def _render_full_mocks_today(service,plan,day):
+    for index,item in enumerate(_full_mocks_today(service,plan,day)):
+        with st.container(border=True,key=f'bento-full-mock-today-{index}'):
+            st.subheader('Simulado de hoje')
+            st.write(item['name'] or 'Simulado completo · prova a definir')
+            st.caption(date_label(day)+' · Simulado completo · '+('Resultado registrado' if item['recorded'] else 'Programado'))
+            if not item['name']:
+                st.caption('Esta data foi reservada sem nome de prova. Identifique-a em Simulados → Programação.')
+                st.button('Identificar este simulado',key=f'name_mock_today_{index}',on_click=_open_mock_section,args=('Programação',))
+            st.button('Ver resultado do simulado' if item['recorded'] else 'Registrar resultado do simulado',
+                      key=f'result_mock_today_{index}',on_click=_open_mock_section,args=('Resultados',))
+
+
 def render_today(service,go_record,go_review,go_edit=None):
     from .study_day_ui import _extra_controls
     study_today=today_local();day=study_today.isoformat()
@@ -213,6 +250,7 @@ def render_today(service,go_record,go_review,go_edit=None):
     exam=exam['target'] if exam else None
     summary=week_summary(view,service.store.days(),service.guide.days(),exam,service.recorded_mock_days())
     render_approach(service)
+    _render_full_mocks_today(service,plan,day)
     if plan.get('routine_override',{}).get('mode')=='external_day':
         from .action_feedback import confirm_button,notify_success
         external=plan['routine_override']
