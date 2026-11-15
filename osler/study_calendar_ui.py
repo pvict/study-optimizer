@@ -223,6 +223,8 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         if task.get('recovery'):st.warning('Treino atrasado desde '+ '/'.join(reversed(task['missed_date'].split('-')))+' · recuperado nesta data.')
         st.info(task['institution']+' · '+task['area']+f" · treino de {task['questions']} questões dentro da meta diária. Registre o resultado em Simulados → Treinos por área.")
     override=plan.get('routine_override',{})
+    if override.get('recovery_reserved'):
+        st.info(f"{override['recovery_reserved']} revisões de questões na Osler · apenas quantidade · já reservadas dentro do total de {override['recovery_limit']} questões.")
     if override.get('mode')=='mock_day': st.success(f"Dia feito por simulado · {override['mock_questions']} questões, separadas dos blocos.")
     elif override.get('mode')=='mock_reserved':
         recorded=selected in service.recorded_mock_days()

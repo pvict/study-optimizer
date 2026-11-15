@@ -26,7 +26,9 @@ class _TreeReader(HTMLParser):
         if self.row:
             if any('chevron-' in c for c in classes): self.row['branch']=True
             if any(c.startswith('Label-') for c in classes): self.capture='label'
-            if any(c.startswith('StatInfo-') for c in classes): self.capture='number'
+            # O contador seguinte pertence ao treino, não ao acervo de cartões.
+            if any(c.startswith('StatInfo-') for c in classes):
+                self.capture='number' if not self.row['number'].strip() else None
 
     def handle_data(self,data):
         if self.row and self.capture and not self.ignore: self.row[self.capture]+=data

@@ -165,7 +165,14 @@ class StudyAgenda:
         return_dates={}
         for r in deferrals:
             for sid,day in r['return_dates'].items():return_dates[sid]=max(day,return_dates.get(sid,day))
+        from .recovery import RecoveryService
+        recovery_service=RecoveryService(self.repo)
+        recovery=None
+        if recovery_service.settings():
+            end=self.store.profile()['profile']['exam_date']
+            overrides,recovery=recovery_service.decorate(as_of,day_settings,overrides,end)
         return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'triage_policies':triage_policies,'swaps':swaps,
+                'quantity_recovery':recovery,
                 'return_deferrals':deferrals,'return_dates':return_dates,
                 **practice_agenda,
                 'planner_completions':completions,

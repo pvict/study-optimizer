@@ -1,0 +1,49 @@
+name: Testes
+on:
+  push:
+    branches: ['codex/retomada-quantidades-decks-20261114']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: recovery-tests-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements.txt pytest
+      - name: Suíte da base, sem as alterações
+        run: |
+          git worktree add /tmp/osler-baseline 8707db1d7e0b61b8f7afbe3ec1b1d823fca4579b
+          cd /tmp/osler-baseline
+          python -m pytest -q --junitxml=/tmp/base.xml > /tmp/base.log 2>&1 || true
+          tail -n 12 /tmp/base.log
+      - name: Suíte completa da alteração
+        run: |
+          python -m pytest -q --junitxml=/tmp/head.xml > /tmp/head.log 2>&1 || true
+          tail -n 14 /tmp/head.log
+      - name: Regressões e novos testes obrigatórios
+        run: |
+          python -m unittest discover -s tests -p test_recovery_quantities.py
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          def failures(path):
+              root=ET.parse(path).getroot()
+              cases=list(root.iter('testcase'))
+              if not cases:raise RuntimeError('Nenhum teste foi executado')
+              return {t.get('classname','')+'::'+t.get('name','') for t in cases if t.find('failure') is not None or t.find('error') is not None}
+          base=failures('/tmp/base.xml');head=failures('/tmp/head.xml')
+          print('Falhas anteriores:',sorted(base))
+          print('Falhas atuais:',sorted(head))
+          new=head-base
+          if new:raise SystemExit('Novas regressões: '+str(sorted(new)))
+          print('Sem regressões novas. Falhas anteriores continuam explícitas acima.')
+          PY
