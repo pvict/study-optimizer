@@ -261,8 +261,6 @@ def render_today(service,go_record,go_review,go_edit=None):
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,view)
         return
-    from .recovery_ui import render_recovery
-    render_recovery(service,view)
     render_absence_notice(service,day)
     if plan.get('capacity',{}).get('new_floor_shortfall'):
         st.warning('O piso de temas novos não coube nos blocos disponíveis. Confira o máximo de temas e a divisão em Ajustar meu dia; compromissos já reservados continuam protegidos.')
@@ -363,6 +361,8 @@ def render_today(service,go_record,go_review,go_edit=None):
         st.caption('A meta de 90% orienta a preparação. Não é previsão de aprovação. Flashcards seguem uma meta separada das questões.')
         render_weekly_review(service,day)
         _plan_download(service,view)
+    from .recovery_ui import render_recovery
+    render_recovery(service,view)
 
 
 def _plan_download(service,view):
