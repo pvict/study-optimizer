@@ -19,7 +19,7 @@ def render_recovery(service,view):
                 st.caption(f"{done} registradas hoje. Esta cota já está reservada dentro da carga total; sem temas ou acertos inventados.")
                 if pending:
                     with st.form('quantity_recovery_record'):
-                        count=st.number_input('Quantidade de revisões que fiz agora',1,pending,pending)
+                        count=st.number_input('Quantidade de revisões que fiz agora',1,pending,pending,key='recovery_count')
                         save=confirm_submit('Registrar revisões feitas',action_key='quantity_recovery_record_submit',
                                             details=f'{count} questões revisadas na Osler. Não cria acertos por tema.')
                     if save:
@@ -30,12 +30,12 @@ def render_recovery(service,view):
     with st.expander('Reorganizar minha retomada'):
         st.caption('Defina o saldo ainda não feito. Os dias perdidos não dobram a carga. Simulados e descansos continuam reservados.')
         with st.form('quantity_recovery_settings'):
-            total=st.number_input('Revisões de questões pendentes na Osler',0,100000,0)
-            daily=st.number_input('Revisões de questões por dia',1,500,30)
-            limit=st.number_input('Limite total de questões por dia, incluindo essas revisões',2,1000,60)
-            target=st.number_input('Referência diária de flashcards manuais',1,2000,50)
-            ceiling=st.number_input('Limite habitual para terminar decks inteiros',1,2000,70)
-            start=st.date_input('Começar em',value=today_local(),min_value=today_local(),format='DD/MM/YYYY')
+            total=st.number_input('Revisões de questões pendentes na Osler',0,100000,0,key='recovery_total')
+            daily=st.number_input('Revisões de questões por dia',1,500,30,key='recovery_daily')
+            limit=st.number_input('Limite total de questões por dia, incluindo essas revisões',2,1000,60,key='recovery_limit')
+            target=st.number_input('Referência diária de flashcards manuais',1,2000,50,key='recovery_card_target')
+            ceiling=st.number_input('Limite habitual para terminar decks inteiros',1,2000,70,key='recovery_card_ceiling')
+            start=st.date_input('Começar em',value=today_local(),min_value=today_local(),format='DD/MM/YYYY',key='recovery_start')
             upload=st.file_uploader('HTML dos meus flashcards (opcional)',type=['html','htm','txt'],key='recovery_html')
             st.caption('O HTML será uma nova passagem do acervo, não uma declaração de cartões vencidos. Sem arquivo, usamos o saldo do lote já importado. Decks grandes ficam sozinhos, com no máximo 30 questões totais nesse dia.')
             preview=st.form_submit_button('Conferir retomada')

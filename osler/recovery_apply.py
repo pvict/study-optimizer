@@ -30,6 +30,15 @@ def apply_recovery(repo,preview):
         projected=view['agenda']['quantity_recovery']
         if projected['unassigned_questions'] or projected['unassigned_cards']:
             raise ValueError('A carga não cabe até a prova. Ajuste as metas e confira novamente.')
+        context=service.replanning(preview['observed_day'],view=view)
+        # Substituir apenas recuperações gerais; manter simulados, correções e treinos.
+        for record in context['active']:
+            if record.get('scope') is None and record.get('mode') in {'balanced','reviews','extra','custom'}:
+                service.cancel_replan(record['id'],service.agenda.token())
+        planned=service.preview_replan(preview['start'],90,'balanced')
+        if planned['unassigned']:
+            raise ValueError('Há temas atrasados sem vaga nos próximos 90 dias. Ajuste a carga e confira novamente.')
+        if planned['rows']:service.apply_replan(planned)
         with stage._connection() as db:new_rows=db.execute('SELECT * FROM study_plan_runs WHERE id>? ORDER BY id',(cutoff,)).fetchall()
         from .backups import create_backup
         create_backup(repo)
