@@ -176,18 +176,18 @@ class ErrorCardsService:
                 'missing_roots':sorted(previous_roots-roots),'filename':str(filename)[:200],
                 'observed_day':day,'scope':scope}
 
-    def import_html(self,data,filename,day,scope,token):
+    def import_html(self,data,filename,day,scope,token,*,new_pass=False):
         tree=self._read_html(data,day,scope)
         digest=hashlib.sha256(data).hexdigest()
         for previous in self._events():
-            if previous['kind']=='error_cards.snapshot' and previous['sha256']==digest and previous['scope']==scope:return previous['id']
+            if not new_pass and previous['kind']=='error_cards.snapshot' and previous['sha256']==digest and previous['scope']==scope:return previous['id']
         folder=self.repo.exports/'error-cards';folder.mkdir(exist_ok=True)
         write_immutable(folder/(digest+'.html'),data)
         with self.repo._connection() as db:
             cutoff=db.execute('SELECT COALESCE(MAX(id),0) FROM study_events').fetchone()[0]
         return self._append({'kind':'error_cards.snapshot','sha256':digest,'filename':str(filename)[:200],
                              'observed_day':day,'scope':scope,'tree':tree,'source':'exports/error-cards/'+digest+'.html',
-                             'study_event_cutoff':cutoff},token)
+                             'study_event_cutoff':cutoff,**({'pass_token':token} if new_pass and scope=='pass' else {})},token)
 
     def settings(self):
         return next((r for r in reversed(self._events()) if r['kind']=='error_cards.settings'),{'daily':200,'days':{}})
@@ -265,9 +265,19 @@ class ErrorCardsService:
         covered=sum(min(counts.get(key,0),p['covered']) for key,p in progress.items())
         unreconciled=sum(max(0,p['covered']-counts.get(key,0)) for key,p in progress.items())
         active=queue['has_queue']
+        recovery=question_view.get('agenda',{}).get('quantity_recovery')
+        reserved=None
+        if recovery and recovery['config']['snapshot_id']==queue['snapshot_id']:
+            reserved=next((r for r in recovery['decks'] if r['date']==day),{'cards':0,'decks':[]})
+            budget=reserved['cards']+done;reason='Decks inteiros reservados na retomada'
         ranked=plan_error_cards(queue['topics'],progress,question_view.get('states',[]),day,max(0,budget-done),
             [i['topic_id'] for i in qp.get('items',[])],queue['queue_start'],reference_budget=budget,completed_today=done,
             max_total=max(0,budget-done) if day in settings['days'] else None) if active else []
+        if reserved is not None:
+            chosen={t['topic_id']:t['count'] for t in reserved['decks']}
+            for item in ranked:
+                item['planned']=min(item['remaining'],chosen.get(item['topic_id'],0))
+                item['blocks']=[item['planned']] if item['planned'] else []
         remaining=sum(max(0,n-progress[key]['covered']) for key,n in counts.items())
         return {**queue,'snapshot':snapshot,'settings':settings,'budget':budget,'budget_reason':reason,'done_today':done,'covered':covered,
                 'remaining':remaining,'unreconciled_covered':unreconciled,
@@ -276,6 +286,17 @@ class ErrorCardsService:
 
     def forecast(self,view,horizon=120):
         if not view['active']:return {'days':[],'completion':None,'remaining':view['remaining']}
+        recovery=view.get('question_view',{}).get('agenda',{}).get('quantity_recovery')
+        if recovery and recovery['config']['snapshot_id']==view['snapshot_id']:
+            end=min(today_local()+timedelta(days=horizon-1),date.fromisoformat(view['routine']['profile']['exam_date'])).isoformat()
+            remaining=view['remaining'];rows=[]
+            for reservation in recovery['decks']:
+                if reservation['date']>end:break
+                remaining-=reservation['cards']
+                rows.append({'date':reservation['date'],'cards':reservation['cards'],
+                    'items':[{**d,'planned':d['count']} for d in reservation['decks']],
+                    'remaining':remaining,'reason':'Decks completos · previsão condicionada à execução'})
+            return {'days':rows,'completion':rows[-1]['date'] if rows and not remaining else None,'remaining':remaining}
         progress={k:dict(v) for k,v in view['progress'].items()}; rows=[]
         current=today_local(); end=min(current+timedelta(days=horizon-1),date.fromisoformat(view['routine']['profile']['exam_date']))
         while current<=end:

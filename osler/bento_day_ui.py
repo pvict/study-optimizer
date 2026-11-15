@@ -261,6 +261,8 @@ def render_today(service,go_record,go_review,go_edit=None):
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,view)
         return
+    from .recovery_ui import render_recovery
+    render_recovery(service,view)
     render_absence_notice(service,day)
     if plan.get('capacity',{}).get('new_floor_shortfall'):
         st.warning('O piso de temas novos não coube nos blocos disponíveis. Confira o máximo de temas e a divisão em Ajustar meu dia; compromissos já reservados continuam protegidos.')
