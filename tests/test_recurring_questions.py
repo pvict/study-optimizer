@@ -73,5 +73,34 @@ class RecurringQueueTests(unittest.TestCase):
             self.assertNotIn('2026-11-21',p['questions']);self.assertEqual(p['questions']['2026-11-22'],10)
             self.assertEqual(sum(p['questions'].values()),50)
 
+    def test_backdated_review_cannot_spend_balance_already_used_on_later_day(self):
+        from osler.storage import Repository
+        from osler.adaptive_service import AdaptiveService
+        from osler.recovery import RecoveryService
+        with tempfile.TemporaryDirectory() as folder, patch('osler.planner_service.ZoneInfo',return_value=timezone(timedelta(hours=-3))):
+            repo=Repository(Path(folder));a=AdaptiveService(repo);s=RecoveryService(repo)
+            with patch('osler.planner_service.today_local',return_value=date(2026,11,14)):
+                s.save(30,30,80,50,70,'2026-11-14',a.agenda.token())
+            with patch('osler.planner_service.today_local',return_value=date(2026,11,15)):
+                s.record('2026-11-15',30,a.agenda.token(),returning=0)
+                token=a.agenda.token()
+                with self.assertRaises(ValueError):s.record('2026-11-14',30,token,returning=0)
+                self.assertEqual(a.agenda.token(),token)
+                self.assertEqual(a.overview('2026-11-15')['agenda']['quantity_recovery']['remaining'],0)
+
+    def test_resetting_balance_does_not_reset_today_used_capacity(self):
+        from osler.storage import Repository
+        from osler.adaptive_service import AdaptiveService
+        from osler.recovery import RecoveryService
+        with tempfile.TemporaryDirectory() as folder, patch('osler.planner_service.ZoneInfo',return_value=timezone(timedelta(hours=-3))),patch('osler.planner_service.today_local',return_value=date(2026,11,14)):
+            repo=Repository(Path(folder));a=AdaptiveService(repo);s=RecoveryService(repo)
+            s.save(30,30,80,50,70,'2026-11-14',a.agenda.token());s.record('2026-11-14',30,a.agenda.token(),returning=0)
+            s.save(40,30,80,50,70,'2026-11-14',a.agenda.token())
+            p=a.overview('2026-11-14')['agenda']['quantity_recovery']
+            self.assertEqual(p['remaining'],40)
+            self.assertEqual(p['done_today'],30)
+            self.assertNotIn('2026-11-14',p['questions'])
+            with self.assertRaises(ValueError):s.record('2026-11-14',30,a.agenda.token(),returning=0)
+
 
 if __name__=='__main__':unittest.main()

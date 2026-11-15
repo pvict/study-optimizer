@@ -84,12 +84,13 @@ class RecoveryService:
         from .planner_service import today_local
         config=self.settings()
         if not config or not config['start']<=day<=today_local().isoformat():raise ValueError('Data fora da retomada.')
+        if type(count) is not int or count<=0:raise ValueError('Informe uma quantidade inteira positiva de revisões.')
         if returning is not None and (type(returning) is not int or not 0<=returning<=count):
             raise ValueError('As erradas ou sem convicção devem estar entre zero e o total revisado.')
         events=self.events()
         from .recurring_questions import outstanding_batches
         available_now=sum(r['count'] for r in outstanding_batches(config,events,day) if r['due']<=day)
-        done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['plan_id']==config['id'] and e['day']==day)
+        done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['day']==day)
         if type(count) is not int or not 0<count<=min(config['daily']-done,available_now):
             raise ValueError('Quantidade acima da cota diária ou do saldo disponível.')
         from .adaptive_service import AdaptiveService
@@ -98,8 +99,11 @@ class RecoveryService:
         if count>room:raise ValueError('Essa quantidade ultrapassa o espaço restante na carga total de hoje.')
         from .study_agenda import StudyAgenda
         from .study_storage import StudyStore
-        return StudyAgenda(self.repo).append(
-            {'kind':'recovery.quantity.done','plan_id':config['id'],'day':day,'count':count,'returning':returning,'sequence':len(events)},token)
+        payload={'kind':'recovery.quantity.done','plan_id':config['id'],'day':day,'count':count,'returning':returning,'sequence':len(events)}
+        # Um lançamento retroativo não pode consumir saldo usado posteriormente.
+        candidate={'id':max((e['id'] for e in events),default=0)+1,**payload}
+        outstanding_batches(config,[*events,candidate],today_local().isoformat())
+        return StudyAgenda(self.repo).append(payload,token)
 
     def add_generated(self,day,count,token):
         from .planner_service import today_local
@@ -118,7 +122,7 @@ class RecoveryService:
         events=self.events()
         from .recurring_questions import outstanding_batches
         batches=outstanding_batches(config,events,anchor)
-        done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['plan_id']==config['id'] and e['day']==anchor)
+        done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['day']==anchor)
         remaining=sum(r['count'] for r in batches)
         due_now=sum(r['count'] for r in batches if r['due']<=anchor)
         covered=defaultdict(int);cards_done=0;large_studied=set()
