@@ -140,5 +140,21 @@ class RecoveryTests(unittest.TestCase):
             with self.assertRaises(ValueError):apply_recovery(repo,p)
             self.assertEqual(a.agenda.token(),token)
 
+    def test_successful_apply_keeps_created_cards_and_preserves_question_history(self):
+        from osler.storage import Repository
+        from osler.adaptive_service import AdaptiveService
+        from osler.recovery_apply import apply_recovery
+        from osler.recovery import RecoveryService
+        from osler.study_models import StudyEntry
+        with tempfile.TemporaryDirectory() as folder, patch('osler.planner_service.ZoneInfo',return_value=timezone(timedelta(hours=-3))):
+            repo=Repository(Path(folder));a=AdaptiveService(repo)
+            day=__import__('osler.planner_service',fromlist=['today_local']).today_local().isoformat()
+            a.store.save_batch([('ordinary',StudyEntry(['Area','Tema'],day,10,correct=5,cards_created=12),0)])
+            before=a.store.events();p={'token':a.agenda.token(),'total':100,'daily':30,'limit':60,'target':50,'ceiling':70,
+                'start':day,'raw':None,'filename':None,'observed_day':day}
+            self.assertTrue(apply_recovery(repo,p))
+            self.assertEqual(a.store.events(),before)
+            self.assertEqual(sum(t['count'] for t in RecoveryService(repo).settings()['topics']),12)
+
 
 if __name__=='__main__':unittest.main()
