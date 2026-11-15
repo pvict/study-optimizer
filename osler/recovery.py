@@ -59,6 +59,11 @@ class RecoveryService:
     def settings(self):
         return next((e for e in reversed(self.events()) if e['kind']=='recovery.quantity.settings'),None)
 
+    def future_carry(self,observed):
+        from .recurring_questions import outstanding_batches
+        previous=self.settings()
+        return [r for r in outstanding_batches(previous,self.events(),observed,include_seed=False) if r['due']>observed] if previous else []
+
     def save(self,total,daily,limit,card_target,card_ceiling,start,token,topics=(),snapshot_id=0):
         for n in [total,daily,limit,card_target,card_ceiling]:
             if type(n) is not int:raise ValueError('Informe quantidades inteiras.')
@@ -70,17 +75,23 @@ class RecoveryService:
         from .study_agenda import StudyAgenda
         from .study_storage import StudyStore
         agenda=StudyAgenda(self.repo)
+        carried=self.future_carry(today_local().isoformat())
         return agenda.append({'kind':'recovery.quantity.settings','total':total,'daily':daily,'limit':limit,
             'card_target':card_target,'card_ceiling':card_ceiling,'start':start,
-            'topics':list(topics),'snapshot_id':snapshot_id,'previous_token':token},token)
+            'topics':list(topics),'snapshot_id':snapshot_id,'previous_token':token,'carried_returns':carried},token)
 
-    def record(self,day,count,token):
+    def record(self,day,count,token,*,returning=None):
         from .planner_service import today_local
         config=self.settings()
         if not config or not config['start']<=day<=today_local().isoformat():raise ValueError('Data fora da retomada.')
-        events=self.events();used=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['plan_id']==config['id'])
-        done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['plan_id']==config['id'] and e['day']==day)
-        if type(count) is not int or not 0<count<=min(config['daily']-done,config['total']-used):
+        if type(count) is not int or count<=0:raise ValueError('Informe uma quantidade inteira positiva de revisões.')
+        if returning is not None and (type(returning) is not int or not 0<=returning<=count):
+            raise ValueError('As erradas ou sem convicção devem estar entre zero e o total revisado.')
+        events=self.events()
+        from .recurring_questions import outstanding_batches
+        available_now=sum(r['count'] for r in outstanding_batches(config,events,day) if r['due']<=day)
+        done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['day']==day)
+        if type(count) is not int or not 0<count<=min(config['daily']-done,available_now):
             raise ValueError('Quantidade acima da cota diária ou do saldo disponível.')
         from .adaptive_service import AdaptiveService
         view=AdaptiveService(self.repo).overview(day)
@@ -88,17 +99,32 @@ class RecoveryService:
         if count>room:raise ValueError('Essa quantidade ultrapassa o espaço restante na carga total de hoje.')
         from .study_agenda import StudyAgenda
         from .study_storage import StudyStore
-        return StudyAgenda(self.repo).append(
-            {'kind':'recovery.quantity.done','plan_id':config['id'],'day':day,'count':count,'sequence':len(events)},token)
+        payload={'kind':'recovery.quantity.done','plan_id':config['id'],'day':day,'count':count,'returning':returning,'sequence':len(events)}
+        # Um lançamento retroativo não pode consumir saldo usado posteriormente.
+        candidate={'id':max((e['id'] for e in events),default=0)+1,**payload}
+        outstanding_batches(config,[*events,candidate],today_local().isoformat())
+        return StudyAgenda(self.repo).append(payload,token)
+
+    def add_generated(self,day,count,token):
+        from .planner_service import today_local
+        config=self.settings()
+        if not config or not config['start']<=day<=today_local().isoformat():raise ValueError('Data fora da retomada.')
+        if type(count) is not int or not 0<count<=100000:raise ValueError('Informe uma quantidade positiva de revisões geradas.')
+        from .study_agenda import StudyAgenda
+        return StudyAgenda(self.repo).append({'kind':'recovery.quantity.generated','plan_id':config['id'],
+            'day':day,'count':count,'sequence':len(self.events())},token)
 
     def projection(self,as_of,settings,overrides,end,config=None):
         config=config or self.settings()
         if not config:return None
         from .planner_service import today_local
         anchor=max(config['start'],min(as_of,today_local().isoformat()))
-        events=[e for e in self.events() if e['kind']=='recovery.quantity.done' and e['plan_id']==config['id'] and e['day']<=anchor]
-        used=sum(e['count'] for e in events);done=sum(e['count'] for e in events if e['day']==anchor)
-        remaining=max(0,config['total']-used)
+        events=self.events()
+        from .recurring_questions import outstanding_batches
+        batches=outstanding_batches(config,events,anchor)
+        done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['day']==anchor)
+        remaining=sum(r['count'] for r in batches)
+        due_now=sum(r['count'] for r in batches if r['due']<=anchor)
         covered=defaultdict(int);cards_done=0;large_studied=set()
         if config['topics']:
             from .error_cards_service import ErrorCardsService
@@ -122,11 +148,13 @@ class RecoveryService:
                 cap=min(config['limit'],30) if day in large else config['limit']
                 cap=min(settings.get(day,{}).get('questions',cap),cap)
                 room=max(0,cap-overrides.get(day,{}).get('area_reserved',0)-(ordinary if day==anchor else 0))
-                n=min(left,max(0,config['daily']-(done if day==anchor else 0)),max(0,room-(done if day==anchor else 0)))
+                eligible=sum(r['count'] for r in batches if r['due']<=day)-(remaining-left)
+                n=min(left,max(0,eligible),max(0,config['daily']-(done if day==anchor else 0)),max(0,room-(done if day==anchor else 0)))
                 if n:questions[day]=n;left-=n
             current+=timedelta(days=1)
         # Reservas não mudam de ordem só porque o calendário pediu uma data futura.
         return {'config':config,'remaining':remaining,'done_today':done if as_of==anchor else 0,'questions':questions,'decks':decks,'anchor':anchor,'large_days':sorted(large),
+                'due_now':due_now,'future_returns':[r for r in batches if r['due']>anchor],
                 'unassigned_questions':left,'unassigned_cards':sum(max(0,t['count']-covered[t['topic_id']]) for t in config['topics'])-sum(r['cards'] for r in decks)}
 
     def decorate(self,as_of,settings,overrides,end):
