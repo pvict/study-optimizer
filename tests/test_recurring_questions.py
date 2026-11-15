@@ -1,11 +1,37 @@
 import unittest
 import tempfile
+import importlib.util
+import os
 from pathlib import Path
 from datetime import date,timezone,timedelta
 from unittest.mock import patch
 
 
 class RecurringQueueTests(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec('streamlit'),'Interface validada no CI com Streamlit')
+    def test_return_count_is_editable_without_submitting_the_form_first(self):
+        from streamlit.testing.v1 import AppTest
+        from osler.storage import Repository
+        from osler.adaptive_service import AdaptiveService
+        from osler.recovery import RecoveryService
+        from osler.planner_service import today_local
+        with tempfile.TemporaryDirectory() as folder:
+            a=AdaptiveService(Repository(Path(folder)));day=today_local().isoformat()
+            RecoveryService(a.repository).save(3,30,80,50,70,day,a.agenda.token())
+            with patch.dict(os.environ,{'RECURRING_UI_ROOT':folder}):
+                app=AppTest.from_string('''
+import os
+from osler.storage import Repository
+from osler.adaptive_service import AdaptiveService
+from osler.planner_service import today_local
+from osler.recovery_ui import render_recovery
+a=AdaptiveService(Repository(os.environ['RECURRING_UI_ROOT']))
+render_recovery(a,a.overview(today_local().isoformat()))
+''').run()
+                self.assertFalse(app.exception)
+                field=app.number_input(key='recovery_return_count')
+                self.assertFalse(field.proto.disabled)
+                self.assertIsNone(field.value)
     def test_failed_or_uncertain_returns_exactly_seven_days_later(self):
         from osler.recurring_questions import outstanding_batches
         cfg={'id':1,'start':'2026-11-14','total':30}

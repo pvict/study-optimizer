@@ -19,12 +19,12 @@ def render_recovery(service,view):
                 st.caption(f"{done} registradas hoje. Esta cota já está reservada dentro da carga total; sem temas ou acertos inventados.")
                 if pending:
                     for key in ('recovery_count','recovery_return_count'):
-                        if key in st.session_state:st.session_state[key]=min(int(st.session_state[key]),pending)
+                        if st.session_state.get(key) is not None:st.session_state[key]=min(int(st.session_state[key]),pending)
                     with st.form('quantity_recovery_record'):
                         count=st.number_input('Quantidade de revisões que fiz agora',1,pending,pending,key='recovery_count')
-                        known=st.checkbox('Anotei quantas errei ou acertei sem convicção',key='recovery_return_known')
-                        returning=st.number_input('Dessas revisões, quantas devem voltar em 7 dias?',0,pending,0,
-                                                  disabled=not known,key='recovery_return_count')
+                        returning=st.number_input('Dessas revisões, quantas devem voltar em 7 dias?',0,pending,value=None,
+                                                  placeholder='Em branco se não anotou; zero se nenhuma',key='recovery_return_count')
+                        known=returning is not None
                         save=confirm_submit('Registrar revisões feitas',action_key='quantity_recovery_record_submit',
                                             details=f'{count} questões revisadas. '+(f'{returning} voltam em sete dias.' if known else 'Quantidade de retornos não informada; nenhum retorno será inventado.'))
                     if save:
