@@ -10,6 +10,23 @@ MODES={'balanced':'Distribuir na carga atual','reviews':'Priorizar revisões por
        'extra':'Acrescentar questões temporariamente','custom':'Escolher datas por tema'}
 
 
+def backlog_schedule(backlog,bookings,as_of):
+    """Exibe a data salva sem confundir uma reserva vencida com uma nova vaga."""
+    dates=defaultdict(list)
+    for row in bookings:
+        if row.get('date') and row.get('remaining',0)>0:
+            dates[row['topic_id']].append(row['date'])
+    result=[]
+    for topic in backlog:
+        saved=dates[topic['topic_id']]
+        current=[day for day in saved if day>=as_of]
+        day=min(current) if current else max(saved,default=None)
+        status=('Agendado para hoje' if day==as_of else 'Agendado') if current else (
+            'Data vencida — reagendar' if day else 'Sem agendamento')
+        result.append({**topic,'recovery_date':day,'recovery_current':bool(current),'recovery_status':status})
+    return result
+
+
 def collect_backlog(states,sessions,saved,as_of,start_date=None,completions=()):
     if start_date and as_of<=start_date: return []
     latest={}

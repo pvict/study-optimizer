@@ -153,7 +153,7 @@ def render_calendar(service,go_record,go_review=None):
         reference=picker.date_input('Ir para uma data',min_value=minimum,max_value=maximum,key='calendar_reference',on_change=_reference_changed,format='DD/MM/YYYY')
     with st.container(key='bento-calendar-replanning'):
         count=len(context['backlog'])
-        label=f'{count} '+('tema pede nova data' if count==1 else 'temas pedem nova data')
+        label=f'{count} '+('tema atrasado' if count==1 else 'temas atrasados')
         reorganize=st.expander('Reorganizar · '+label,key='calendar_reorganize_open',on_change='rerun')
         if reorganize.open:
             with reorganize:
