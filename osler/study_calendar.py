@@ -71,6 +71,7 @@ def iter_forecast_calendar(states,profile,start,days,sessions,settings,today_pla
         present={t['topic_id'] for t in active}
         active.extend(by_id[r['topic_id']] for r in daily_swaps if r['remaining'] and r['topic_id'] in by_id and r['topic_id'] not in present)
         extras=[{**by_id[e['topic_id']],'extra_id':e['extra_id'],'requested':e['questions'],'after_event_id':e['after_event_id']} for e in config.get('extra_topics',[]) if e['topic_id'] in by_id]
+        if 'recovery_limit' in override:extras=[]
         due_reservations=[r for r in agenda['rows'] if r['date']<=day and r['remaining']>0 and
                           (not r.get('planner_completed_day') or day<=r['planner_completed_day'])]
         if override.get('mode')=='final_review':

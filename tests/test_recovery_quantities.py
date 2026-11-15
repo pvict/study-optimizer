@@ -18,6 +18,7 @@ class RecoveryTests(unittest.TestCase):
             v=a.overview(day)
             self.assertEqual(v['plan']['routine_override']['recovery_reserved'],30)
             self.assertLessEqual(v['plan']['target_questions'],30)
+            self.assertLessEqual(a.overview(day,questions=120)['plan']['target_questions'],30)
             token=a.agenda.token();s.record(day,20,token)
             with self.assertRaises(ValueError):s.record(day,5,token)
             v=a.overview(day)

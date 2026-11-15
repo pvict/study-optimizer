@@ -261,6 +261,10 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         for extra in day_settings.extra_topics:
             if extra['topic_id'] in by_id: extras.append({**by_id[extra['topic_id']],'extra_id':extra['extra_id'],'requested':extra['questions'],'after_event_id':extra['after_event_id']})
         question_target=questions if questions is not None else routine_questions if minutes is None else None
+        if 'recovery_limit' in override:
+            question_target=min(routine_questions,question_target) if question_target is not None else routine_questions
+            # Extras explícitos ficam preservados na configuração, sem ampliar a retomada.
+            extras=[]
         extra_paths=[tuple(normalize_path(e['path'])) for e in extras]
         disjoint=[t for t in planning_states if not any(tuple(normalize_path(t['path']))!=p and (tuple(normalize_path(t['path']))[:len(p)]==p or p[:len(t['path'])]==tuple(normalize_path(t['path']))) for p in extra_paths)]
         from .study_capacity import capacity_limits
@@ -285,7 +289,7 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                 reservations=[*reservations,*[{**i,'date':as_of,'original_due':as_of,'daily_proposal':True} for i in completion['preserve'] if i['topic_id'] not in unavailable]]
         plan=allocate_day(disjoint,effective,minutes,kind,allocation_sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None,unavailable_ids=unavailable_returns)
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
-        if len(extras)!=len(day_settings.extra_topics): warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
+        if len(extras)!=len(day_settings.extra_topics) and 'recovery_limit' not in override: warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')
         if any(t['bank_balance_uncertain'] for t in states): warnings.append('O saldo de questões inéditas é uma estimativa: os arquivos e os blocos podem incluir as mesmas questões ou mostrar totais diferentes.')
         if as_of>profile.exam_date: warnings.append('A data da meta já passou. Ajuste a data para continuar a preparação.')
