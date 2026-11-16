@@ -125,6 +125,22 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
     return {'rows':output,'unassigned':unassigned,'overrides':overrides,'start':start,'days':days,'mode':mode,'extra_questions':extra_questions,'dates':dates or {}}
 
 
+def backlog_schedule(backlog,bookings,as_of):
+    """Datas reais por tema; atraso de estudo e reserva são estados distintos."""
+    dates=defaultdict(set)
+    for row in bookings:
+        if row.get('remaining',0)>0 and row.get('date'):
+            dates[row['topic_id']].add(row['date'])
+    output=[]
+    for row in backlog:
+        known=dates[row['topic_id']]
+        current=sorted(d for d in known if d>=as_of)
+        chosen=current[0] if current else max(known,default=None)
+        status=('Hoje' if chosen==as_of else 'Agendado') if current else ('Data vencida' if chosen else 'Sem nova data')
+        output.append({**row,'recovery_date':chosen,'recovery_current':bool(current),'recovery_status':status})
+    return output
+
+
 def past_calendar(states,sessions,saved,start,as_of,backlog):
     latest={r['plan']['date']:r['plan'] for r in saved if r['plan']['date']<as_of}
     actual=defaultdict(int)

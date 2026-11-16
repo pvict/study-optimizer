@@ -243,6 +243,8 @@ def render_today(service,go_record,go_review,go_edit=None):
     exam=principal_exam(AdaptiveProfile(**view['profile']),ExamGoals(service.repository).active(),day)
     exam=exam['target'] if exam else None
     summary=week_summary(view,service.store.days(),service.guide.days(),exam,service.recorded_mock_days())
+    from .today_replanning_ui import render_today_replanning
+    render_today_replanning(service,view)
     render_approach(service)
     _render_full_mocks_today(service,plan,day)
     if plan.get('routine_override',{}).get('mode')=='external_day':
@@ -261,12 +263,9 @@ def render_today(service,go_record,go_review,go_edit=None):
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,view)
         return
-    render_absence_notice(service,day)
     if plan.get('capacity',{}).get('new_floor_shortfall'):
-        st.warning('O piso de temas novos não coube nos blocos disponíveis. Confira o máximo de temas e a divisão em Ajustar meu dia; compromissos já reservados continuam protegidos.')
-    waiting=[r for r in view['agenda'].get('area_practice',[]) if r.get('status')=='waiting']
-    if waiting:
-        st.warning(f'{len(waiting)} treino(s) atrasado(s) sem vaga para recuperação. Ajuste as datas ou a carga em Simulados → Treinos por área.')
+        with st.expander('Parte dos temas novos ficou para outro dia'):
+            st.caption('O piso de temas novos não coube nos blocos disponíveis. Confira o máximo de temas e a divisão em Ajustar meu dia; compromissos já reservados continuam protegidos.')
     for task in plan.get('area_tasks',[]):
         with st.container(border=True,key='bento-area-today-'+task['id']):
             st.subheader(task['institution']+' · '+task['area'])
@@ -290,7 +289,6 @@ def render_today(service,go_record,go_review,go_edit=None):
             else:_hero_empty(state,plan)
         with side:
             _today_ring(plan,state)
-            _rhythm(summary)
     with st.container(key='bento_body'):
         work,support=st.columns([2,1],gap='medium')
         with work,st.container(key='bento_work'):
@@ -319,14 +317,16 @@ def render_today(service,go_record,go_review,go_edit=None):
                 st.session_state.pop('bento_pause_until',None)
             if activity['blocks'] and not st.session_state.get('bento_pause_dismissed'):_pause()
             with st.container(key='bento-tools'):
-                st.subheader('Seu dia, do seu jeito')
+                st.subheader('Ajustes rápidos')
                 # Expandir o atalho sem alterar os dados do dia.
                 advance=st.session_state.pop('bento_advance_open',False)
                 _extra_controls(service,view,day,advance)
-                st.caption(f"Dia de estudo até {study_today+timedelta(days=1):%d/%m} às 04h · Brasília.")
-    st.subheader('Sua semana')
-    _metrics(summary,exam)
+    with st.expander('Sua semana · progresso e ritmo'):
+        _metrics(summary,exam)
+        _rhythm(summary)
     with st.expander('Detalhes do dia e do plano'):
+        render_absence_notice(service,day)
+        st.caption(f"Dia de estudo até {study_today+timedelta(days=1):%d/%m} às 04h · Brasília.")
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,view)
         render_swap_history(service,view)
