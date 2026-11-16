@@ -288,7 +288,9 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                 unavailable={r['topic_id'] for r in reservations}|{e['topic_id'] for e in extras}|{r['topic_id'] for r in swaps}
                 unavailable.update(key for r in swaps for key in r['excluded_ids'])
                 reservations=[*reservations,*[{**i,'date':as_of,'original_due':as_of,'daily_proposal':True} for i in completion['preserve'] if i['topic_id'] not in unavailable]]
-        plan=allocate_day(disjoint,effective,minutes,kind,allocation_sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None,unavailable_ids=unavailable_returns,diagnose_new_floor=diagnose_new_floor,new_floor_control_share=profile.new_share)
+        from .planner_completion import apply_completions
+        def finalize(plan):apply_completions(plan,agenda,as_of,day_settings.extra_topics)
+        plan=allocate_day(disjoint,effective,minutes,kind,allocation_sessions,as_of,question_target=question_target,extra_topics=extras if question_target is not None else None,reservations=reservations,capacity_limits=capacity_limits(effective,as_of,self.store.days(),agenda),swaps=swaps,allocation_credits=completion['credits'] if completion else None,unavailable_ids=unavailable_returns,diagnose_new_floor=diagnose_new_floor,new_floor_control_share=profile.new_share,finalize_plan=finalize)
         warnings=list(incidence['warnings'])+sources.get('planner_warnings',[])
         if len(extras)!=len(day_settings.extra_topics) and 'recovery_limit' not in override: warnings.append('Uma revisão adicional antiga é ampla ou não existe no catálogo atual. Sua configuração foi preservada; escolha um tema específico para agendar.')
         if any(t['last_contact'] is None and t['answered_pdf'] for t in states): warnings.append('PDF não registra a última data de estudo. Esses temas entram como diagnóstico, sem atraso inventado.')
@@ -299,8 +301,6 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
                      'effective_profile':effective.to_dict(),
                      'session_versions':[(s['session_id'],s['version']) for s in sessions],
                      'incidence_contexts':incidence['contexts']})
-        from .planner_completion import apply_completions
-        apply_completions(plan,agenda,as_of,day_settings.extra_topics)
         decorate_practice_plan(plan,agenda,as_of,sessions)
         exact=[e['entry'] for e in sessions if e['entry']['kind']=='bloco' and e['entry']['mode']=='novas' and e['entry']['correct'] is not None]
         n=sum(e['questions'] for e in exact)

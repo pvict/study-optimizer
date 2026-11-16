@@ -20,6 +20,8 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install -r requirements.txt pytest
+      - name: Aviso quantitativo de temas novos
+        run: python -m pytest -q tests/test_new_floor_guidance.py tests/test_new_floor_ui.py
       - name: Suíte da base, sem as alterações
         run: |
           git worktree add /tmp/osler-baseline 1b42d08a39dd8b7c4036a0fda9bed7ef6dc1b04e

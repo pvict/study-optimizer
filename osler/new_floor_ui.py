@@ -30,10 +30,18 @@ def render_new_floor_notice(service,view):
             st.write('Use esses valores em **Ajustar meu dia**. Os ajustes ainda não foram salvos.')
         elif result.get('reason')=='no_candidates':
             st.info('Não há tema novo elegível para hoje nos dados atuais. Confira o acervo e as datas dos temas antes de aumentar os limites.')
+        elif result.get('reason')=='limited_candidates':
+            st.info(f"Os temas novos elegíveis comportam até **{result['new_capacity']} questões no plano**, abaixo do mínimo de **{result['required']}**.")
+            st.caption('Confira o acervo e os blocos disponíveis. Reagendar compromissos, por si só, não resolve esse limite.')
+        elif result.get('reason')=='dispensed_candidates':
+            st.info('Os temas novos disponíveis foram encerrados parcialmente hoje. A simulação respeita essas decisões; para incluí-los, reabra os blocos encerrados.')
         else:
             st.warning('Aumentar apenas o máximo de temas e a proporção de novos não resolveu o encaixe dentro da carga atual.')
             st.write(f"Os blocos já reservados ocupam **{result.get('protected_questions',0)} questões** em **{result.get('protected_topics',0)} temas**. Após essas reservas, há **{result.get('remaining_questions',0)} questões** para a distribuição automática.")
-            st.caption('Reagende parte dos compromissos para liberar espaço. A simulação mantém as datas reservadas e não aumenta sua meta automaticamente.')
+            if result.get('protected_questions'):
+                st.caption('Reagende parte dos compromissos para liberar espaço. A simulação mantém as datas reservadas e não aumenta sua meta automaticamente.')
+            else:
+                st.caption('Confira o tamanho mínimo dos blocos e o acervo elegível. A meta de questões foi mantida durante a simulação.')
         override=diagnostic['plan'].get('routine_override',{})
         if override.get('recovery_reserved') or override.get('area_reserved'):
             st.caption(f"O orçamento dos blocos já desconta {override.get('recovery_reserved',0)} revisões externas e {override.get('area_reserved',0)} questões de treino por área.")

@@ -52,3 +52,26 @@ def test_service_diagnostic_options_reproduce_in_the_real_overview(tmp_path,monk
         assert trial['capacity']['new_floor']['missing']==0
         assert trial['target_questions']==view['plan']['target_questions']
         assert {r['topic_id']:r['questions'] for r in trial['items'] if r.get('rescheduled')}=={'R1':20,'R2':20}
+
+
+def test_partial_completion_is_respected_by_service_counts_and_suggestions(tmp_path,monkeypatch):
+    from dataclasses import replace
+    from osler.study_models import StudyEntry
+    from osler.planner_completion import complete_partial_block
+    service=floor_service(tmp_path,monkeypatch)
+    record=service.store.profile()
+    service.store.save_profile(replace(AdaptiveProfile(**record['profile']),max_topics=3),record['id'])
+    service.agenda.append({'kind':'reschedule.apply','mode':'custom','created_day':'2026-10-15',
+        'cutoff':0,'selected':['N'],'rows':[{'topic_id':'N','path':['Area','N'],'date':'2026-10-15',
+        'original_due':'2026-10-01','questions':20,'new_topic':True,'manual_date':True}]},service.agenda.token())
+    service.remember_day(service.overview('2026-10-15'))
+    service.save_entry(StudyEntry(['Area','N'],'2026-10-15',5,4,confident_correct=4),'actual-new')
+    complete_partial_block(service,'2026-10-15','N',service.agenda.token())
+    before=(service.store.events(),service.agenda.records())
+    plan=service.overview('2026-10-15',diagnose_new_floor=True)['plan']
+    assert 'N' not in {r['topic_id'] for r in plan['items']}
+    assert plan['capacity']['new_floor']['done']==5
+    assert plan['capacity']['new_floor']['planned']==0
+    assert plan['capacity']['new_floor']['missing']==7
+    assert plan['capacity']['new_floor']['options']==[]
+    assert (service.store.events(),service.agenda.records())==before

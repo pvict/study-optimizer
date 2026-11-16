@@ -8,12 +8,21 @@ def floor_status(profile,plan):
     enabled=profile.workload_mode=='adaptive' and plan['kind']!='descanso' and not plan.get('not_started')
     required=(min(round(target*profile.new_share),max(profile.min_block,round(target*min(profile.new_share,profile.minimum_new_share))))
               if enabled and profile.new_share>0 and profile.minimum_new_share>0 else 0)
-    done=plan['distribution']['done_new']
+    done=plan.get('new_questions_done_actual',plan['distribution']['done_new'])
     planned=sum(i['questions'] for i in plan['items'] if i.get('is_new_for_day',i.get('status')=='sem_registro'))
     return {'required':required,'done':done,'planned':planned,'missing':max(0,required-done-planned)}
 
 
-def floor_adjustments(profile,plan,evaluate,*,has_candidates=True,control_share=None):
+def protected_blocks(plan):
+    result={}
+    for item in plan['items']:
+        fixed=any(item.get(k) for k in ('rescheduled','day_swap_id','daily_proposal_preserved','correction'))
+        q=item['questions'] if fixed else item.get('extra_pending',item['questions']) if item.get('added_by_user') else 0
+        if q:result[item['topic_id']]=result.get(item['topic_id'],0)+q
+    return result
+
+
+def floor_adjustments(profile,plan,evaluate,*,has_candidates=True,control_share=None,new_capacity=None):
     """Buscar configurações dos controles atuais, sem aumentar a quantidade.
 
     evaluate executa o alocador com o mesmo estado, sessões e compromissos.
@@ -25,8 +34,13 @@ def floor_adjustments(profile,plan,evaluate,*,has_candidates=True,control_share=
     if not has_candidates:
         result['reason']='no_candidates'
         return result
-    locked={i['topic_id']:i['questions'] for i in plan['items'] if
-            any(i.get(k) for k in ('rescheduled','day_swap_id','added_by_user','daily_proposal_preserved','correction'))}
+    locked=protected_blocks(plan)
+    result.update(protected_questions=sum(locked.values()),protected_topics=len(locked),
+                  remaining_questions=max(0,plan['target_questions']-plan['done_questions']-sum(locked.values())),
+                  new_capacity=new_capacity)
+    if new_capacity is not None and new_capacity+status['done']<status['required']:
+        result['reason']='limited_candidates'
+        return result
     cache={}
     control_share=profile.new_share if control_share is None else control_share
     scale=profile.new_share/control_share if control_share else 1

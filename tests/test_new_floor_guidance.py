@@ -19,6 +19,44 @@ def scenario(*,questions=60,slots=2,share=.5,minimum=.2,block=10,include_new=Tru
 
 
 class NewFloorGuidance(unittest.TestCase):
+    def test_real_new_questions_are_not_replaced_by_allocation_credit(self):
+        states,p,args=scenario()
+        args['sessions']=[{'id':1,'session_id':'x','entry':{'path':['Area','N'],'day':'2026-11-16',
+            'kind':'bloco','mode':'novas','questions':15,'correct':12,'minutes':None}}]
+        plan=allocate_day(states,p,**args,allocation_credits={'x':5})
+        self.assertEqual(plan['capacity']['new_floor']['done'],15)
+        self.assertEqual(plan['capacity']['new_floor']['missing'],0)
+
+    def test_dispensed_new_block_is_removed_before_counts_and_options(self):
+        from osler.planner_completion import apply_completions
+        states,p,args=scenario(slots=3)
+        agenda={'rows':[],'planner_completions':[{'id':1,'day':'2026-11-16','topic_id':'N',
+                    'manual_partial':True,'skipped_questions':20}]}
+        def finalize(plan):apply_completions(plan,agenda,'2026-11-16')
+        plan=allocate_day(states,p,**args,diagnose_new_floor=True,finalize_plan=finalize)
+        info=plan['capacity']['new_floor']
+        self.assertEqual(info['planned'],0)
+        self.assertEqual(info['missing'],12)
+        self.assertEqual(info['options'],[])
+
+    def test_manual_extras_are_counted_in_protected_work_without_double_counting(self):
+        states,p,args=scenario(questions=40,competing_review=True)
+        extra=next(t for t in states if t['topic_id']=='R3')
+        args['extra_topics']=[{**extra,'extra_id':'extra','requested':8,'after_event_id':0}]
+        info=allocate_day(states,p,**args,diagnose_new_floor=True)['capacity']['new_floor']
+        self.assertEqual(info['protected_questions'],48)
+        self.assertEqual(info['protected_topics'],3)
+        self.assertEqual(info['remaining_questions'],0)
+
+    def test_small_inventory_is_not_explained_as_reserved_work(self):
+        states,p,args=scenario()
+        states=[{**t,'total':2,'available_new':2,'recommended_questions':2} for t in states if t['topic_id']=='N']
+        args['reservations']=[]
+        info=allocate_day(states,p,**args,diagnose_new_floor=True)['capacity']['new_floor']
+        self.assertEqual(info['missing'],10)
+        self.assertEqual(info['new_capacity'],2)
+        self.assertEqual(info['reason'],'limited_candidates')
+
     def test_notice_reports_missing_questions_from_the_final_plan(self):
         states,p,args=scenario()
         plan=allocate_day(states,p,**args)
