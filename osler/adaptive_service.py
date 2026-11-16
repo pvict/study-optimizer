@@ -2,6 +2,7 @@
 from collections import Counter
 from copy import deepcopy
 from dataclasses import replace
+from datetime import timedelta
 import csv
 import hashlib
 from io import StringIO
@@ -404,6 +405,25 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         if p.start_date and start<p.start_date: raise ValueError('Escolha uma data a partir do início do cronograma: '+p.start_date+'.')
         dist=context['view']['plan']['distribution']
         usage={current:{'new':dist['done_new'],'reviews':dist['done_reviews'],'total':context['view']['plan']['done_questions']}}
+        # Trocas manuais têm precedência na alocação real. Reservar seu saldo
+        # antes da prévia evita anunciar uma vaga que o substituto já ocupa.
+        from .study_swaps import swap_rows
+        from .study_allocation import topic_is_new
+        from .adaptive_planning import practice_capacity
+        states=context['view']['planning_states']
+        by_id={t['topic_id']:t for t in states}
+        by_path={tuple(normalize_path(t['path'])):t for t in states}
+        last_day=(_date(start)+timedelta(days=days-1)).isoformat()
+        for day in sorted({r['day'] for r in context.get('swaps',[]) if start<=r['day']<=last_day}):
+            used=usage.setdefault(day,{'new':0,'reviews':0,'total':0,'slots':0})
+            for swap in swap_rows(context['swaps'],context['view']['sessions'],day):
+                target=by_id.get(swap['topic_id'])
+                if not target or swap.get('extra_only'):continue
+                q=min(swap['remaining'],practice_capacity(target,p))
+                if not q:continue
+                origin=by_path.get(tuple(normalize_path(swap.get('quota_path',swap['from_path']))),target)
+                group='new' if topic_is_new(origin) else 'reviews'
+                used[group]+=q;used['total']+=q;used['slots']=used.get('slots',0)+1
         preview=preview_replan(rows,p,start,days,mode,self.store.days(),[r for r in context['rows'] if r['topic_id'] not in selected],extra_questions,dates,usage,context['overrides'])
         if token!=self.agenda.token(): raise ValueError('Os dados mudaram durante o cálculo. Atualize a prévia.')
         preview.update({'selected':selected,'token':token,'created_day':current})

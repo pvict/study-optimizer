@@ -20,7 +20,7 @@ def render_replanning(service,context):
         if rows:
             st.dataframe([{'Tema':' › '.join(r['path']),'Recuperação':r['recovery_date'] or '—',
                            'Situação':r['recovery_status']} for r in rows],hide_index=True,width='stretch')
-    with st.expander('Reorganizar atrasos',expanded=False):
+    with st.expander('Reorganizar atrasos',expanded=st.session_state.pop('replan_advanced_open',False)):
         if not rows: st.info('Nenhum atraso confirmado. Temas sem data de contato conhecida não são considerados atrasados.')
         else:
             mode=st.radio('Como quer recuperar?',list(MODES),format_func=MODES.get,key='replan_mode')

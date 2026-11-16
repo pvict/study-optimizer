@@ -30,6 +30,10 @@ Arquivos examinados: `study_replanning.py`, `adaptive_service.py`, `study_agenda
 3. Remover a afirmação de que todos os atrasados “pedem nova data”. Um tema pode estar atrasado e já ter vaga futura.
 4. Atalho em Hoje: buscar até 90 dias, sem aumentar a carga, priorizando somente quem precisa de data. Os 90 dias são um horizonte máximo de busca; não uma recomendação de adiar cada revisão por 90 dias. Quando todos têm data, refazer a distribuição é opcional e explícito.
 5. Reduzir informação sempre aberta e usar cores suaves com rótulos textuais, mantendo acesso ao histórico e aos controles externos ao final.
+6. Corrigir dois defeitos do motor identificados na revisão: modos avançados descartavam reservas externas/de treinos ao calcular cotas, e trocas manuais não descontavam vagas da prévia. Agora as reservas derivadas participam do cálculo sem ficarem congeladas no evento; dias exclusivos externos ficam protegidos e trocas ocupam suas questões e vagas.
+7. Vincular desfazer ao ID e ao token originalmente exibidos, inclusive se outra sessão criar um reagendamento antes do clique. A confirmação identifica o evento.
+
+As datas são reservas baseadas no estado conhecido: se outro compromisso não for concluído, surgirem novas revisões ou a rotina mudar, a execução deve ser conferida novamente. Não são garantia imutável de disponibilidade futura.
 
 ## Evidência e o que ela não permite concluir
 

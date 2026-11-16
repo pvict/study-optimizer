@@ -8,11 +8,20 @@ from .study_navigation_ui import go_view
 
 def _advanced():
     st.session_state['calendar_reorganize_open']=True
+    st.session_state['replan_advanced_open']=True
     go_view('Plano de questões','Calendário')
 
 
 def _date(value):
     return '/'.join(reversed(value.split('-'))) if value else '—'
+
+
+def _undo(service,plan_id,token):
+    try:
+        notify_success(service.cancel_replan(plan_id,token),'Reagendamento desfeito.')
+        st.session_state.pop('today_replan_preview_data',None)
+    except ValueError as exc:
+        st.session_state['adaptive_error']=str(exc)
 
 
 def render_today_replanning(service,view):
@@ -76,7 +85,6 @@ def render_today_replanning(service,view):
             if recoveries:
                 last=recoveries[-1]
                 st.caption('Último reagendamento: '+_date(last['start'])+'. Desfazer preserva os resultados registrados.')
-                if confirm_button('Desfazer último reagendamento',key='today_replan_undo',action_key='today_replan_undo'):
-                    notify_success(service.cancel_replan(last['id'],context['token']),'Reagendamento desfeito.')
-                    st.session_state.pop('today_replan_preview_data',None)
-                    st.rerun()
+                confirm_button('Desfazer último reagendamento',key='today_replan_undo',action_key='today_replan_undo',
+                               details=f"Reagendamento #{last['id']}, início em {_date(last['start'])}. Seus resultados serão preservados.",
+                               on_click=_undo,args=(service,last['id'],context['token']))
