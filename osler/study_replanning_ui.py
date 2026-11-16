@@ -6,19 +6,21 @@ import hashlib,json
 import pandas as pd
 import streamlit as st
 from .planner_service import today_local
-from .study_replanning import MODES
+from .study_replanning import MODES,backlog_schedule
 
 
 def render_replanning(service,context):
-    rows=context['backlog']
+    rows=backlog_schedule(context['backlog'],context['rows'],context['view']['date'])
     with st.expander(f"Resumo de atrasos · {len(rows)} temas",expanded=bool(rows)):
         a,b,c=st.columns(3)
         a.metric('Temas atrasados',len(rows))
-        b.metric('Recuperações agendadas',len(context['rows']))
-        booked={r['topic_id'] for r in context['rows']}
-        c.metric('Atrasados sem nova data',sum(r['topic_id'] not in booked for r in rows))
-        st.caption('Vermelho: atraso confirmado · Azul: recuperação agendada · Laranja: pendência prevista. O atraso permanece até registrar o estudo.')
-    with st.expander('Reorganizar atrasos',expanded=False):
+        b.metric('Temas com data atual',sum(r['recovery_current'] for r in rows))
+        c.metric('Precisam de nova data',sum(not r['recovery_current'] for r in rows))
+        st.caption('Uma data reservada não marca estudo como feito. O atraso permanece até registrar o estudo.')
+        if rows:
+            st.dataframe([{'Tema':' › '.join(r['path']),'Recuperação':r['recovery_date'] or '—',
+                           'Situação':r['recovery_status']} for r in rows],hide_index=True,width='stretch')
+    with st.expander('Reorganizar atrasos',expanded=st.session_state.pop('replan_advanced_open',False)):
         if not rows: st.info('Nenhum atraso confirmado. Temas sem data de contato conhecida não são considerados atrasados.')
         else:
             mode=st.radio('Como quer recuperar?',list(MODES),format_func=MODES.get,key='replan_mode')

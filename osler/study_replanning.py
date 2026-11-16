@@ -81,7 +81,7 @@ def effective_routine(profile,config,override):
     return (replace(profile,new_share=0) if override.get('mode') in {'reviews','final_review'} else profile),max(0,q-override.get('area_reserved',0))
 
 
-def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None):
+def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None,blocked_topics=None):
     if mode not in MODES or type(days) is not int or not 1<=days<=90: raise ValueError('Escolha opção e período de1 a90dias.')
     if type(extra_questions) is not int or not 0<=extra_questions<=300: raise ValueError('Adicional deve estar entre0 e300questões.')
     if start>profile.exam_date: raise ValueError('O início deve ser anterior à prova.')
@@ -94,9 +94,12 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         if day>profile.exam_date: break
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
         prior=(previous_overrides or {}).get(day,{})
-        protected=prior.get('mode') in {'final_review','final_rest','mock_day','mock_reserved'}
-        over=prior if protected else {'mode':mode,'extra_questions':extra_questions} if mode in {'reviews','extra'} else prior
-        if not protected and config['kind']!='descanso' and mode in {'reviews','extra'}: overrides[day]=over
+        protected=prior.get('mode') in {'final_review','final_rest','mock_day','mock_reserved','external_day'}
+        change={'mode':mode,'extra_questions':extra_questions}
+        over=prior if protected or mode not in {'reviews','extra'} else {**prior,**change}
+        # Reservas derivadas afetam a capacidade, mas não devem ser congeladas
+        # no evento: o saldo externo/treinos será recalculado a cada consulta.
+        if not protected and config['kind']!='descanso' and mode in {'reviews','extra'}: overrides[day]=change
         p,q=effective_routine(profile,config,over)
         done=(usage or {}).get(day,{})
         capacity[day]={'new':max(0,round(q*p.new_share)-done.get('new',0)),
@@ -106,7 +109,7 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         left=row['remaining']
         group='new' if row.get('new_topic') else 'reviews'
         for day,c in capacity.items():
-            if day<row['date'] or c['rest'] or c['slots']<=0: continue
+            if day<row['date'] or c['rest'] or c['slots']<=0 or row['topic_id'] in (blocked_topics or {}).get(day,()): continue
             q=min(left,c[group],c['total'])
             if q:
                 c[group]-=q; c['total']-=q; c['slots']-=1; left-=q
@@ -115,7 +118,7 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         group='new' if row.get('is_new_for_day') else 'reviews'
         q=row['questions']
         candidates=[dates.get(row['topic_id'])] if mode=='custom' and dates else list(capacity)
-        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q),None)
+        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and row['topic_id'] not in (blocked_topics or {}).get(d,()) and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q),None)
         if not chosen:
             unassigned.append({'topic_id':row['topic_id'],'path':row['path'],'questions':q,'reason':'Sem vaga com a cota, datas, descanso e limites escolhidos.'})
             continue
@@ -123,6 +126,22 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         output.append({'topic_id':row['topic_id'],'path':row['path'],'date':chosen,'original_due':row['original_due'],
                        'questions':q,'new_topic':group=='new','days_late':row['days_late']})
     return {'rows':output,'unassigned':unassigned,'overrides':overrides,'start':start,'days':days,'mode':mode,'extra_questions':extra_questions,'dates':dates or {}}
+
+
+def backlog_schedule(backlog,bookings,as_of):
+    """Datas reais por tema; atraso de estudo e reserva são estados distintos."""
+    dates=defaultdict(set)
+    for row in bookings:
+        if row.get('remaining',0)>0 and row.get('date'):
+            dates[row['topic_id']].add(row['date'])
+    output=[]
+    for row in backlog:
+        known=dates[row['topic_id']]
+        current=sorted(d for d in known if d>=as_of)
+        chosen=current[0] if current else max(known,default=None)
+        status=('Hoje' if chosen==as_of else 'Agendado') if current else ('Data vencida' if chosen else 'Sem nova data')
+        output.append({**row,'recovery_date':chosen,'recovery_current':bool(current),'recovery_status':status})
+    return output
 
 
 def past_calendar(states,sessions,saved,start,as_of,backlog):

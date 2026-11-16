@@ -383,6 +383,33 @@
   gap:12px;
   transition:none;
 }
+
+/* Hoje: cores suaves indicam função e área, sempre acompanhadas de texto. */
+.st-key-bento-today-recovery { background:#FFF6EC; border-color:#E4CDB3; }
+.st-key-bento-today-ring { background:#EDF5FF; border-color:#CBDBF0; }
+.st-key-bento-tools { background:#F3F0FA; border-color:#DCD3ED; }
+.st-key-bento-pause { background:#ECF7F1; border-color:#CBDFD3; }
+[class*="st-key-bento-area-today-"] { background:#F0F4FC; border-color:#D1DCEC; }
+.st-key-bento-correction-today { background:#F7F1FB; border-color:#DFD2E9; }
+.st-key-bento-state-rest,.st-key-bento-state-complete { background:#EDF7F1; border-color:#CBDFD3; }
+.st-key-bento-state-mock { background:#F3F0FA; border-color:#DCD3ED; }
+:is([class*="st-key-bento-hero-"],[class*="st-key-bento-block-"]) { border-left:4px solid var(--today-accent,#CBDBF0); background:var(--today-tint,#F5F8FD); }
+:is([class*="st-key-bento-hero-"],[class*="st-key-bento-block-"]):has(.o-eyebrow--clinica) { --today-accent:#AAC6E8; --today-tint:#F0F6FF; }
+:is([class*="st-key-bento-hero-"],[class*="st-key-bento-block-"]):has(.o-eyebrow--cirurgia) { --today-accent:#E8B8AC; --today-tint:#FFF3F0; }
+:is([class*="st-key-bento-hero-"],[class*="st-key-bento-block-"]):has(.o-eyebrow--pediatria) { --today-accent:#A6D4BC; --today-tint:#EFF9F3; }
+:is([class*="st-key-bento-hero-"],[class*="st-key-bento-block-"]):has(.o-eyebrow--go) { --today-accent:#C7B6E1; --today-tint:#F6F1FC; }
+:is([class*="st-key-bento-hero-"],[class*="st-key-bento-block-"]):has(.o-eyebrow--preventiva) { --today-accent:#DDCC94; --today-tint:#FFFAED; }
+.st-key-bento-today-recovery .o-recovery-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:0; }
+.st-key-bento-today-recovery .o-recovery-counts dt { color:#515154; font-size:13px; line-height:18px; }
+.st-key-bento-today-recovery .o-recovery-counts dd { color:#1D1D1F; font-size:26px; font-weight:700; margin:4px 0 0; }
+.st-key-bento-today-recovery [data-testid="stExpander"] { background:transparent; }
+.st-key-bento-today-recovery h3 { padding:0; }
+@media (max-width:760px) {
+  .st-key-bento-today-recovery { padding:20px 16px; }
+  .st-key-bento-today-recovery .o-recovery-counts { gap:8px; }
+  .st-key-bento-today-recovery .o-recovery-counts dt { overflow-wrap:anywhere; }
+  .st-key-bento-today-recovery button { max-width:100%; white-space:normal; }
+}
 .st-key-bento-attention h3 {
   margin:0;
   padding:0;
