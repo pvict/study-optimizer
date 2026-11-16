@@ -263,9 +263,8 @@ def render_today(service,go_record,go_review,go_edit=None):
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,view)
         return
-    if plan.get('capacity',{}).get('new_floor_shortfall'):
-        with st.expander('Parte dos temas novos ficou para outro dia'):
-            st.caption('O piso de temas novos não coube nos blocos disponíveis. Confira o máximo de temas e a divisão em Ajustar meu dia; compromissos já reservados continuam protegidos.')
+    from .new_floor_ui import render_new_floor_notice
+    render_new_floor_notice(service,view)
     for task in plan.get('area_tasks',[]):
         with st.container(border=True,key='bento-area-today-'+task['id']):
             st.subheader(task['institution']+' · '+task['area'])

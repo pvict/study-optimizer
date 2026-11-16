@@ -325,7 +325,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     return sorted(states,key=lambda t:review_order(t,as_of))
 
 
-def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=(),allocation_credits=None,unavailable_ids=()):
+def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=(),allocation_credits=None,unavailable_ids=(),diagnose_new_floor=False,new_floor_control_share=None,finalize_plan=None):
     profile.validate()
     not_started=bool(profile.start_date and as_of<profile.start_date)
     if not_started: kind='descanso'; extra_topics=None; reservations=None
@@ -498,7 +498,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     order={'urgente':0,'alta':1,'normal':2}
     items.sort(key=lambda t:(not t.get('rescheduled',False),*review_order(t,as_of)))
     capacity['unused_questions']=max(0,target-done-total)
-    return {'items':items,'questions':total,'capacity':capacity,'done_questions':done,'spent_minutes':spent,'reserves_minutes':reserves,
+    plan={'items':items,'questions':total,'capacity':capacity,'done_questions':done,'spent_minutes':spent,'reserves_minutes':reserves,
             'planned_minutes':spent+reserves+total*profile.minutes_per_question,'budget':budget,'minutes_per_question':profile.minutes_per_question,
             'kind':kind,'date':as_of,'target_accuracy':profile.target_accuracy,'available_minutes':minutes,
             'not_started':not_started,'start_date':profile.start_date,
@@ -508,3 +508,25 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             'excess_done_questions':max(0,done-credited_done),'credited_done_questions':credited_done,
             'allocation_credits':dict(allocation_credits or {}),
             'mode':'questions' if question_target is not None else 'time','distribution':distribution}
+    if finalize_plan:finalize_plan(plan)
+    by_path={tuple(normalize_path(t['path'])):t for t in states}
+    plan['new_questions_done_actual']=sum(e['questions'] for e in today if e['kind']=='bloco' and
+        tuple(normalize_path(e['path'])) in by_path and topic_is_new(by_path[tuple(normalize_path(e['path']))]))
+    from .new_floor import floor_status,floor_adjustments
+    capacity['new_floor']=floor_status(profile,plan)
+    capacity['new_floor_shortfall']=bool(capacity['new_floor']['missing'])
+    if diagnose_new_floor and capacity['new_floor_shortfall']:
+        def evaluate(trial):
+            limits=[(q,trial.max_topics if slots else 0) for q,slots in capacity_limits] if capacity_limits else None
+            return allocate_day(states,trial,minutes,kind,sessions,as_of,question_target,extra_topics,reservations,
+                                limits,capacity_states,swaps,allocation_credits,unavailable_ids,finalize_plan=finalize_plan)
+        eligible_new=[t for t in states if
+            topic_is_new(t) and t['total']>0 and t['topic_id'] not in excluded|swapped_ids and
+            (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
+            (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of)]
+        capacity['new_floor']=floor_adjustments(profile,plan,evaluate,has_candidates=bool(eligible_new),
+            control_share=new_floor_control_share,new_capacity=sum(practice_capacity(t,profile) for t in eligible_new))
+        dispensed={r['topic_id'] for r in plan.get('planner_completions',[])}
+        if not capacity['new_floor']['options'] and eligible_new and {t['topic_id'] for t in eligible_new}<=dispensed:
+            capacity['new_floor']['reason']='dispensed_candidates'
+    return plan
