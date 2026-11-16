@@ -81,7 +81,7 @@ def effective_routine(profile,config,override):
     return (replace(profile,new_share=0) if override.get('mode') in {'reviews','final_review'} else profile),max(0,q-override.get('area_reserved',0))
 
 
-def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None):
+def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None,blocked_topics=None):
     if mode not in MODES or type(days) is not int or not 1<=days<=90: raise ValueError('Escolha opção e período de1 a90dias.')
     if type(extra_questions) is not int or not 0<=extra_questions<=300: raise ValueError('Adicional deve estar entre0 e300questões.')
     if start>profile.exam_date: raise ValueError('O início deve ser anterior à prova.')
@@ -109,7 +109,7 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         left=row['remaining']
         group='new' if row.get('new_topic') else 'reviews'
         for day,c in capacity.items():
-            if day<row['date'] or c['rest'] or c['slots']<=0: continue
+            if day<row['date'] or c['rest'] or c['slots']<=0 or row['topic_id'] in (blocked_topics or {}).get(day,()): continue
             q=min(left,c[group],c['total'])
             if q:
                 c[group]-=q; c['total']-=q; c['slots']-=1; left-=q
@@ -118,7 +118,7 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         group='new' if row.get('is_new_for_day') else 'reviews'
         q=row['questions']
         candidates=[dates.get(row['topic_id'])] if mode=='custom' and dates else list(capacity)
-        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q),None)
+        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and row['topic_id'] not in (blocked_topics or {}).get(d,()) and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q),None)
         if not chosen:
             unassigned.append({'topic_id':row['topic_id'],'path':row['path'],'questions':q,'reason':'Sem vaga com a cota, datas, descanso e limites escolhidos.'})
             continue
