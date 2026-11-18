@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from .models import normalize_path
 from .planning import _date,_number
+from .files import export_folder
 
 SEMANTICS={'questions':'unique','accuracy':'latest_confident_including_reviews','contact':'any_question_including_reviews'}
 
@@ -34,7 +35,7 @@ def load_planner_contexts(repo,datasets,report_id,as_of):
                 ds.get('qbank_report_id')!=report_id or ds['observed_date']>as_of): continue
         try:
             observed=_date(ds['observed_date'])
-            folder=(repo.root/ds['source_path']).resolve()
+            folder=export_folder(repo,ds['source_path'])
             name=ds['planner_snapshot']
             if name!='snapshot.json' or not folder.is_relative_to(repo.exports.resolve()): raise ValueError('Caminho inválido.')
             path=(folder/name).resolve()

@@ -14,10 +14,16 @@ def test_small_positive_bank_receives_real_slot_without_inventing_questions(tota
     p=AdaptiveProfile(max_questions=120,max_topics=6,new_share=.5,review_strategy=strategy,workload_mode=mode)
     states=topic_states([topic('small',total=total)],[],[],{},'2026-10-15',p)
     plan=allocate_day(states,p,None,'normal',[],'2026-10-15',question_target=120)
-    assert [(i['topic_id'],i['questions']) for i in plan['items']]==[('small',total)]
+    # balanced_v2 mantém a prática recomendada e pede complemento externo,
+    # sem afirmar que essas questões existem no retrato importado.
+    expected=20 if strategy=='balanced_v2' else total
+    assert [(i['topic_id'],i['questions']) for i in plan['items']]==[('small',expected)]
+    assert plan['items'][0]['new_questions']==total
+    assert plan['items'][0].get('external_bank_questions',0)==expected-total
+    assert plan['items'][0]['repeat_questions']==0
     assert plan['done_questions']==0
     calendar=forecast_calendar(states,p,'2026-10-15',30,[],{},next_contact_only=True)
-    assert [i['questions'] for d in calendar for i in d['items']]==[total]
+    assert [i['questions'] for d in calendar for i in d['items']]==[expected]
     assert states[0]['performance']['exact_n']==0
 
 

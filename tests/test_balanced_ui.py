@@ -15,7 +15,8 @@ from osler.review_strategy_ui import render_review_strategy
 render_review_strategy(AdaptiveService(Repository(os.environ['BALANCED_UI_ROOT'])))
 ''',default_timeout=60).run()
     assert not app.exception
-    app.radio[0].set_value('balanced_v2').run()
+    # O controle de retornos antecede a estratégia; selecionar pelo identificador.
+    app.radio(key='review_strategy_0').set_value('balanced_v2').run()
     assert s.store.profile()['configured_profile']['review_strategy']=='legacy_v1'
     app.button(key='review_strategy_preview').click().run()
     assert not app.exception and app.dataframe

@@ -158,5 +158,5 @@ class PlannerImportService:
         payload={k:fresh[k] for k in ['import_key','source_sha256','observed_date','qbank_report_id','incidence_included','institutions','filename','received_rows','matched_rows']}
         payload.update(source_kind='manual_osler_planner_export',planner_semantics=SEMANTICS,
                        planner_snapshot='snapshot.json',snapshot_sha256=hashlib.sha256(raw).hexdigest(),
-                       source_path=str(folder.relative_to(self.repo.root)),unit='questoes',rows=fresh['incidence_rows'])
+                       source_path=folder.relative_to(self.repo.root).as_posix(),unit='questoes',rows=fresh['incidence_rows'])
         return self.guide.store.save_dataset(payload,expected_token=preview['token'])

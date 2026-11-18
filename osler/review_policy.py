@@ -2,7 +2,7 @@
 from math import ceil
 from .planning import _date
 
-POLICY_VERSION='4.7'
+POLICY_VERSION='4.8'
 
 
 def initial_interval(snapshot,profile,incidence_strength):
@@ -43,6 +43,10 @@ def review_order(state,day):
     # Não estima esquecimento: preserva o peso institucional e o intervalo já calculados.
     wait=max(0,(_date(day)-_date(deadline)).days) if stale_initial else 0
     score=state['score']+(state['importance']*(1+wait/max(1,state.get('review_interval_days',7))) if stale_initial else 0)
+    recovery_due=state.get('automatic_due')
+    if recovery_due and recovery_due<=day:
+        delay=(_date(day)-_date(recovery_due)).days
+        score+=state['importance']*(1+delay/max(1,state.get('review_interval_days',7)))
     group=0 if hard_due else 1 if adverse else 2
     return (group,{'urgente':0,'alta':1,'normal':2}[state['priority']] if hard_due else 0,
             due if hard_due else '9999-12-31',not state.get('manual_adverse',False),

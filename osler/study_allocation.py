@@ -8,13 +8,14 @@ def topic_is_new(t):
 
 def practice_minimum(topic,minimum):
     """Acervo pequeno positivo é uma exceção ao piso, não motivo para excluir o tema."""
-    return min(minimum,topic['total'])
+    return min(minimum,topic['total'],topic.get('automatic_remaining',minimum))
 
 
 def practice_capacity(topic,profile):
+    capacity=topic['total']
     if profile.review_strategy=='balanced_v2' and topic_is_new(topic) and topic['total']<profile.min_block and topic.get('review_kind')!='lot_only':
-        return max(topic['total'],topic.get('recommended_questions',topic['total']))
-    return topic['total']
+        capacity=max(topic['total'],topic.get('recommended_questions',topic['total']))
+    return min(capacity,topic.get('automatic_remaining',capacity))
 
 
 def _fill(selected,counts,target,capped=False):

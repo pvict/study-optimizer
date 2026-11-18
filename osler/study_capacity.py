@@ -102,7 +102,7 @@ def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=
     def expired(t):
         deadline=t.get('initial_contact_deadline')
         return bool(not t.get('review_committed',True) and not topic_is_new(t) and
-                    (deadline and deadline<=day or t.get('reported_difficulty')))
+                    (deadline and deadline<=day or t.get('reported_difficulty') or t.get('limited_practice')))
     def admit(t,left,protect=False):
         if t['topic_id'] in admitted or t.get('review_committed',True): return 0
         if eligible_ids is not None and t['topic_id'] not in eligible_ids:return 0

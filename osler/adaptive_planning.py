@@ -306,6 +306,14 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         from .study_capacity import practice_state
         states[-1].update(practice_state(states[-1],as_of,profile))
         states[-1]['is_new_for_day']=not(topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline or snapshot and snapshot['unique_questions'] or any(d<as_of for d in contact_dates))
+        # Indicador de exposição, separado do posterior de acertos. As fontes
+        # acumuladas podem se sobrepor; nunca as somamos como novas tentativas.
+        exposure=max(topic['answered_pdf'] or 0, snapshot['unique_questions'] if snapshot else 0,
+                     sum(e['questions'] for e in entries if e['kind']=='bloco'),
+                     max((e['questions'] for e in baselines),default=0),
+                     manual.get('questoes_distintas') or 0)
+        states[-1].update(question_exposure=exposure,
+            limited_practice=not states[-1]['is_new_for_day'] and exposure<profile.parameters.sufficient_sample)
         number,stage=next_stage(states[-1],as_of)
         states[-1].update({'review_number':number,'stage':stage})
     # Destaque operacional da fila inicial limitado à capacidade aproximada de uma semana.
@@ -334,6 +342,16 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     if extra_topics: extra_topics=[e for e in extra_topics if e['topic_id'] not in unavailable_ids]
     excluded={topic_id for row in swaps for topic_id in row['excluded_ids']}|unavailable_ids
     swapped_ids={row['topic_id'] for row in swaps}
+    from .study_agenda import flexible_reservation
+    automatic={r['topic_id']:r for r in reservations or [] if flexible_reservation(r) and r['date']<=as_of and r['remaining']>0}
+    def recovery_context(t):
+        row=automatic.get(t['topic_id'])
+        # Um bloco parcialmente feito continua elegível pelo seu saldo. A data
+        # clínica da próxima revisão permanece intacta, separada desta reserva.
+        return {**t,'automatic_due':row['original_due'],'automatic_remaining':row['remaining'],
+                'allocation_due':min(t.get('allocation_due',t.get('next_review')) or as_of,as_of)} if row else t
+    states=[recovery_context(t) for t in states]
+    if capacity_states is not None:capacity_states=[recovery_context(t) for t in capacity_states]
     if question_target is None: _number(minutes,'Tempo disponível',integer=True,positive=True,maximum=720)
     else: _number(question_target,'Meta de questões',integer=True,maximum=1000)
     if kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
@@ -406,6 +424,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             group='new' if topic_is_new(t) else 'reviews'
             group_targets[group]=max(0,group_targets[group]-e['questions'])
     for row in sorted(reservations or [],key=lambda r:r['date']):
+        if flexible_reservation(row):continue
         t=by_id.get(row['topic_id'])
         if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
@@ -469,6 +488,10 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     items=[{**t,'questions':counts[t['topic_id']], 'added_by_user':False,'new_questions':min(counts[t['topic_id']],t['available_new']),
             'repeat_questions':max(0,counts[t['topic_id']]-t['available_new'])} for t in selected if counts[t['topic_id']]]
     for item in items:
+        if item['topic_id'] in automatic:
+            row=automatic[item['topic_id']]
+            item.update(rescheduled=True,automatic_replan=True,reschedule_date=row['date'],
+                        original_due=row['original_due'],reason='Recuperação redistribuída por prioridade; atraso original preservado')
         if item.get('preventive_priority'):
             item['reason']=f"Revisão antecipada em {item['anticipated_days']}dia(s) para evitar acúmulo previsto" if item.get('anticipated_days') else 'Revisão priorizada pelo plano preventivo'
     items+=recovered+pinned

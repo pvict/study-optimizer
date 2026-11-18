@@ -14,9 +14,11 @@ def floor_status(profile,plan):
 
 
 def protected_blocks(plan):
+    from .study_agenda import flexible_reservation
     result={}
     for item in plan['items']:
-        fixed=any(item.get(k) for k in ('rescheduled','day_swap_id','daily_proposal_preserved','correction'))
+        fixed=(item.get('rescheduled') and not flexible_reservation(item) or
+               any(item.get(k) for k in ('day_swap_id','daily_proposal_preserved','correction')))
         q=item['questions'] if fixed else item.get('extra_pending',item['questions']) if item.get('added_by_user') else 0
         if q:result[item['topic_id']]=result.get(item['topic_id'],0)+q
     return result

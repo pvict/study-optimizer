@@ -94,6 +94,10 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
             if st.session_state.get('show_explanations',False):
                 text+='<p class="o-reason">'+escape(item['reason'])+'</p>'
         st.html(text)
+        if item.get('is_new_for_day'):
+            st.html(chip('Tema novo'))
+        elif item.get('limited_practice'):
+            st.html(chip('Pouca prática em questões'))
         if item.get('group_members'):
             st.html(chip(f"Agrupamento · {len(item['group_member_paths'])} temas"))
             with st.popover('Ver temas agrupados',icon=':material/account_tree:'):

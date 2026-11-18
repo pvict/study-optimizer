@@ -68,7 +68,7 @@ class GuideService:
         folder.mkdir(parents=True, exist_ok=True)
         write_immutable(folder/("origem.html" if table else "origem.txt"), source)
         payload = {"institutions": [i.strip() for i in institutions], "observed_date": observed_date, "unit": unit, "rows": rows,
-                   "qbank_report_id": qbank.file_sha256, "source_sha256": digest, "source_path": str(folder.relative_to(self.repository.root)),
+                   "qbank_report_id": qbank.file_sha256, "source_sha256": digest, "source_path": folder.relative_to(self.repository.root).as_posix(),
                    "received_rows": len(rows), "matched_rows": sum(r["path"] is not None for r in rows)}
         return self.store.save_dataset(payload)
 

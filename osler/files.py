@@ -4,6 +4,22 @@ from pathlib import Path
 import tempfile
 
 
+def export_folder(repo, stored):
+    """Lê caminhos relativos históricos do Windows também em servidores POSIX."""
+    from pathlib import PurePosixPath
+    if not isinstance(stored, str) or not stored or '\x00' in stored:
+        raise ValueError('Caminho inválido.')
+    portable = stored.replace('\\', '/')
+    parts = portable.split('/')
+    if PurePosixPath(portable).is_absolute() or any(p in {'', '.', '..'} or ':' in p for p in parts):
+        raise ValueError('Caminho inválido.')
+    root, exports = repo.root.resolve(), repo.exports.resolve()
+    folder = root.joinpath(*parts).resolve()
+    if not exports.is_relative_to(root) or not folder.is_relative_to(exports):
+        raise ValueError('Caminho fora das exportações.')
+    return folder
+
+
 def write_immutable(path: Path, data: bytes):
     if path.exists():
         if path.read_bytes() != data:

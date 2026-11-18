@@ -7,6 +7,12 @@ from .models import normalize_path
 from . import review_policy
 
 
+def flexible_reservation(row):
+    """Só remanejamentos gerais automáticos podem ceder lugar na distribuição."""
+    return bool(row.get('automatic_replan') and not any(row.get(flag) for flag in
+        ('manual_date','daily_proposal','swap_return','return_unavailable','final_review','correction')))
+
+
 def effective_applies(records,as_of):
     eligible=[r for r in records if r.get('created_day','0001-01-01')<=as_of]
     canceled={r['plan_id'] for r in eligible if r.get('kind')=='reschedule.cancel'}
@@ -117,7 +123,11 @@ class StudyAgenda:
             if r.get('scope')=='triage': triage_policies.append({**r['policy'],'plan_id':r['id']})
             selected=set(r.get('selected',[]))
             rows={key:item for key,item in rows.items() if item['topic_id'] not in selected}
-            for item in r['rows']: rows[tuple(normalize_path(item['path']))]={**item,'plan_id':r['id'],'cutoff':r['cutoff'],'created_day':r['created_day']}
+            for item in r['rows']:
+                general=r.get('scope') is None and r.get('mode') in {'balanced','reviews','extra','custom'}
+                rows[tuple(normalize_path(item['path']))]={**item,'plan_id':r['id'],'cutoff':r['cutoff'],'created_day':r['created_day'],
+                    'automatic_replan':bool(general and r['mode']!='custom'),
+                    'manual_date':bool(item.get('manual_date') or general and r['mode']=='custom')}
         from .study_swaps import active_swaps
         swaps=active_swaps(records,as_of)
         for swap in swaps:

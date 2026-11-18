@@ -52,7 +52,8 @@ def test_snapshot_precedence_for_bank_and_no_same_day_double_count():
     assert future['available_new']==80
 
 
-def test_snapshot_loader_requires_confirmed_semantics_hash_and_safe_paths(tmp_path):
+@pytest.mark.parametrize('separator',['/','\\'])
+def test_snapshot_loader_requires_confirmed_semantics_hash_and_safe_paths(tmp_path,separator):
     from osler.planner_snapshot import load_planner_contexts
     from osler.storage import Repository
     repo=Repository(tmp_path)
@@ -62,7 +63,7 @@ def test_snapshot_loader_requires_confirmed_semantics_hash_and_safe_paths(tmp_pa
         'confident_accuracy_pct':73.5,'pending_reviews':1,'days_since_contact':5}]}
     raw=json.dumps(payload).encode(); (folder/'snapshot.json').write_bytes(raw)
     ds={'id':1,'source_kind':'manual_osler_planner_export','qbank_report_id':'pdf',
-        'observed_date':'2026-10-15','source_sha256':'abc','source_path':str(folder.relative_to(repo.root)),
+        'observed_date':'2026-10-15','source_sha256':'abc','source_path':separator.join(folder.relative_to(repo.root).parts),
         'planner_snapshot':'snapshot.json','snapshot_sha256':hashlib.sha256(raw).hexdigest(),
         'planner_semantics':{'questions':'unique','accuracy':'latest_confident_including_reviews','contact':'any_question_including_reviews'}}
     result,warnings=load_planner_contexts(repo,[ds],'pdf','2026-10-15')
