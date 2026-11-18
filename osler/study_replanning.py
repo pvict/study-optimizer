@@ -71,11 +71,13 @@ def effective_routine(profile,config,override):
     from .final_review import special_config
     config=special_config(config,override)
     q=config['questions']
+    if config.get('effective_goal'):
+        q=max(0,q-sum(e['questions'] for e in config.get('extra_topics',[])))
     if 'recovery_limit' in override:
-        q=max(0,min(q,override['recovery_limit'])-override.get('recovery_reserved',0))
+        q=max(0,(q if config.get('effective_goal') else min(q,override['recovery_limit']))-override.get('recovery_reserved',0))
     if override.get('mode')=='external_day': return profile,0
     if override.get('mode')=='extra':
-        total=q if 'recovery_limit' in override else min(1000,q+override['extra_questions'])
+        total=q if 'recovery_limit' in override or config.get('effective_goal') else min(1000,q+override['extra_questions'])
         if not total:return profile,0
         return replace(profile,new_share=q*profile.new_share/total),max(0,total-override.get('area_reserved',0))
     return (replace(profile,new_share=0) if override.get('mode') in {'reviews','final_review'} else profile),max(0,q-override.get('area_reserved',0))

@@ -151,9 +151,11 @@ class StudyDay:
     questions: int = 60
     kind: str = 'normal'
     extra_topics: list[dict] = field(default_factory=list)
+    effective_goal: bool = False
 
     def validate(self):
         _number(self.questions,'Meta diária',integer=True,positive=True,maximum=1000)
+        if type(self.effective_goal) is not bool:raise ValueError('Escolha válida para a meta efetiva do dia.')
         if self.kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
         if not isinstance(self.extra_topics,list): raise ValueError('Revisões adicionais inválidas.')
         seen=set()

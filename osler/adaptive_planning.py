@@ -373,18 +373,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     else:
         reserves=0
         batches=extra_topics or []
-        credits={t['extra_id']:0 for t in batches}
-        dated=[s for s in sessions if s['entry']['day']==as_of and s['entry']['kind']=='bloco']
-        for event in sorted(dated,key=lambda s:s.get('first_event_id',s.get('id',0))):
-            left=event['entry']['questions']
-            for batch in batches:
-                if event.get('first_event_id',event.get('id',0))<=batch['after_event_id']: continue
-                direct=normalize_path(event['entry']['path'])==normalize_path(batch['path'])
-                exchanged=sum(c['questions'] for r in swaps if batch['extra_id'] in r.get('extra_ids',[]) for c in r.get('credits',[])+r.get('prior_credits',[]) if c['session_id']==event['session_id'])
-                if not direct and not exchanged: continue
-                used=min(left,batch['requested']-credits[batch['extra_id']],left if direct else exchanged)
-                credits[batch['extra_id']]+=used
-                left-=used
+        from .study_allocation import extra_credits
+        credits=extra_credits(batches,sessions,as_of,swaps)
         grouped={}
         for t in batches:
             if t['topic_id'] not in grouped: grouped[t['topic_id']]={**t,'remaining':0}

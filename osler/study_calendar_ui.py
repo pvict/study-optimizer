@@ -298,14 +298,6 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         render_completions(service,current_view)
     if not plan['items']:
         st.info('Descanso programado.' if plan['kind']=='descanso' else 'Os blocos deste dia serão recalculados após os próximos resultados. A ausência de uma previsão não significa que o dia esteja livre.' if plan.get('forecast_mode')=='next_contact' and selected>today.isoformat() else 'Dia sem blocos previstos. Pode ser descanso ou intervalo entre revisões.')
-    snapshot=st.session_state.setdefault('calendar_snapshot_'+selected,service.store.day(selected,service.store.profile()['profile']['max_questions']))
     with st.expander('Programar quantidade ou descanso deste dia'):
-        with st.form('calendar_day_'+selected):
-            q=st.number_input('Meta de questões',1,1000,snapshot['settings']['questions'],key='calendar_goal_'+selected)
-            rest=st.checkbox('Descanso',value=snapshot['settings']['kind']=='descanso',key='calendar_rest_'+selected)
-            save=confirm_submit('Salvar programação',action_key='study_calendar_ui_281')
-        if save:
-            notify_success(service.configure_day(selected,int(q),'descanso' if rest else 'normal',snapshot['revision']),'Agenda atualizada.')
-            st.session_state.pop('calendar_snapshot_'+selected,None)
-            st.success('Programação salva. O calendário será recalculado.')
-            st.rerun()
+        from .day_goal_ui import render_day_goal
+        render_day_goal(service,{**current_view,'plan':plan},selected,prefix='calendar')

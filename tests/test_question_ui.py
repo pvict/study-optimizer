@@ -22,7 +22,8 @@ def test_today_uses_question_goal_without_time_widget_and_persists_extra(tmp_pat
     assert not any('tempo total' in s.label.lower() for s in app.select_slider)
     assert any('0 de 60 questões registradas' in h.value for h in app.get('html'))
     app.number_input(key='day_questions').set_value(40)
-    confirm_action(next(b for b in app.button if b.label=='Atualizar meta de hoje').click().run())
+    app.button(key='today_goal_preview').click().run()
+    confirm_action(app.button(key='today_goal_apply').click().run())
     assert not app.exception
     assert AdaptiveService(repo).overview('2026-10-15')['plan']['target_questions']==40
     selected=max(AdaptiveService(repo).overview('2026-10-15')['states'],key=lambda t:t['total'])

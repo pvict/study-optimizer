@@ -19,7 +19,7 @@ def test_today_puts_action_before_settings_and_labels_current_screen(tmp_path,mo
     assert any(e.label=='Ajustar meu dia' for e in app.expander)
     assert any(b.key and b.key.startswith('study_') for b in app.button)
     actions=list(app.button)
-    assert next(i for i,b in enumerate(actions) if b.key and b.key.startswith('study_'))<next(i for i,b in enumerate(actions) if b.label=='Atualizar meta de hoje')
+    assert next(i for i,b in enumerate(actions) if b.key and b.key.startswith('study_'))<next(i for i,b in enumerate(actions) if b.key=='today_goal_preview')
     assert not AdaptiveService(repo).store.active('2026-10-15')
 
 

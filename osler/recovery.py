@@ -139,15 +139,37 @@ class RecoveryService:
         # Capacidade externa depende também de treinos e dos dias de deck grande.
         large={r['date'] for r in decks if r['cards']>config['card_ceiling']}|large_studied
         from .study_storage import StudyStore
-        ordinary=sum(r['entry']['questions'] for r in StudyStore(self.repo).active(anchor)
+        sessions=StudyStore(self.repo).active(anchor)
+        ordinary=sum(r['entry']['questions'] for r in sessions
                      if r['entry']['day']==anchor and r['entry']['kind']=='bloco')
+        extra_sessions=sessions
+        if any(c.get('effective_goal') for c in settings.values()):
+            from .mock_exams import MockExams
+            from .exam_practice import practice_context
+            area={'area_results':[r for r in MockExams(self.repo).active() if r['exam'].get('practice_id')]}
+            extra_sessions=practice_context(area,anchor,sessions)['ordinary_sessions']
+        explicit_ordinary=sum(r['entry']['questions'] for r in extra_sessions
+                              if r['entry']['day']==anchor and r['entry']['kind']=='bloco')
+        extra_states=[];extra_swaps=[]
+        if any(c.get('effective_goal') and c.get('extra_topics') for c in settings.values()):
+            from .adaptive_service import AdaptiveService
+            from .study_agenda import StudyAgenda
+            from .study_swaps import active_swaps
+            extra_states=AdaptiveService(self.repo).catalog(anchor,include_parents=True)[0]
+            extra_swaps=active_swaps(StudyAgenda(self.repo).records(),anchor)
         questions={};left=remaining;current=date.fromisoformat(anchor)
         while left and current<=date.fromisoformat(end):
             day=current.isoformat()
             if available(day,settings,overrides):
                 cap=min(config['limit'],30) if day in large else config['limit']
-                cap=min(settings.get(day,{}).get('questions',cap),cap)
-                room=max(0,cap-overrides.get(day,{}).get('area_reserved',0)-(ordinary if day==anchor else 0))
+                daily=settings.get(day,{})
+                cap=daily['questions'] if daily.get('effective_goal') else min(daily.get('questions',cap),cap)
+                used=explicit_ordinary if daily.get('effective_goal') else ordinary
+                room=max(0,cap-overrides.get(day,{}).get('area_reserved',0)-(used if day==anchor else 0))
+                if daily.get('effective_goal') and daily.get('extra_topics'):
+                    from .study_allocation import pending_extra_questions
+                    from .study_swaps import swap_rows
+                    room=max(0,room-pending_extra_questions(daily,extra_states,extra_sessions,day,swap_rows(extra_swaps,sessions,day)))
                 eligible=sum(r['count'] for r in batches if r['due']<=day)-(remaining-left)
                 n=min(left,max(0,eligible),max(0,config['daily']-(done if day==anchor else 0)),max(0,room-(done if day==anchor else 0)))
                 if n:questions[day]=n;left-=n
@@ -168,6 +190,8 @@ class RecoveryService:
             if available(day,settings,overrides):
                 reserved=projection['questions'].get(day,0)+(projection['done_today'] if day==as_of else 0)
                 limit=min(c['limit'],30) if day in large else c['limit']
+                daily=settings.get(day,{})
+                if daily.get('effective_goal'):limit=daily['questions']
                 # Treinos por área já reservados não podem ultrapassar o total.
                 reserved=min(reserved,max(0,limit-result.get(day,{}).get('area_reserved',0)))
                 result[day]={**result.get(day,{}),'recovery_limit':limit,'recovery_reserved':reserved}

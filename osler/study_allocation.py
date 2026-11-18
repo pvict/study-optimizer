@@ -2,6 +2,31 @@
 from .models import normalize_path
 
 
+def extra_credits(batches,sessions,day,swaps=()):
+    """Mesmo crédito por evento para alocação, prévia e reserva externa."""
+    credits={b['extra_id']:0 for b in batches}
+    dated=[s for s in sessions if s['entry']['day']==day and s['entry']['kind']=='bloco']
+    for event in sorted(dated,key=lambda s:s.get('first_event_id',s.get('id',0))):
+        left=event['entry']['questions']
+        for batch in batches:
+            if event.get('first_event_id',event.get('id',0))<=batch['after_event_id']:continue
+            direct=normalize_path(event['entry']['path'])==normalize_path(batch['path'])
+            exchanged=sum(c['questions'] for r in swaps if batch['extra_id'] in r.get('extra_ids',[]) for c in r.get('credits',[])+r.get('prior_credits',[]) if c['session_id']==event['session_id'])
+            if not direct and not exchanged:continue
+            used=min(left,batch['requested']-credits[batch['extra_id']],left if direct else exchanged)
+            credits[batch['extra_id']]+=used;left-=used
+    return credits
+
+
+def pending_extra_questions(settings,states,sessions,day,swaps=()):
+    by_id={t['topic_id']:t for t in states}
+    batches=[{**e,'path':by_id[e['topic_id']]['path'],'requested':e['questions']}
+             for e in settings.get('extra_topics',[]) if e['topic_id'] in by_id]
+    credits=extra_credits(batches,sessions,day,swaps)
+    return (sum(b['requested']-credits[b['extra_id']] for b in batches)+
+            sum(e['questions'] for e in settings.get('extra_topics',[]) if e['topic_id'] not in by_id))
+
+
 def topic_is_new(t):
     return t.get('is_new_for_day',t['status']=='sem_registro')
 

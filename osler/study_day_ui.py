@@ -24,19 +24,8 @@ def _day_settings(service,view,day):
     plan=view['plan']
     with st.expander('Ajustar meu dia'):
         st.markdown('**Meta de hoje**')
-        cached=st.session_state.get('day_form_snapshot')
-        if not cached or cached['day']!=day: st.session_state['day_form_snapshot']=view['day']
-        snapshot=st.session_state['day_form_snapshot']
-        with st.form('day_goal'):
-            questions=st.number_input('Quantas questões quer fazer hoje?',min_value=1,max_value=1000,value=snapshot['settings']['questions'],key='day_questions')
-            rest=st.checkbox('Hoje é dia de descanso',value=snapshot['settings']['kind']=='descanso',key='day_rest')
-            st.caption('Vale só para hoje. O padrão dos próximos dias fica em Ajustes.')
-            save=confirm_submit('Atualizar meta de hoje',action_key='study_day_ui_32')
-        if save:
-            notify_success(service.configure_day(day,int(questions),'descanso' if rest else 'normal',snapshot['revision']),'Agenda atualizada.')
-            st.session_state.pop('day_form_snapshot',None)
-            st.session_state['adaptive_notice']='Meta de hoje atualizada.'
-            st.rerun()
+        from .day_goal_ui import render_day_goal
+        render_day_goal(service,view,day)
         st.divider()
         st.markdown('**Temas e divisão da rotina**')
         record=st.session_state.setdefault('distribution_profile_snapshot',service.store.profile())

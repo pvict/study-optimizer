@@ -40,9 +40,10 @@ from .mock_schedule_service import MockScheduleServiceMixin
 from .exam_weight_service import ExamWeightServiceMixin
 from .review_strategy_service import ReviewStrategyServiceMixin
 from .exam_practice_service import ExamPracticeServiceMixin
+from .day_goal_service import DayGoalServiceMixin
 
 
-class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin,ExamWeightServiceMixin,ReviewStrategyServiceMixin,ExamPracticeServiceMixin):
+class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityServiceMixin,EvolutionServiceMixin,DailySwapServiceMixin,FinalReviewServiceMixin,TriageServiceMixin,MockScheduleServiceMixin,ExamWeightServiceMixin,ReviewStrategyServiceMixin,ExamPracticeServiceMixin):
     def __init__(self,repo):
         self.repository=repo
         self.store=StudyStore(repo)
@@ -167,13 +168,16 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         cutoff=max((e['id'] for e in self.store.events()),default=0)
         extras.append({'extra_id':uuid.uuid4().hex,'topic_id':topic_id,'questions':questions,'after_event_id':cutoff})
         if sum(e['questions'] for e in extras if e['topic_id']==topic_id)>topic['total']: raise ValueError('Quantidade adicional maior que o banco conhecido deste tema.')
-        return self.store.save_day(day,replace(settings,extra_topics=extras),expected_revision)
+        return self.store.save_day(day,replace(settings,extra_topics=extras,
+            questions=settings.questions+questions if settings.effective_goal else settings.questions),expected_revision)
 
     def remove_added_topic(self,day,topic_id,expected_revision):
         valid_date(day,past=True)
         current=self.store.day(day,self.store.profile()['profile']['max_questions'])
         settings=StudyDay(**current['settings'])
-        return self.store.save_day(day,replace(settings,extra_topics=[e for e in settings.extra_topics if e['topic_id']!=topic_id]),expected_revision)
+        removed=sum(e['questions'] for e in settings.extra_topics if e['topic_id']==topic_id)
+        return self.store.save_day(day,replace(settings,extra_topics=[e for e in settings.extra_topics if e['topic_id']!=topic_id],
+            questions=max(1,settings.questions-removed) if settings.effective_goal else settings.questions),expected_revision)
 
     def overview(self,as_of,minutes=None,kind=None,questions=None,_agenda_override=None,_profile_override=None,diagnose_new_floor=False):
         valid_date(as_of)
@@ -264,8 +268,8 @@ class AdaptiveService(PreventiveServiceMixin,CapacityServiceMixin,EvolutionServi
         question_target=questions if questions is not None else routine_questions if minutes is None else None
         if 'recovery_limit' in override:
             question_target=min(routine_questions,question_target) if question_target is not None else routine_questions
-            # Extras explícitos ficam preservados na configuração, sem ampliar a retomada.
-            extras=[]
+            # Na meta explícita, extras ocupam parte do total escolhido.
+            if not day_settings.effective_goal:extras=[]
         extra_paths=[tuple(normalize_path(e['path'])) for e in extras]
         disjoint=[t for t in planning_states if not any(tuple(normalize_path(t['path']))!=p and (tuple(normalize_path(t['path']))[:len(p)]==p or p[:len(t['path'])]==tuple(normalize_path(t['path']))) for p in extra_paths)]
         from .study_capacity import capacity_limits
