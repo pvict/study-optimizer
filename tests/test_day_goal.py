@@ -111,6 +111,33 @@ def test_explicit_extras_keep_their_place_inside_recovery_and_the_total(tmp_path
     assert s.overview(DAY)['plan']['target_questions']==50
 
 
+def test_recovery_loads_previously_saved_extra_in_today_and_calendar(tmp_path,monkeypatch):
+    from osler.study_calendar import forecast_calendar
+
+    s=configured(tmp_path,monkeypatch,area=20)
+    # Reproduz o registro escrito pela versão que ocultava extras na retomada.
+    s.store.save_day(DAY,StudyDay(questions=120,extra_topics=[
+        {'extra_id':'saved','topic_id':'F','questions':50,'after_event_id':0}]),0)
+    view=s.overview(DAY)
+    for plan in [view['plan'],forecast_calendar(view['planning_states'],AdaptiveProfile(**view['profile']),DAY,1,
+                                              view['sessions'],s.store.days(),agenda=view['agenda'])[0]]:
+        assert next(i['extra_pending'] for i in plan['items'] if i['topic_id']=='F')==50
+        assert plan['base_questions']+plan['extra_questions']+20+plan['routine_override']['recovery_reserved']==80
+
+
+def test_recovery_refuses_extra_that_would_exceed_room_after_recorded_work(tmp_path,monkeypatch):
+    s=configured(tmp_path,monkeypatch,area=20)
+    RecoveryService(s.repository).record(DAY,30,s.agenda.token())
+    s.save_entry(StudyEntry(['Área','A'],DAY,25,20),'already-done')
+    with pytest.raises(ValueError,match='Cabem 5 questões extras'):
+        s.add_topic(DAY,'F',6,0)
+    assert s.store.days()=={}
+    s.add_topic(DAY,'F',5,0)
+    plan=s.overview(DAY)['plan']
+    assert next(i['extra_pending'] for i in plan['items'] if i['topic_id']=='F')==5
+    assert plan['target_questions']+plan['routine_override']['recovery_reserved']==80
+
+
 def test_rest_preview_has_zero_capacity_in_every_category(tmp_path,monkeypatch):
     s=configured(tmp_path,monkeypatch)
     after=s.preview_day_goal(DAY,80,kind='descanso')['after']

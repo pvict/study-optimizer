@@ -67,6 +67,13 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None,completions=()):
     return sorted(result,key=lambda r:(-r['risk'],-r['importance'],r['original_due'],r['path']))
 
 
+def recovery_theme_capacity(config,override):
+    if 'recovery_limit' not in override or config.get('effective_goal'):
+        return None
+    return max(0,min(config['questions'],override['recovery_limit'])
+               -override.get('recovery_reserved',0)-override.get('area_reserved',0))
+
+
 def effective_routine(profile,config,override):
     from .final_review import special_config
     config=special_config(config,override)
@@ -75,6 +82,8 @@ def effective_routine(profile,config,override):
         q=max(0,q-sum(e['questions'] for e in config.get('extra_topics',[])))
     if 'recovery_limit' in override:
         q=max(0,(q if config.get('effective_goal') else min(q,override['recovery_limit']))-override.get('recovery_reserved',0))
+        if not config.get('effective_goal'):
+            q=max(0,q-sum(e['questions'] for e in config.get('extra_topics',[])))
     if override.get('mode')=='external_day': return profile,0
     if override.get('mode')=='extra':
         total=q if 'recovery_limit' in override or config.get('effective_goal') else min(1000,q+override['extra_questions'])

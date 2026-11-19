@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from .planning import _date
 from .adaptive_planning import allocate_day
-from .study_replanning import effective_routine
+from .study_replanning import effective_routine,recovery_theme_capacity
 from .study_prevention import preventive_state,projected_backlog
 from .review_policy import review_order
 from .study_capacity import practice_state,capacity_limits
@@ -71,7 +71,6 @@ def iter_forecast_calendar(states,profile,start,days,sessions,settings,today_pla
         present={t['topic_id'] for t in active}
         active.extend(by_id[r['topic_id']] for r in daily_swaps if r['remaining'] and r['topic_id'] in by_id and r['topic_id'] not in present)
         extras=[{**by_id[e['topic_id']],'extra_id':e['extra_id'],'requested':e['questions'],'after_event_id':e['after_event_id']} for e in config.get('extra_topics',[]) if e['topic_id'] in by_id]
-        if 'recovery_limit' in override and not config.get('effective_goal'):extras=[]
         due_reservations=[r for r in agenda['rows'] if r['date']<=day and r['remaining']>0 and
                           (not r.get('planner_completed_day') or day<=r['planner_completed_day'])]
         if override.get('mode')=='final_review':
@@ -87,7 +86,7 @@ def iter_forecast_calendar(states,profile,start,days,sessions,settings,today_pla
         capacity_states=[{**t,'pending_reviews':[{**q,'questions':pending[q['session_id']]['remaining']} for q in t['pending_reviews'] if pending[q['session_id']]['remaining']>0]}
                          if t.get('pending_reviews') else t for t in working]
         allocation_sessions=practice_context(agenda,day,sessions)['ordinary_sessions'] if override.get('area_reserved') else sessions
-        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],allocation_sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations,capacity_states=capacity_states,capacity_limits=capacity_limits(profile,day,settings,agenda),swaps=daily_swaps,unavailable_ids=unavailable_return_ids(agenda,day))
+        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],allocation_sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations,capacity_states=capacity_states,capacity_limits=capacity_limits(profile,day,settings,agenda),swaps=daily_swaps,unavailable_ids=unavailable_return_ids(agenda,day),question_ceiling=recovery_theme_capacity(config,override) if extras else None)
         plan['routine_override']=agenda['overrides'].get(day,{})
         scheduled_pending=0
         for item in plan['items']:

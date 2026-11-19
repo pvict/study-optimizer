@@ -11,12 +11,14 @@ from .study_errors_ui import render_error_context
 from .review_parts_ui import render_review_parts
 
 
-def _change_extra(service,day,topic_id,questions,revision,remove=False):
+def _change_extra(service,day,topic_id,questions,revision,remove=False,topic_name=None):
     try:
         if remove: notify_success(service.remove_added_topic(day,topic_id,revision),'Alterações salvas.')
-        else: notify_success(service.add_topic(day,topic_id,questions,revision),'Alterações salvas.')
+        else:
+            notify_success(service.add_topic(day,topic_id,questions,revision),'Revisão adicionada ao plano de hoje.')
+            st.session_state['show_pending_today_blocks']=True
         st.session_state.pop('day_form_snapshot',None)
-        st.session_state['adaptive_notice']='Revisão retirada do plano. Seus resultados continuam no histórico.' if remove else 'Revisão adicionada. A meta mudou só para hoje.'
+        st.session_state['adaptive_notice']='Revisão retirada do plano. Seus resultados continuam no histórico.' if remove else f'{topic_name} foi adicionado aos blocos de hoje.'
     except ValueError as exc: st.session_state['adaptive_error']=str(exc)
 
 
@@ -90,7 +92,6 @@ def _extra_controls(service,view,day,advance=False):
     plan=view['plan']
     if view['states'] and plan['kind']!='descanso':
         with st.expander('Adiantar revisões',expanded=advance or bool(st.session_state.get('extra_topic'))):
-            st.caption('Acrescente questões e um tema só para hoje.')
             catalog,_=service.catalog(day)
             chosen=pick_topic(catalog,'extra',st.session_state.get('extra_topic'))
             if chosen:
@@ -99,7 +100,14 @@ def _extra_controls(service,view,day,advance=False):
                 maximum=min(1000,chosen['total']-already)
                 if maximum>0:
                     q=st.number_input('Questões extras',min_value=1,max_value=maximum,value=min(10,maximum),key=f'extra_count_{selected}_{maximum}')
-                    confirm_button('Adicionar ao meu dia',on_click=_change_extra,args=(service,day,selected,int(q),view['day']['revision']),width='stretch',action_key='study_day_ui_104')
+                    override=plan['routine_override']
+                    capped='recovery_limit' in override and not view['day']['settings'].get('effective_goal')
+                    details=f"Adicionar {q} questões de {chosen['path'][-1]} aos blocos de hoje."
+                    if capped:
+                        details+=' Elas entram na carga da retomada e podem reduzir as revisões externas previstas para hoje.'
+                    confirm_button('Adicionar ao meu dia',on_click=_change_extra,
+                                   args=(service,day,selected,int(q),view['day']['revision']),kwargs={'topic_name':chosen['path'][-1]},
+                                   details=details,width='stretch',action_key='study_day_ui_104')
                 else: st.caption('A quantidade conhecida desse banco já foi adicionada hoje.')
             st.caption('Só entra no progresso depois que você registrar o resultado.')
 

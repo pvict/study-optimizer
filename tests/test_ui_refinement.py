@@ -23,6 +23,30 @@ def test_today_puts_action_before_settings_and_labels_current_screen(tmp_path,mo
     assert not AdaptiveService(repo).store.active('2026-10-15')
 
 
+def test_advance_review_appears_in_today_during_recovery(tmp_path,monkeypatch,project_root,sample_pdf):
+    from osler.day_goal_service import goal_summary
+    from osler.recovery import RecoveryService
+    from ui_actions import confirm_action
+
+    day = '2026-10-15'
+    repo, app = open_app(tmp_path,monkeypatch,project_root,sample_pdf)
+    service = AdaptiveService(repo)
+    RecoveryService(repo).save(200,30,50,50,70,day,service.agenda.token())
+    before = goal_summary(service.overview(day))
+    app.run()
+    app.session_state['today_blocks_tab']='Feito hoje (0)'
+    app.text_input(key='extra_search').set_value('Feridas').run()
+    topic_id = app.radio(key='extra_search_result').value
+    confirm_action(next(b for b in app.button if b.label=='Adicionar ao meu dia').click().run())
+    assert not app.exception
+    view = service.overview(day)
+    assert any(extra['topic_id']==topic_id for extra in view['day']['settings']['extra_topics'])
+    assert app.session_state['today_blocks_tab']=='Para fazer'
+    assert any('10 questões extras para hoje' in c.value for c in app.caption)
+    assert goal_summary(view)['total']==before['total']
+    assert goal_summary(view)['external']==before['external']
+
+
 def test_status_filters_and_list_actions_use_the_correct_specific_topic(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,app=open_app(tmp_path,monkeypatch,project_root,sample_pdf)
     open_view(app,adaptive='Temas e estatísticas')

@@ -291,7 +291,9 @@ def render_today(service,go_record,go_review,go_edit=None):
         with work,st.container(key='bento_work'):
             st.subheader('Blocos de questões')
             done_label=f"Feito hoje ({activity['questions']})"
-            if st.session_state.get('today_blocks_tab','').startswith('Feito hoje'):
+            if st.session_state.pop('show_pending_today_blocks',False):
+                st.session_state['today_blocks_tab']='Para fazer'
+            elif st.session_state.get('today_blocks_tab','').startswith('Feito hoje'):
                 st.session_state['today_blocks_tab']=done_label
             remaining,completed=st.tabs(['Para fazer',done_label],key='today_blocks_tab',on_change='rerun')
             if completed.open:

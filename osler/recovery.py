@@ -143,7 +143,8 @@ class RecoveryService:
         ordinary=sum(r['entry']['questions'] for r in sessions
                      if r['entry']['day']==anchor and r['entry']['kind']=='bloco')
         extra_sessions=sessions
-        if any(c.get('effective_goal') for c in settings.values()):
+        extra_days={day for day,c in settings.items() if anchor<=day<=end and c.get('extra_topics')}
+        if extra_days or settings.get(anchor,{}).get('effective_goal'):
             from .mock_exams import MockExams
             from .exam_practice import practice_context
             area={'area_results':[r for r in MockExams(self.repo).active() if r['exam'].get('practice_id')]}
@@ -151,7 +152,7 @@ class RecoveryService:
         explicit_ordinary=sum(r['entry']['questions'] for r in extra_sessions
                               if r['entry']['day']==anchor and r['entry']['kind']=='bloco')
         extra_states=[];extra_swaps=[]
-        if any(c.get('effective_goal') and c.get('extra_topics') for c in settings.values()):
+        if extra_days:
             from .adaptive_service import AdaptiveService
             from .study_agenda import StudyAgenda
             from .study_swaps import active_swaps
@@ -164,9 +165,9 @@ class RecoveryService:
                 cap=min(config['limit'],30) if day in large else config['limit']
                 daily=settings.get(day,{})
                 cap=daily['questions'] if daily.get('effective_goal') else min(daily.get('questions',cap),cap)
-                used=explicit_ordinary if daily.get('effective_goal') else ordinary
+                used=explicit_ordinary if daily.get('effective_goal') or daily.get('extra_topics') else ordinary
                 room=max(0,cap-overrides.get(day,{}).get('area_reserved',0)-(used if day==anchor else 0))
-                if daily.get('effective_goal') and daily.get('extra_topics'):
+                if daily.get('extra_topics'):
                     from .study_allocation import pending_extra_questions
                     from .study_swaps import swap_rows
                     room=max(0,room-pending_extra_questions(daily,extra_states,extra_sessions,day,swap_rows(extra_swaps,sessions,day)))

@@ -333,7 +333,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     return sorted(states,key=lambda t:review_order(t,as_of))
 
 
-def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=(),allocation_credits=None,unavailable_ids=(),diagnose_new_floor=False,new_floor_control_share=None,finalize_plan=None):
+def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None,extra_topics=None,reservations=None,capacity_limits=None,capacity_states=None,swaps=(),allocation_credits=None,unavailable_ids=(),diagnose_new_floor=False,new_floor_control_share=None,finalize_plan=None,question_ceiling=None):
     profile.validate()
     not_started=bool(profile.start_date and as_of<profile.start_date)
     if not_started: kind='descanso'; extra_topics=None; reservations=None
@@ -363,6 +363,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     credited_done=sum(e['questions'] for e in allocation_today)
     spent=sum(e['minutes'] if e.get('minutes') else e['questions']*profile.minutes_per_question for e in today)
     extras=[]
+    extra_target=0
     if question_target is None:
         blocks=daily_blocks(minutes,kind)
         question_minutes=sum(b['minutes'] for b in blocks if b['kind'] in {'questoes','erros'})
@@ -379,8 +380,13 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         for t in batches:
             if t['topic_id'] not in grouped: grouped[t['topic_id']]={**t,'remaining':0}
             grouped[t['topic_id']]['remaining']+=t['requested']-credits[t['extra_id']]
-        target=max(question_target+sum(t['requested'] for t in batches),credited_done+sum(t['remaining'] for t in grouped.values())) if batches else question_target
+        extra_target=sum(t['requested'] for t in batches)
+        target=max(question_target+extra_target,credited_done+sum(t['remaining'] for t in grouped.values())) if batches else question_target
         budget=max(0,target-credited_done)
+        if question_ceiling is not None:
+            target=min(target,question_ceiling)
+            extra_target=min(extra_target,max(0,question_ceiling-question_target))
+            budget=min(budget,max(0,target-done))
         for t in grouped.values():
             if t['topic_id'] in excluded|swapped_ids: continue
             q=min(t['remaining'],t['total'],budget-sum(e['questions'] for e in extras))
@@ -516,8 +522,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             'kind':kind,'date':as_of,'target_accuracy':profile.target_accuracy,'available_minutes':minutes,
             'not_started':not_started,'start_date':profile.start_date,
             'target_questions':0 if kind=='descanso' else target,'base_questions':question_target if question_target is not None else target,
-            'extra_questions':sum(t['requested'] for t in extra_topics or []),
-            'overrun_questions':max(0,target-(question_target or target)-sum(t['requested'] for t in extra_topics or [])),
+            'extra_questions':extra_target,
+            'overrun_questions':max(0,target-(question_target or target)-extra_target),
             'excess_done_questions':max(0,done-credited_done),'credited_done_questions':credited_done,
             'allocation_credits':dict(allocation_credits or {}),
             'mode':'questions' if question_target is not None else 'time','distribution':distribution}
@@ -532,7 +538,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         def evaluate(trial):
             limits=[(q,trial.max_topics if slots else 0) for q,slots in capacity_limits] if capacity_limits else None
             return allocate_day(states,trial,minutes,kind,sessions,as_of,question_target,extra_topics,reservations,
-                                limits,capacity_states,swaps,allocation_credits,unavailable_ids,finalize_plan=finalize_plan)
+                                limits,capacity_states,swaps,allocation_credits,unavailable_ids,finalize_plan=finalize_plan,question_ceiling=question_ceiling)
         eligible_new=[t for t in states if
             topic_is_new(t) and t['total']>0 and t['topic_id'] not in excluded|swapped_ids and
             (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
