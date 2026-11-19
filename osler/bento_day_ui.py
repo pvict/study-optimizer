@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import streamlit as st
 
-from .bento import area_slug,AREA_LABELS,eyebrow,chip,ring
+from .bento import area_slug,AREA_LABELS,chip,bar
 from .planner_service import today_local
 from .study_dashboard import date_label,hero_state,pause_remaining,week_summary
 from .study_feedback import day_activity
@@ -82,11 +82,13 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
         label=AREA_LABELS[slug] or item['path'][0]
         state='sem_registro' if item.get('status')=='sem_registro' else item.get('learning_state')
         n=item['questions'];dose=f"{n} "+('questão' if n==1 else 'questões')
-        text=(eyebrow(label+' · '+dose,slug)+'<div class="o-block-title"><h3>'+escape(item['path'][-1])+'</h3></div>'
-              )
+        text=('<div class="o-block-title"><h3>'+escape(item['path'][-1])+'</h3>'
+              '<strong>'+dose+'</strong></div><p class="o-today-area">'+escape(label)+'</p>')
         if hero:
             errors=next((s.get('open_error_count',0) for s in view['planning_states'] if s['topic_id']==item['topic_id']),0)
-            text+='<p class="o-path">'+escape(' › '.join(item['path'][:-1]))+'</p><div class="o-block-context">'+chip('',state)+chip(item['stage'])
+            if len(item['path'])>2:
+                text+='<p class="o-path">'+escape(' › '.join(item['path'][1:-1]))+'</p>'
+            text+='<div class="o-block-context">'+chip('',state)+chip(item['stage'])
             if errors:text+=chip(str(errors)+(' erro aberto' if errors==1 else ' erros abertos'))
             text+='</div>'
             if st.session_state.get('show_explanations',False):
@@ -144,17 +146,20 @@ def _hero_empty(state,plan):
             st.write('Consulte o Calendário ou acrescente um tema em Adiantar revisões.')
 
 
-def _today_ring(plan,state):
-    with st.container(key='bento-today-ring'):
-        st.html('<h3>Hoje</h3>')
-        if not plan['target_questions']:st.caption(f"{plan['done_questions']} questões registradas")
-        # SVG fixo da biblioteca visual; st.html sanitiza e remove SVG.
+def _today_progress(plan):
+    target=plan['target_questions']; done=plan['done_questions']
+    with st.container(key='today-progress'):
+        if not target:
+            st.caption(f'{done} questões registradas · sem meta de blocos hoje')
+            return
+        label=f'{done} de {target} questões'
+        st.markdown(f'**{label}** · Restam {plan["questions"]} no plano')
+        st.html(bar(done/target,'clinica',label=label))
         dist=plan['distribution']
-        remaining=f"Restam {plan['questions']} no plano" if plan['target_questions'] else 'Sem meta de blocos hoje'
-        if state=='empty':remaining='Plano disponível após importar o relatório'
         text=f"{dist['planned_new']} em temas novos · {dist['planned_reviews']} em revisões e diagnósticos."
-        if plan.get('area_tasks'): text+=' '+str(sum(t['questions'] for t in plan['area_tasks'] if not t['completed']))+' em treino por área.'
-        st.markdown('<div class="o-ring-row">'+ring(plan['done_questions'],plan['target_questions'],80)+'<div><strong>'+remaining+'</strong><p>'+text+'</p></div></div>',unsafe_allow_html=True)
+        area_pending=sum(t['questions'] for t in plan.get('area_tasks',[]) if not t['completed'])
+        if area_pending:text+=f' {area_pending} em treino por área.'
+        st.caption(text)
 
 
 def _rhythm(summary):
@@ -213,10 +218,9 @@ def _full_mocks_today(service,plan,day):
     return rows
 
 
-def _render_full_mocks_today(service,plan,day):
+def _render_full_mocks_today(service,expanded):
     from .mock_workflow_ui import render_mock_workflow
-    scheduled=_full_mocks_today(service,plan,day)
-    with st.expander('Simulado de hoje',expanded=bool(scheduled)):
+    with st.expander('Simulado de hoje',expanded=expanded):
         render_mock_workflow(service,'today_mock_flow')
 
 
@@ -242,9 +246,8 @@ def render_today(service,go_record,go_review,go_edit=None):
     exam=exam['target'] if exam else None
     summary=week_summary(view,service.store.days(),service.guide.days(),exam,service.recorded_mock_days())
     from .today_replanning_ui import render_today_replanning
-    render_today_replanning(service,view)
-    render_approach(service)
-    _render_full_mocks_today(service,plan,day)
+    scheduled=_full_mocks_today(service,plan,day)
+    mock_open=bool(scheduled or st.session_state.get('today_mock_flow_pending') or st.session_state.get('today_mock_flow_selected'))
     if plan.get('routine_override',{}).get('mode')=='external_day':
         from .action_feedback import confirm_button,notify_success
         external=plan['routine_override']
@@ -260,7 +263,16 @@ def render_today(service,go_record,go_review,go_edit=None):
                 st.rerun()
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,view)
+        render_today_replanning(service,view)
+        render_approach(service)
+        _render_full_mocks_today(service,expanded=mock_open)
         return
+    with st.container(key='bento_top'):
+        if state=='study':_block(service,view,plan['items'][0],day,go_record,go_review,True)
+        else:_hero_empty(state,plan)
+        _today_progress(plan)
+    if scheduled:
+        _render_full_mocks_today(service,expanded=mock_open)
     from .new_floor_ui import render_new_floor_notice
     render_new_floor_notice(service,view)
     for task in plan.get('area_tasks',[]):
@@ -279,16 +291,8 @@ def render_today(service,go_record,go_review,go_edit=None):
             for correction in corrections:
                 st.write(correction['name']+' · '+('informe os temas errados em Simulados → Correção' if correction['needs_details'] else 'temas no plano'))
                 st.button('Abrir correção',key=f"correction_today_{corrections.index(correction)}_{correction['exam_key']}",on_click=_open_correction,args=(correction['exam_key'],))
-    with st.container(key='bento_top'):
-        main,side=st.columns([2,1],gap='medium')
-        with main:
-            if state=='study':_block(service,view,plan['items'][0],day,go_record,go_review,True)
-            else:_hero_empty(state,plan)
-        with side:
-            _today_ring(plan,state)
     with st.container(key='bento_body'):
-        work,support=st.columns([2,1],gap='medium')
-        with work,st.container(key='bento_work'):
+        with st.container(key='bento_work'):
             st.subheader('Blocos de questões')
             done_label=f"Feito hoje ({activity['questions']})"
             if st.session_state.pop('show_pending_today_blocks',False):
@@ -309,17 +313,19 @@ def render_today(service,go_record,go_review,go_edit=None):
                     st.info('Parte da meta não pôde ser distribuída com os temas e limites atuais. Adicione outro tema ou ajuste o número de temas em Ajustes.')
             from .planner_completion_ui import render_completions
             render_completions(service,view)
-        with support:
+        with st.container(key='bento-tools'):
+            st.subheader('Ajustes rápidos')
+            advance=st.session_state.pop('bento_advance_open',False)
+            _extra_controls(service,view,day,advance)
+            render_today_replanning(service,view)
+            if not scheduled:
+                _render_full_mocks_today(service,expanded=mock_open)
+            render_approach(service)
             if st.session_state.get('bento_pause_day')!=day:
                 st.session_state['bento_pause_day']=day
                 st.session_state.pop('bento_pause_dismissed',None)
                 st.session_state.pop('bento_pause_until',None)
             if activity['blocks'] and not st.session_state.get('bento_pause_dismissed'):_pause()
-            with st.container(key='bento-tools'):
-                st.subheader('Ajustes rápidos')
-                # Expandir o atalho sem alterar os dados do dia.
-                advance=st.session_state.pop('bento_advance_open',False)
-                _extra_controls(service,view,day,advance)
     with st.expander('Resumo da semana'):
         _metrics(summary,exam)
         _rhythm(summary)

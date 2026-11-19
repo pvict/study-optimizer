@@ -115,7 +115,7 @@ def test_grouping_screen_and_preview_are_read_only(tmp_path,sample_pdf,monkeypat
     assert not app.exception and s.agenda.token()==before
     assert app.session_state['grouping_preview']['mode']=='balanced'
     assert app.status[0].state=='complete'
-    assert any('prévia abaixo' in status.label for status in app.status)
+    assert any(status.label=='Comparação concluída' for status in app.status)
 
 
 def test_grouping_progress_and_failure_feedback(tmp_path,sample_pdf,monkeypatch):

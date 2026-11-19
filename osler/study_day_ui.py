@@ -55,7 +55,6 @@ def _day_settings(service,view,day):
 
 def _block_controls(service,view,item,day,go_record,go_review,hero=False):
     mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
-    swap_button=None
     if view['profile'].get('review_strategy')=='balanced_v2' and item.get('review_kind') in {'lot_only','combined'}:
         render_review_parts(item,day,go_record,go_review,'study',primary=hero)
     elif item.get('review_kind')=='lot_only':
@@ -69,22 +68,22 @@ def _block_controls(service,view,item,day,go_record,go_review,hero=False):
             st.button('Registrar complemento',key='study_complement_'+item['topic_id'],on_click=go_record,
                       args=(item['topic_id'],complement,'mistas'),width='stretch',type='primary' if hero and not lots else 'secondary')
     else:
-        action,swap_button=st.columns([1.4,1],gap='small')
-        action.button('Registrar complemento' if (item.get('planner_supply') or {}).get('external_only') else 'Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if hero else 'secondary',
+        st.button('Registrar complemento' if (item.get('planner_supply') or {}).get('external_only') else 'Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if hero else 'secondary',
                   on_click=go_record,args=(item['topic_id'],item['questions'],mode))
-    render_swap_controls(service,day,item,button_container=swap_button)
-    from .return_deferral_ui import render_return_deferral
-    render_return_deferral(service,view,item)
-    from .planner_completion_ui import render_completion_choice
-    render_completion_choice(service,view,item)
-    with st.expander('Ver próximas revisões'):
-        if not hero: st.caption(' › '.join(item['path'][:-1])+' · '+item['stage'])
-        render_error_context(service,item['path'],day)
-        st.write(item['reason'])
-        trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)
-    if item['added_by_user']:
-        confirm_button('Retirar revisão extra',key=f"remove_extra_{item['topic_id']}",on_click=_change_extra,
-                  args=(service,day,item['topic_id'],0,view['day']['revision'],True),action_key='study_day_ui_86')
+    with st.container(key=f"today-options-{item['topic_id']}"), st.expander('Opções do bloco'):
+        render_swap_controls(service,day,item)
+        from .return_deferral_ui import render_return_deferral
+        render_return_deferral(service,view,item)
+        from .planner_completion_ui import render_completion_choice
+        render_completion_choice(service,view,item)
+        if item['added_by_user']:
+            confirm_button('Retirar revisão extra',key=f"remove_extra_{item['topic_id']}",on_click=_change_extra,
+                           args=(service,day,item['topic_id'],0,view['day']['revision'],True),action_key='study_day_ui_86')
+        with st.expander('Ver próximas revisões'):
+            if not hero: st.caption(' › '.join(item['path'][:-1])+' · '+item['stage'])
+            render_error_context(service,item['path'],day)
+            st.write(item['reason'])
+            trajectory_detail(item,AdaptiveProfile(**view['profile']),day,limit=5)
 
 
 def _extra_controls(service,view,day,advance=False):

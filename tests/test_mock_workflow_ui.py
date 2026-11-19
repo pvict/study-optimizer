@@ -59,3 +59,10 @@ def test_home_renders_registration_even_without_schedule(tmp_path,sample_pdf,mon
     app=AppTest.from_string(code,default_timeout=60).run()
     assert not app.exception
     assert app.text_input(key='today_mock_flow_form_name_completo')
+    app.text_input(key='today_mock_flow_form_name_completo').set_value('Simulado de teste')
+    app.number_input(key='today_mock_flow_form_total_completo').set_value(100)
+    app.number_input(key='today_mock_flow_form_correct_completo').set_value(70)
+    next(b for b in app.button if b.label=='Salvar resultado e informar temas errados').click().run()
+    panel=next(e for e in app.expander if e.label=='Simulado de hoje')
+    assert not app.exception and panel.proto.expanded
+    assert any('Temas errados' in h.value for h in panel.subheader)

@@ -75,9 +75,8 @@ def test_mock_day_counts_as_study_without_adding_mock_questions_to_blocks():
 def test_today_keeps_recorded_questions_visible_without_a_goal():
     from streamlit.testing.v1 import AppTest
     app=AppTest.from_string('''
-from osler.bento_day_ui import _today_ring
-_today_ring({'done_questions':12,'target_questions':0,'questions':0,
-    'distribution':{'planned_new':0,'planned_reviews':0}},'rest')
+from osler.bento_day_ui import _today_progress
+_today_progress({'done_questions':12,'target_questions':0})
 ''').run()
     assert not app.exception
     assert any('12 questões registradas' in caption.value for caption in app.caption)

@@ -32,11 +32,12 @@ def render_today_replanning(service,view):
         st.session_state.pop('today_replan_preview_data',None)
         return
     pending=[r for r in rows if not r['recovery_current']]
-    with st.container(key='bento-today-recovery'):
-        st.subheader('Atrasos e próximas datas')
-        st.html('<dl class="o-recovery-counts">'+''.join(
-            '<div><dt>'+escape(label)+'</dt><dd>'+str(n)+'</dd></div>'
-            for label,n in [('Temas atrasados',len(rows)),('Com data atual',len(rows)-len(pending)),('Precisam de data',len(pending))])+'</dl>')
+    count=f"{len(rows)} {'tema atrasado' if len(rows)==1 else 'temas atrasados'}" if rows else f"{len(waiting)} {'treino sem vaga' if len(waiting)==1 else 'treinos sem vaga'}"
+    with st.container(key='bento-today-recovery'), st.expander('Atrasos e próximas datas · '+count):
+        if rows:
+            st.html('<dl class="o-recovery-counts">'+''.join(
+                '<div><dt>'+escape(label)+'</dt><dd>'+str(n)+'</dd></div>'
+                for label,n in [('Com data atual',len(rows)-len(pending)),('Precisam de data',len(pending))])+'</dl>')
         st.caption('Reagendar não conclui o estudo.')
         if rows:
             selected=[r['topic_id'] for r in (pending or rows)]

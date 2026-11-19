@@ -14,7 +14,9 @@ def test_today_finds_dates_applies_and_undoes_without_recording_study(tmp_path,m
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     assert not app.exception
-    assert any('Atrasos e próximas datas'==h.value for h in app.subheader)
+    assert any(e.label.startswith('Atrasos e próximas datas') and not e.proto.expanded for e in app.expander)
+    buttons=list(app.button)
+    assert next(i for i,b in enumerate(buttons) if b.label=='Registrar este bloco') < buttons.index(app.button(key='today_replan_preview'))
     app.button(key='today_replan_preview').click().run()
     assert not app.exception and not app.error
     assert service.store.events()==before
