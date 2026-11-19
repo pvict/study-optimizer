@@ -56,7 +56,7 @@ def reduction_summary(repo, view, day):
 def render_practical(repo, open_tool):
     service = PracticalReductionService(repo)
     day = today_local().isoformat()
-    st.title('Sua lista para diminuir as revisões')
+    st.title('Suspensões sugeridas')
     st.write('Comece pelos temas de menor retorno com evidência atual. As mudanças na Osler continuam manuais.')
     if 'practical_notice' in st.session_state:
         st.success(st.session_state.pop('practical_notice'))
@@ -105,7 +105,7 @@ def render_practical(repo, open_tool):
         st.subheader('Reavaliar pausas anteriores')
         st.write('O prazo chegou ou surgiu um sinal de atenção. Confira esses temas e reabra a revisão na Osler quando necessário; não há reativação automática.')
         for topic in view['reevaluate']:
-            st.write(f"**{' → '.join(topic['path'])}** — {' '.join(topic['reasons'])}")
+            st.write(f"**{' → '.join(topic['path'])}**: {' '.join(topic['reasons'])}")
     with st.expander(f"Temas protegidos · {len(view['protected'])}"):
         if view['protected']:
             st.dataframe(_current_frame(view['protected']).drop(columns=['Reavaliar em']), hide_index=True, width='stretch')

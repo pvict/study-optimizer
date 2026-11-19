@@ -26,8 +26,8 @@ def _preview(service,mode,paths):
             status.update(label='Não foi possível gerar a prévia',state='error',expanded=True)
             st.error(str(exc));return
         st.session_state['grouping_preview']=preview
-        bar.progress(1.,text='Prévia pronta. Confira abaixo antes de aplicar.')
-        status.update(label='Comparação concluída — prévia abaixo',state='complete',expanded=True)
+        bar.progress(1.,text='Prévia pronta')
+        status.update(label='Comparação concluída',state='complete',expanded=True)
 
 
 def _apply(service,p):

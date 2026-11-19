@@ -9,7 +9,6 @@ from .study_models import StudyEntry
 from .topic_picker_ui import pick_topic
 from .study_activity_ui import render_result_feedback
 from .study_errors_ui import render_quick_error
-from .bento import area_slug,AREA_LABELS,eyebrow
 from .balanced_reviews import review_parts
 from .topic_catalog import is_practice_topic
 from .study_components import render_bank_scope
@@ -68,7 +67,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         if plan['items']:
             action=first_block_action(plan['items'][0],question_view['date'],question_view['profile']['review_strategy'])
             st.button('Próximo bloco',key='study_next_block',type='primary',on_click=_next,args=(action,go_record,go_review),width='stretch')
-        else:st.caption('Nenhum outro bloco no plano de hoje. Você pode voltar ao plano ou registrar outro estudo.')
+        else:st.caption('Sem outros blocos hoje.')
         st.button('Voltar ao plano',key='study_back_to_plan',type='secondary' if plan['items'] else 'primary',on_click=back_to_plan,width='stretch')
         render_result_feedback(question_view,saved.get('session_id'))
         from .error_cards_service import ErrorCardsService
@@ -87,7 +86,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     active_groups={t['topic_id']:t for t in grouped['planning_states'] if t.get('group_members')}
     topics=[active_groups.get(t['topic_id'],t) for t in topics]
     if not topics:
-        st.info('Importe um relatório Qbank em Ferramentas para reconhecer os temas. Nenhum indicador por subtema é obrigatório.')
+        st.info('Importe um relatório Qbank em Ferramentas para reconhecer os temas.')
         return
     lookup={t['topic_id']:t for t in topics}
     if st.session_state.get('adaptive_topic') not in lookup:
@@ -105,8 +104,6 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     else: chosen=pick_topic(topics,'record',st.session_state.get('adaptive_topic'))
     if not chosen: return
     selected=chosen['topic_id']
-    slug=area_slug(chosen['path'])
-    st.html(eyebrow(AREA_LABELS[slug],slug))
     st.subheader(chosen['path'][-1])
     if chosen.get('group_members'):
         st.info('Bloco conjunto. O resultado será guardado nesta categoria, sem atribuir acertos ou domínio a cada filho.')
@@ -146,9 +143,9 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         else: n,correct,percent,confident=0,None,None,None
         cards_created=0
         if kind=='bloco' and is_practice_topic(chosen):
-            with st.expander('Flashcards criados neste bloco (opcional)'):
-                cards_created=st.number_input('Quantos flashcards de erros você criou?',0,5000,0,key='study_cards_created')
-                st.caption('Conte apenas os cards novos que você criou neste bloco, não os que revisou. Eles entram automaticamente na fila deste tema; a meta diária de cards não muda.')
+            with st.expander('Flashcards criados (opcional)'):
+                cards_created=st.number_input('Quantos cards você criou?',0,5000,0,key='study_cards_created')
+                st.caption('Somente cards novos deste bloco.')
         with st.expander('Data, modalidade e detalhes'):
             day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date',format='DD/MM/YYYY',help='O dia de estudo vai das 04h até antes das 04h do dia seguinte, no horário de Brasília. Registros anteriores mantêm a data informada.')
             mode=st.selectbox('Essas questões eram',['novas','repetidas','mistas'],format_func={'novas':'Novas para mim','repetidas':'Questões que já fiz antes','mistas':'Mistura ou não sei separar'}.get,key='study_mode') if kind!='contato' else 'mistas'
@@ -173,7 +170,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
             return not errors
         submitted=confirm_submit('Salvar resultado e atualizar meu plano',type='primary',action_key='study_registration_ui_129',details=detail,validate=validate)
         if review_parent and not editing:
-            st.caption('Uma lista do tema não encerra automaticamente o lote vinculado. Não precisamos inventar quais acertos pertenciam a ele.')
+            st.caption('Listas não encerram lotes vinculados.')
             st.form_submit_button('Esta foi uma lista do tema',key='study_detach_review',on_click=_detach_review)
     if submitted:
         if not validate():return

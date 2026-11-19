@@ -36,7 +36,7 @@ def render_day_goal(service,view,day,prefix='today'):
     st.caption('Vale somente para '+ '/'.join(reversed(day.split('-')))+'.')
     remaining=max(0,preview['after']['themes']-preview['after']['done']-preview['after']['planned'])
     if remaining:
-        st.info(f"{remaining} questões ficaram livres pelos limites dos blocos e dos temas. Confira os detalhes abaixo.")
+        st.info(f"{remaining} questões não foram distribuídas.")
     old=preview.get('replaces_recovery_limit')
     if old is not None and old!=preview['after']['total'] and not rest:
         st.info(f"O limite da retomada muda de {old} para {preview['after']['total']} somente neste dia.")

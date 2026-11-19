@@ -150,7 +150,6 @@
 .st-key-bento_sidebar [data-testid="stBaseButton-secondary"]:hover { background:var(--o-bg); }
 .st-key-bento_sidebar .o-brand { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
 .st-key-bento_sidebar .o-brand strong { display:block; font:700 24px/30px var(--o-font); letter-spacing:-.02em; color:var(--o-ink); }
-.st-key-bento_sidebar .o-brand small { display:block; font:400 11px/16px var(--o-font); color:var(--o-ink-2); }
 .st-key-bento_sidebar .o-brand svg { flex-shrink:0; }
 .st-key-bento_sidebar .o-brand { color:var(--o-primary-strong); padding:4px 8px 12px; }
 .st-key-bento_sidebar [data-testid="stBaseButton-secondary"] { box-shadow:none; }

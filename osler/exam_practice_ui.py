@@ -199,8 +199,7 @@ def _area_result(service):
 def render_mock_correction(service):
     _notice()
     with st.container(key='bento-correction-intro'):
-        st.subheader('Transforme os erros em próximos passos')
-        st.write('Confira as respostas do simulado. Depois, pratique os temas errados em uma data própria, dentro da sua carga habitual.')
+        st.subheader('Correção do simulado')
         explain('Quarta-feira é apenas uma sugestão de organização. Os temas recebem quantidades diferentes conforme incidência disponível, dificuldade registrada e erros informados.')
     sources=service.exam_learning_agenda()
     if sources:

@@ -8,7 +8,6 @@ import streamlit as st
 
 from .action_feedback import confirm_button, notify_success, preserve_drafts
 from .planner_service import today_local
-from .ui_help import explain
 
 
 SCOPES={'pending':'Somente não estudados ou pendentes',
@@ -212,7 +211,6 @@ def _cards(repo):
 
 def render_updates(repo):
     st.title('Atualizar dados')
-    explain('Envie os arquivos que você copiou da Osler. Confira a prévia antes de aplicar; tudo fica no seu computador.')
     if st.session_state.get('updates_notice'):st.success(st.session_state.pop('updates_notice'))
     preserve_updates_drafts('cards' if st.session_state.get('updates_tab')=='Flashcards de erros' else 'planner')
     planner,cards=st.tabs(['Planner de questões','Flashcards de erros'],key='updates_tab',on_change='rerun')

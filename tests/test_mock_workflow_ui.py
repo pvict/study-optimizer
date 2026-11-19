@@ -28,7 +28,7 @@ def test_direct_result_then_topics_and_resume_without_schedule(tmp_path,sample_p
     key=rows[0]['exam_key']
     assert rows[0]['exam']['name']=='FMUSP 2025'
     assert app.selectbox(key='flow_selected').value==key
-    assert any('Quais temas' in x.value for x in app.subheader)
+    assert any('Temas errados' in x.value for x in app.subheader)
     app.text_input(key='flow_topic_'+key+'_search').set_value('Feridas').run()
     app.number_input(key='flow_count_'+key).set_value(3)
     app.button(key='flow_add').click().run()

@@ -70,3 +70,14 @@ def test_mock_day_counts_as_study_without_adding_mock_questions_to_blocks():
     s=week_summary(v,{'2026-10-13':{'kind':'normal','questions':60}},mock_days={'2026-10-13'})
     assert s['study_days']==1 and s['days'][1]['status']=='done'
     assert s['questions']==0 and s['new_accuracy'] is None
+
+
+def test_today_keeps_recorded_questions_visible_without_a_goal():
+    from streamlit.testing.v1 import AppTest
+    app=AppTest.from_string('''
+from osler.bento_day_ui import _today_ring
+_today_ring({'done_questions':12,'target_questions':0,'questions':0,
+    'distribution':{'planned_new':0,'planned_reviews':0}},'rest')
+''').run()
+    assert not app.exception
+    assert any('12 questões registradas' in caption.value for caption in app.caption)

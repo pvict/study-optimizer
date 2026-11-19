@@ -31,7 +31,7 @@ def _summary(exam):
         'date': date.fromisoformat(exam['day']).strftime('%d/%m/%Y'),
         'duration': '—' if exam.get('minutes_used') is None else _display_number(exam['minutes_used'])+' min',
         'score': '—' if score is None or maximum is None else f'{_display_number(score)} / {_display_number(maximum)}',
-        'accuracy': f"{exam['correct']} / {exam['questions']} · {100*exam['correct']/exam['questions']:.1f}% · n={exam['questions']}".replace('.', ','),
+        'accuracy': f"{exam['correct']} / {exam['questions']} · {100*exam['correct']/exam['questions']:.1f}%".replace('.', ','),
     }
 
 
@@ -50,7 +50,7 @@ def _area_results_html(areas):
         percent = 100*correct/total
         low, high = wilson_interval(percent, total)
         name = escape(area['area'])
-        result = f'{correct} / {total} · {percent:.1f}% · n={total}'.replace('.', ',')
+        result = f'{correct} / {total} · {percent:.1f}%'.replace('.', ',')
         interval = f'Faixa Wilson 95%: {low:.1f}–{high:.1f}%'.replace('.', ',')
         rows.append(f'<div class="o-mock-area"><div class="o-mock-area-label"><strong>{name}</strong>'
                     f'<span>{result}</span></div>'+bar(percent/100, area_slug([area['area']]), label=area['area']+': '+result)

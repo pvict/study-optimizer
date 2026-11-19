@@ -16,7 +16,7 @@ def render_replanning(service,context):
         a.metric('Temas atrasados',len(rows))
         b.metric('Temas com data atual',sum(r['recovery_current'] for r in rows))
         c.metric('Precisam de nova data',sum(not r['recovery_current'] for r in rows))
-        st.caption('Uma data reservada não marca estudo como feito. O atraso permanece até registrar o estudo.')
+        st.caption('Reagendar não conclui o estudo.')
         if rows:
             st.dataframe([{'Tema':' › '.join(r['path']),'Recuperação':r['recovery_date'] or '—',
                            'Situação':r['recovery_status']} for r in rows],hide_index=True,width='stretch')

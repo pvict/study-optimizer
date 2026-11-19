@@ -99,7 +99,7 @@ def _today(service,view):
     items=view['items']
     if items:
         st.markdown(f"**{sum(t['planned'] for t in items)} cards em {len(items)} {'deck inteiro' if len(items)==1 else 'decks inteiros'} para fazer**")
-        st.caption(f"Referência de {view['budget']} cards/dia, com até10% de margem para completar um deck. A meta não é preenchida com fragmentos de outros decks.")
+        st.caption('Margem para decks inteiros: 10%.')
     oversized=[t for t in view['ranked'] if t.get('oversized')]
     if view['budget'] and oversized:st.info('Decks acima da referência e da margem: '+', '.join(t['path'][-1]+f" ({t['remaining']})" for t in oversized[:3])+'. Para fazê-los inteiros, aumente a referência de um dia em Importar e ajustar ou escolha o deck em Temas.')
     if not items and view['budget'] and view['active']:st.info('Nenhum novo bloco de primeira passagem hoje. Os registros abaixo e os retornos da Osler continuam disponíveis.')
@@ -187,7 +187,7 @@ def _import_and_settings(service,view):
                 notify_success(service.import_html(data,upload.name if upload else 'arvore-colada.html',observed.isoformat(),scope,view['token']),'Importação processada.')
                 st.session_state.pop('ec_recording',None);st.session_state['ec_notice']='Árvore importada. Confira o plano na aba Hoje.';st.rerun()
         except (ValueError,UnicodeError) as exc:st.error(str(exc))
-    st.subheader('Carga que cabe na sua rotina')
+    st.subheader('Carga diária')
     explain('Esta é uma parte da sua capacidade total de flashcards, junto dos retornos da Osler. Não some esta carga por cima do seu limite de revisões. Com muitos retornos, zero pausa novas passagens sem perder a fila.')
     with st.container(key='ec_settings'):
         daily=st.number_input('Cards de erros por dia',0,2000,view['settings']['daily'],step=10,key='ec_daily')
@@ -224,7 +224,6 @@ def render_error_cards(repo):
         preserve_drafts('ec_pasted','ec_scope','ec_observed','ec_daily','ec_day_override','ec_day_amount','ec_day_reset')
     service=ErrorCardsService(repo);view=service.overview()
     st.title('Seus cards de erros')
-    explain('Uma passagem viável pelo que você criou, em temas específicos. As questões continuam no seu plano habitual.')
     if 'ec_notice' in st.session_state:st.success(st.session_state.pop('ec_notice'))
     show_queue=bool(view['snapshot'] or view['has_queue'] or view['history'])
     if show_queue:

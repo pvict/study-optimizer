@@ -44,7 +44,7 @@ def render_guide_settings(repo,*,incidence_only=False):
         except (ValueError, sqlite3.Error) as exc:
             st.error(str(exc))
     st.divider()
-    st.subheader("O que mais cai nas suas provas")
+    st.subheader("Incidência nas provas")
     datasets = [d for d in service.datasets() if d.get('incidence_included') is not False]
     if datasets:
         applicable = prepare_incidence(datasets, settings.institutions, today_local().isoformat())

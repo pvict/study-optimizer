@@ -42,7 +42,7 @@ def test_hero_registration_and_optional_pause_keep_real_records(tmp_path,monkeyp
 
 @pytest.mark.parametrize('state,label',[
     ('rest','Hoje é descanso'),('complete','Meta registrada'),
-    ('not_started','Tudo pronto para começar'),('mock','Hoje é dia de simulado')])
+    ('not_started','Cronograma não iniciado'),('mock','Hoje é dia de simulado')])
 def test_today_states_do_not_change_study_records(tmp_path,monkeypatch,project_root,sample_pdf,state,label):
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     service=AdaptiveService(repo);day='2026-10-15'
@@ -60,7 +60,7 @@ def test_today_states_do_not_change_study_records(tmp_path,monkeypatch,project_r
     assert not app.exception and label in [h.value for h in app.subheader]
     assert service.store.events()==before
     if state in {'rest','mock','not_started'}:
-        assert any('questões registradas · sem meta de blocos hoje' in h.value for h in app.get('html'))
+        assert any('questões registradas' in c.value for c in app.caption)
     if state=='complete':
         app.button(key='bento_advance').click().run()
         assert next(e for e in app.expander if e.label=='Adiantar revisões').proto.expanded

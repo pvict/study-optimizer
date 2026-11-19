@@ -16,7 +16,7 @@ def _open_correction(key):
 
 def _error_topics(service,row,prefix):
     context=service.mock_errors(row['exam_key']); exam=row['exam']
-    st.subheader('2 · Quais temas você errou?')
+    st.subheader('2 · Temas errados')
     missed=exam['questions']-exam['correct']
     if not missed:
         st.success('Todos os acertos registrados. Não há erros para corrigir.')
@@ -74,8 +74,8 @@ def render_mock_workflow(service,prefix='mock_flow'):
         st.success(f"Resultado salvo: {exam['name']} · {exam['correct']} de {exam['questions']} acertos")
         _error_topics(service,row,prefix)
         return
-    st.subheader('1 · Registrar o simulado que você fez')
-    st.caption('Registre mesmo sem agendamento. Depois de salvar, os temas errados aparecem logo abaixo.')
+    st.subheader('1 · Registrar simulado')
+    st.caption('Também aceita simulados sem agendamento.')
     used={r['exam'].get('practice_id') for r in rows}
     tasks={r['id']:r for r in (service.area_schedule() or {}).get('occurrences',[])
            if r.get('date') and r['date']<=today.isoformat() and r.get('status')!='blocked' and r['id'] not in used}

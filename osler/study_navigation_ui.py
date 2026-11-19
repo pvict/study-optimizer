@@ -2,9 +2,9 @@
 import streamlit as st
 import os
 
-STUDY=[('Hoje','today','Meu dia','light_mode'),('Temas em atenção','attention','Temas em atenção','priority_high'),('Calendário','calendar','Calendário','calendar_month'),
-       ('Evolução','evolution','Evolução','trending_up'),('Temas','topics','Temas e estatísticas','menu_book'),
-       ('Simulados','mocks','Simulados','assignment'),('Agrupamentos','grouping','Agrupamentos','account_tree')]
+STUDY=[('Hoje','today','Meu dia'),('Temas em atenção','attention','Temas em atenção'),('Calendário','calendar','Calendário'),
+       ('Evolução','evolution','Evolução'),('Temas','topics','Temas e estatísticas'),
+       ('Simulados','mocks','Simulados'),('Agrupamentos','grouping','Agrupamentos')]
 
 
 def go_view(main,adaptive=None):
@@ -29,20 +29,18 @@ def render_navigation():
     st.session_state.setdefault('adaptive_view','Meu dia')
     with st.sidebar:
         with st.container(key='bento_sidebar'):
-            st.markdown('<div class="o-brand"><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="currentColor"/><path d="M20 11v18M11 20h18" stroke="white" stroke-width="3" stroke-linecap="round"/></svg><span><strong>Osler</strong><small>Preparação para a residência</small></span></div>',unsafe_allow_html=True)
-            st.button('Registrar bloco',key='nav_register',type='primary',icon=':material/edit_note:',on_click=register_view,width='stretch')
-            st.caption('Estudo')
-            for label,key,view,icon in STUDY:
+            st.markdown('<div class="o-brand"><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="currentColor"/><path d="M20 11v18M11 20h18" stroke="white" stroke-width="3" stroke-linecap="round"/></svg><strong>Osler</strong></div>',unsafe_allow_html=True)
+            st.button('Registrar bloco',key='nav_register',type='primary',on_click=register_view,width='stretch')
+            for label,key,view in STUDY:
                 active=st.session_state['main_view']=='Plano de questões' and st.session_state['adaptive_view']==view
                 with st.container(key='nav_active_'+key if active else 'nav_idle_'+key):
-                    st.button(label,key='nav_'+key,icon=f':material/{icon}:',on_click=go_view,args=('Plano de questões',view),width='stretch')
-            st.caption('Ferramentas')
-            for label,key,main,icon in [('Flashcards','flashcards','Diminuir revisões','style'),('Atualizar dados','updates','Atualizar dados','sync'),('Arquivos e ferramentas','files','Ferramentas','folder_open')]:
+                    st.button(label,key='nav_'+key,on_click=go_view,args=('Plano de questões',view),width='stretch')
+            for label,key,main in [('Flashcards','flashcards','Diminuir revisões'),('Atualizar dados','updates','Atualizar dados'),('Arquivos e ferramentas','files','Ferramentas')]:
                 with st.container(key='nav_active_'+key if st.session_state['main_view']==main else 'nav_idle_'+key):
-                    st.button(label,key='nav_'+key,icon=f':material/{icon}:',on_click=go_view,args=(main,),width='stretch')
+                    st.button(label,key='nav_'+key,on_click=go_view,args=(main,),width='stretch')
             st.divider()
             with st.container(key='nav_active_settings' if st.session_state['adaptive_view']=='Ajustes' and st.session_state['main_view']=='Plano de questões' else 'nav_idle_settings'):
-                st.button('Ajustes',key='nav_settings',icon=':material/settings:',on_click=go_view,args=('Plano de questões','Ajustes'),width='stretch')
+                st.button('Ajustes',key='nav_settings',on_click=go_view,args=('Plano de questões','Ajustes'),width='stretch')
             st.toggle('Mostrar explicações',key='show_explanations',value=False)
             with st.expander('Sobre o app'):
                 online=os.environ.get('OSLER_CLOUD')=='1'

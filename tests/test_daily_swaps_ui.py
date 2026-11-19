@@ -33,7 +33,7 @@ def test_manual_search_can_select_review_instead_of_new_topic(tmp_path,monkeypat
     service,_=service_fixture(tmp_path,monkeypatch)
     app=app_for(service)
     next(b for b in app.button if b.label=='Trocar tema').click().run()
-    search=next(t for t in app.text_input if t.label=='Digite o tema ou navegue pelas áreas')
+    search=next(t for t in app.text_input if t.label=='Buscar tema')
     search.set_value('Review').run()
     assert not app.exception
     confirm_action(next(b for b in app.button if b.label=='Trocar por este tema').click().run())

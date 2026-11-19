@@ -90,7 +90,6 @@ def render_adaptive(repo):
             with st.container(key='study_registration'):
                 with st.container(key='registration_header'):
                     st.title('Registrar resultado')
-                    explain('Registre o que fez. O próximo plano acompanha seus resultados.')
                 _register(service)
         elif view=='Temas e estatísticas':
             if st.session_state.get('topics_tabs','Desempenho dos temas')!='Desempenho dos temas':
@@ -199,7 +198,7 @@ def _settings(service):
         explain('A meta é por questões. Para mudar só um dia, use Hoje → Ajustar meu dia.')
         share=share_percent/100
         workload_mode=st.radio('Como distribuir a rotina?',['adaptive','fixed'],index=0 if p.workload_mode=='adaptive' else 1,
-                               format_func={'adaptive':'Adaptativa — abre espaço para revisões','fixed':'Fixa — mantém a proporção escolhida'}.get,key='settings_workload_mode')
+                               format_func={'adaptive':'Adaptativa: ajusta a divisão','fixed':'Fixa: mantém a proporção'}.get,key='settings_workload_mode')
         st.divider()
         st.subheader('Objetivos e datas')
         left,right=st.columns(2)

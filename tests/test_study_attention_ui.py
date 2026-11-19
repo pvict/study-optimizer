@@ -20,7 +20,7 @@ render_attention(service,st.session_state['view'],'2026-10-29',record)
 
 def test_overview_sources_unknown_contact_and_science_are_present():
     test=app(); assert not test.exception
-    assert any('temas para olhar' in m.value for m in test.markdown)
+    assert any('temas em atenção' in m.value for m in test.markdown)
     table=test.dataframe[0].value
     assert len(table)==1 and table.iloc[0]['Incidência bruta']==12
     import json

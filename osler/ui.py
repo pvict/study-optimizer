@@ -201,15 +201,15 @@ def _advanced_tools(repo, project_root):
     st.title("Arquivos e ferramentas")
     st.caption("Seus relatórios, importações e cópias de segurança.")
     from .data_updates_ui import open_updates
-    st.button('Atualizar Planner e cards de erros',key='files_updates',icon=':material/sync:',on_click=open_updates)
+    st.button('Atualizar Planner e cards de erros',key='files_updates',on_click=open_updates)
     all_entries = repo.list_reports()
     entries = repo.list_reports(include_duplicates=False)
     def open_backup(): st.session_state['advanced_view']='Backup e restauração'
     def open_library(): st.session_state['advanced_view']='Dados e classificação'
     with st.container(key='bento-files-navigation'):
         left,right=st.columns(2)
-        left.button('Biblioteca e importação',key='files_library',on_click=open_library,width='stretch',icon=':material/folder_open:')
-        right.button('Backup e restauração',key='open_backup',on_click=open_backup,width='stretch',icon=':material/backup:')
+        left.button('Biblioteca e importação',key='files_library',on_click=open_library,width='stretch')
+        right.button('Backup e restauração',key='open_backup',on_click=open_backup,width='stretch')
     content=st.container()
     advanced_controls=st.expander("Avançado · selecionar relatório ou ferramenta")
     show_equivalent = advanced_controls.checkbox("Mostrar relatórios equivalentes", value=False)

@@ -16,7 +16,7 @@ def render_recovery(service,view):
             with st.container(border=True):
                 st.subheader('Revisões de questões na Osler')
                 st.write(f"{pending} para fazer hoje · {projection['due_now']} já venceram · {projection['remaining']} no saldo total")
-                st.caption(f"{done} registradas hoje. Esta cota já está reservada dentro da carga total; sem temas ou acertos inventados.")
+                st.caption(f"{done} registradas hoje.")
                 if pending:
                     for key in ('recovery_count','recovery_return_count'):
                         if st.session_state.get(key) is not None:st.session_state[key]=min(int(st.session_state[key]),pending)

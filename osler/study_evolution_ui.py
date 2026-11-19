@@ -107,8 +107,8 @@ def _render_scenario(service):
     context=cache['context']; snapshot=context['snapshot']; point=point_at(snapshot,selected)
     if profile['exam_date']<today.isoformat(): st.info('A data de referência da preparação já passou. Seu histórico continua disponível; ajuste a prova para projetar os próximos meses.')
     if not context['exam_in_horizon']: st.caption('A prova está além do horizonte de18meses disponível. A jornada vai até '+date_label(end)+'.')
-    if not snapshot['total_topics']: st.info('Importe seu relatório de questões para construir a jornada por temas. Nenhuma conquista ou evolução foi criada como exemplo.')
-    st.subheader('Seu caminho até '+date_label(selected))
+    if not snapshot['total_topics']: st.info('Importe o relatório de questões para iniciar o acompanhamento.')
+    st.subheader('Projeção até '+date_label(selected))
     if spacing_scenario=='progressive':
         explain(f"Previsto se os próximos blocos atingirem sua meta com convicção: intervalos avançam até {profile['max_contact_gap']} dias, com ajuste por incidência. É uma hipótese de planejamento, sem ganho de acerto ou domínio registrado.")
     else: explain('Previsto mantendo os intervalos atuais e executando os blocos. Realizado corresponde aos registros e ao histórico documentado.')
@@ -130,10 +130,10 @@ def _render_scenario(service):
     chart=st.radio('Acompanhar',['Questões respondidas','Cobertura dos temas','Rendimento'],horizontal=True,key='evolution_chart')
     if chart=='Rendimento': _performance(context,selected)
     else: st.altair_chart(progress_chart(context,selected,chart=='Cobertura dos temas'),width='stretch')
-    st.subheader('Marcos que contam sua história')
+    st.subheader('Marcos do estudo')
     st.html(achievement_html(snapshot['achievements']))
     attention=evolution_attention(snapshot,selected)
-    st.subheader('Onde vale colocar atenção')
+    st.subheader('Temas prioritários')
     explain('Possíveis pontos fracos neste cenário, ordenados por prioridade relativa. O último rendimento conhecido permanece até uma nova medição real; esta lista não é dívida de estudo.')
     for item in attention[:3]:
         left,right=st.columns([3,1])

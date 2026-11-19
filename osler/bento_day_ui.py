@@ -64,14 +64,12 @@ def _start_pause():
 def _pause():
     if st.session_state.get('bento_pause_dismissed'):return
     with st.container(key='bento-pause'):
-        st.subheader('Um intervalo, se quiser')
-        explain('Você já registrou um bloco hoje. Pode fazer uma pausa e voltar quando preferir.')
+        st.subheader('Pausa')
         remaining=pause_remaining(st.session_state.get('bento_pause_until'),monotonic())
         if remaining is None:
-            st.button('Iniciar pausa de 10 min',key='bento_pause_start',icon=':material/timer:',on_click=_start_pause)
+            st.button('Iniciar pausa de 10 min',key='bento_pause_start',on_click=_start_pause)
         elif remaining:
             st.markdown(f'**{remaining//60:02d}:{remaining%60:02d}**')
-            st.caption('O plano continua disponível durante a pausa.')
         else:
             st.write('Pausa concluída. Continue quando quiser.')
         st.button('Dispensar pausa',key='bento_pause_dismiss',on_click=_dismiss_pause)
@@ -100,13 +98,13 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
             st.html(chip('Pouca prática em questões'))
         if item.get('group_members'):
             st.html(chip(f"Agrupamento · {len(item['group_member_paths'])} temas"))
-            with st.popover('Ver temas agrupados',icon=':material/account_tree:'):
+            with st.popover('Ver temas agrupados'):
                 st.markdown('**'+escape(item['path'][-1])+'**')
                 for path in item['group_member_paths']:
                     st.write(' › '.join(path[len(item['path']):]))
         if hero and view['time_source']=='Mediana de blocos registrados':
             minutes=ceil(n*view['plan']['effective_profile']['minutes_per_question'])
-            st.caption(f'≈ {minutes} min · estimativa a partir dos seus blocos')
+            st.caption(f'≈ {minutes} min')
         render_planner_supply(item)
         render_bank_scope(item,view['profile']['min_block'])
         notices=[]
@@ -116,7 +114,7 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
         elif (item.get('planner_supply') or {}).get('external_only'):notices.append('Complemento no banco completo')
         elif item.get('correction'):notices.append('Reforço dos erros do simulado · data reservada '+date_label(item['reschedule_date']))
         elif item.get('rescheduled'):notices.append('Recuperação agendada · atraso original desde '+item['original_due'])
-        if item['added_by_user']:notices.append(f"Adicionado por você · {item['extra_pending']} questões extras · só hoje")
+        if item['added_by_user']:notices.append(f"{item['extra_pending']} questões extras para hoje")
         if notices:st.caption(' · '.join(notices))
         _block_controls(service,view,item,day,go_record,go_review,hero)
 
@@ -124,9 +122,9 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
 def _hero_empty(state,plan):
     with st.container(key='bento-state-'+state):
         if state=='empty':
-            st.subheader('Seu estudo começa aqui')
+            st.subheader('Sem plano de estudo')
             st.write('Importe seu relatório de questões para montar o plano com o que você já estudou.')
-            st.button('Importar relatório',key='bento_import',type='primary',icon=':material/upload_file:',on_click=_import)
+            st.button('Importar relatório',key='bento_import',type='primary',on_click=_import)
         elif state=='rest':
             st.subheader('Hoje é descanso')
             st.write('A meta de questões está dispensada. O plano continua no próximo dia, sem dívida de questões.')
@@ -135,24 +133,21 @@ def _hero_empty(state,plan):
             st.subheader('Hoje é dia de simulado')
             st.write('Os blocos normais estão dispensados. Registre o resultado ou altere a data em Simulados.')
             if plan['routine_override'].get('mock_questions'):st.caption(f"{plan['routine_override']['mock_questions']} questões no simulado · resultado separado dos blocos.")
-            st.caption('Registre o resultado e os temas errados na seção Simulado de hoje, no início desta página.')
         elif state=='not_started':
-            st.subheader('Tudo pronto para começar')
+            st.subheader('Cronograma não iniciado')
             st.info('Seu cronograma começa em '+ '/'.join(reversed(plan['start_date'].split('-')))+'. Até lá, não há meta diária nem faltas no aplicativo.')
-            st.caption('Seu histórico importado já está disponível em Temas.')
         elif state=='complete':
             st.subheader('Meta registrada')
-            st.write('Os resultados de hoje já estão no histórico. Se quiser continuar, acrescente uma revisão ao dia.')
-            st.button('Adiantar revisões',key='bento_advance',icon=':material/add:',on_click=_advance)
+            st.button('Adiantar revisões',key='bento_advance',on_click=_advance)
         else:
-            st.subheader('Seu dia está livre de blocos automáticos')
+            st.subheader('Sem blocos previstos')
             st.write('Consulte o Calendário ou acrescente um tema em Adiantar revisões.')
 
 
 def _today_ring(plan,state):
     with st.container(key='bento-today-ring'):
-        summary=(f"{plan['done_questions']} de {plan['target_questions']} questões registradas" if plan['target_questions'] else f"{plan['done_questions']} questões registradas · sem meta de blocos hoje")
-        st.html('<h3>Hoje</h3><p class="o-path">'+summary+'</p>')
+        st.html('<h3>Hoje</h3>')
+        if not plan['target_questions']:st.caption(f"{plan['done_questions']} questões registradas")
         # SVG fixo da biblioteca visual; st.html sanitiza e remove SVG.
         dist=plan['distribution']
         remaining=f"Restam {plan['questions']} no plano" if plan['target_questions'] else 'Sem meta de blocos hoje'
@@ -221,7 +216,7 @@ def _full_mocks_today(service,plan,day):
 def _render_full_mocks_today(service,plan,day):
     from .mock_workflow_ui import render_mock_workflow
     scheduled=_full_mocks_today(service,plan,day)
-    with st.expander('Simulado de hoje · registrar resultado e temas errados',expanded=bool(scheduled)):
+    with st.expander('Simulado de hoje',expanded=bool(scheduled)):
         render_mock_workflow(service,'today_mock_flow')
 
 
@@ -236,7 +231,6 @@ def render_today(service,go_record,go_review,go_edit=None):
                 import re
                 name=re.sub(r'([\\`*_{}\[\]()#+\-.!|>])',r'\\\1',name)
             st.title('Olá'+(', '+name if name else ''))
-            explain('Um bloco de cada vez.')
         with stamp:st.html('<span class="o-date">'+escape(date_label(day))+'</span>')
     with st.spinner('Preparando seu plano…'):
         view=service.overview(day)
@@ -281,10 +275,10 @@ def render_today(service,go_record,go_review,go_edit=None):
     corrections=[r for r in service.exam_learning_agenda() if r['date']==day]
     if corrections:
         with st.container(border=True,key='bento-correction-today'):
-            st.subheader('Dia de corrigir e reforçar')
+            st.subheader('Correções de simulados')
             for correction in corrections:
-                st.write(correction['name']+' · '+('informe os temas errados em Simulados → Correção' if correction['needs_details'] else 'os temas do reforço estão nos blocos do plano'))
-                st.button('Abrir correção deste resultado',key=f"correction_today_{corrections.index(correction)}_{correction['exam_key']}",on_click=_open_correction,args=(correction['exam_key'],))
+                st.write(correction['name']+' · '+('informe os temas errados em Simulados → Correção' if correction['needs_details'] else 'temas no plano'))
+                st.button('Abrir correção',key=f"correction_today_{corrections.index(correction)}_{correction['exam_key']}",on_click=_open_correction,args=(correction['exam_key'],))
     with st.container(key='bento_top'):
         main,side=st.columns([2,1],gap='medium')
         with main:
@@ -324,7 +318,7 @@ def render_today(service,go_record,go_review,go_edit=None):
                 # Expandir o atalho sem alterar os dados do dia.
                 advance=st.session_state.pop('bento_advance_open',False)
                 _extra_controls(service,view,day,advance)
-    with st.expander('Sua semana · progresso e ritmo'):
+    with st.expander('Resumo da semana'):
         _metrics(summary,exam)
         _rhythm(summary)
     with st.expander('Detalhes do dia e do plano'):

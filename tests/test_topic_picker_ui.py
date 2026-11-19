@@ -12,7 +12,7 @@ def test_theme_picker_supports_hierarchy_and_typing_without_flat_dropdown(tmp_pa
     assert any(s.key=='extra_area' for s in app.selectbox)
     app.text_input(key='extra_search').set_value('Feridas').run()
     assert not app.exception
-    assert any('Feridas' in str(m.value) for m in app.markdown)
+    assert any('Feridas' in option for radio in app.radio for option in radio.options)
 
 
 def test_calendar_and_confidence_registration_are_visible(tmp_path,monkeypatch,project_root,sample_pdf):

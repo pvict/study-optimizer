@@ -37,12 +37,11 @@ def render_today_replanning(service,view):
         st.html('<dl class="o-recovery-counts">'+''.join(
             '<div><dt>'+escape(label)+'</dt><dd>'+str(n)+'</dd></div>'
             for label,n in [('Temas atrasados',len(rows)),('Com data atual',len(rows)-len(pending)),('Precisam de data',len(pending))])+'</dl>')
-        st.caption('Reagendar reserva uma vaga dentro da carga. O atraso só se encerra com o estudo registrado.')
+        st.caption('Reagendar não conclui o estudo.')
         if rows:
             selected=[r['topic_id'] for r in (pending or rows)]
             label=f'Encontrar datas para {len(pending)} tema(s)' if pending else 'Rever distribuição dos temas'
-            if not pending:st.caption('Todos os temas acima já têm uma reserva para hoje ou depois. Redistribuir é opcional.')
-            if st.button(label,key='today_replan_preview',icon=':material/event_repeat:'):
+            if st.button(label,key='today_replan_preview'):
                 try:
                     preview=service.preview_replan(view['date'],90,'balanced',selected=selected,extra_questions=0)
                     st.session_state['today_replan_preview_data']=preview

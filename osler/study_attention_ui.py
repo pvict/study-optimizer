@@ -22,7 +22,7 @@ def render_attention(service,view,day,go_record):
             st.caption('Importe um relatório com temas específicos para cruzar incidência, resultados e contatos.')
             return
         counts=model['counts']
-        st.write(f"**{counts['Atenção']} temas para olhar** · {model['incident_unpracticed']} incidentes sem prática")
+        st.write(f"**{counts['Atenção']} temas em atenção** · {model['incident_unpracticed']} incidentes sem prática")
         explain(f"{model['unknown_contact']} temas com último contato desconhecido. Sem prática significa sem questões registradas nesta base.")
         explain('Sugestões de estudo com os dados locais. A ordem segue a política atual do plano; não é previsão de aprovação.')
         explain('Próxima revisão mostra o prazo atual por tema; consultar ou abrir um tema não reserva outro bloco hoje.')
@@ -62,5 +62,5 @@ def render_attention(service,view,day,go_record):
             st.write('Acerto mostra a base selecionada pelo plano e sua modalidade; novas, mistas, repetidas e acumulados permanecem separados. Percentuais informados sem contagens exatas aparecem como aproximados. Convicção acumulada da Osler não mede acerto de primeira tentativa.')
             st.write('Incidência mostra a quantidade de questões do tema na tabela local. Instituições, data e valores de grupos ficam em Fonte da incidência deste tema. Fontes diferentes aparecem em colunas separadas, sem soma; percentuais mantêm sua unidade. Uma linha de grupo não vira incidência individual. Tabelas conjuntas não são separadas por instituição. Ausência não significa zero; data de PDF ou retrato não é data de estudo.')
             st.write('Recuperar de memória e distribuir contatos no tempo têm apoio experimental; estes intervalos e pesos são uma política operacional, sem calibração pessoal. Amostras pequenas e questões repetidas limitam a interpretação. A meta de 90% não é garantia de aprovação.')
-            st.markdown('[Prática de recuperação](https://learninglab.psych.purdue.edu/downloads/2007/2007_Karpicke_Roediger_JML.pdf) · [Prática distribuída](https://escholarship.org/uc/item/3rr6q10c) · [Incerteza amostral — NIST](https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm)')
+            st.markdown('[Prática de recuperação](https://learninglab.psych.purdue.edu/downloads/2007/2007_Karpicke_Roediger_JML.pdf) · [Prática distribuída](https://escholarship.org/uc/item/3rr6q10c) · [Incerteza amostral (NIST)](https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm)')
             st.caption('Os parâmetros do app são uma política de planejamento, não coeficientes científicos calibrados para sua aprovação. Consultar o painel não muda as datas nem registra estudo.')

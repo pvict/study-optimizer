@@ -29,7 +29,7 @@ def render_day_activity(view,go_edit=None):
     activity=day_activity(view)
     st.subheader('Feito hoje')
     if not activity['events']:
-        st.info('Nenhum bloco registrado hoje. Ao salvar um resultado, ele aparece aqui.')
+        st.info('Nenhum bloco registrado hoje.')
         return
     blocks=str(activity['blocks'])+(' bloco' if activity['blocks']==1 else ' blocos')
     contacts=f" · {activity['contacts']} contato(s) sem questões" if activity['contacts'] else ''
