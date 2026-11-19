@@ -35,6 +35,19 @@ render_error_cards(Repository(os.environ['ERROR_CARDS_TEST_ROOT']))
     assert not app.exception and app.file_uploader
 
 
+def test_large_deck_shows_daily_adjustment_with_cards_already_done():
+    app=AppTest.from_string('''
+from osler.error_cards_ui import _today
+_today(None, {'active':True,'budget':40,'items':[],'done_today':10,'history':[],
+    'ranked':[{'path':['Área','Deck grande'],'remaining':100,'oversized':True}]})
+''').run()
+    assert not app.exception
+    row=app.dataframe[0].value.iloc[0]
+    assert row['Limite mínimo hoje']==110
+    assert row['Meta habitual mínima']==91
+    assert any('decks prioritários' in item.value for item in app.caption)
+
+
 def test_completed_theme_still_accepts_repetitions_without_zero_range_input(tmp_path,monkeypatch):
     s,day,html=setup(tmp_path);s.import_html(html,'cards.html',day,'pending',s.token())
     topic=stable_topic_id(['Área','A']);s.record(topic,day,100,0,None,'completed',s.token())

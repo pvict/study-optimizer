@@ -3,6 +3,18 @@ from .models import normalize_path
 from .planner_snapshot import planner_supply
 
 
+def study_signal_labels(state,day):
+    """Prazo de revisão, acerto e segurança têm indicadores distintos."""
+    labels=[]
+    due=state.get('theme_review_due')
+    if due and due<day and state.get('review_committed',True):labels.append('Revisão vencida')
+    if state.get('low_objective_accuracy'):labels.append('Acerto baixo')
+    if state.get('low_conviction'):labels.append('Convicção baixa')
+    if state.get('pending_due'):labels.append('Retorno pendente')
+    if state.get('reported_difficulty'):labels.append('Dificuldade relatada')
+    return labels
+
+
 def day_activity(view):
     events=sorted((s for s in view['sessions'] if s['entry']['day']==view['date'] and
                    s['entry']['kind']!='acumulado'),key=lambda s:s.get('id',0),reverse=True)

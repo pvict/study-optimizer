@@ -11,7 +11,7 @@ def test_summary_keeps_missing_duration_and_score_unknown():
     assert summary['date'] == '14/10/2026'
     assert summary['duration'] == '—'
     assert summary['score'] == '—'
-    assert summary['accuracy'] == '60 / 80 · 75,0% · n=80'
+    assert summary['accuracy'] == '60 / 80 · 75,0%'
 
 
 def test_summary_preserves_informed_score_scale_and_zero():
@@ -20,7 +20,7 @@ def test_summary_preserves_informed_score_scale_and_zero():
     summary = _summary(exam)
     assert summary['duration'] == '135,5 min'
     assert summary['score'] == '0 / 20'
-    assert summary['accuracy'] == '60 / 80 · 75,0% · n=80'
+    assert summary['accuracy'] == '60 / 80 · 75,0%'
 
 
 def test_summary_html_and_area_bars_escape_external_text_and_show_wilson():
@@ -32,7 +32,7 @@ def test_summary_html_and_area_bars_escape_external_text_and_show_wilson():
     assert '<img' not in html and '<script>' not in html
     assert '&lt;img src=x&gt;' in html and '&lt;script&gt;área&lt;/script&gt;' in html
     assert 'o-bar-fill--clinica' in html and 'o-bar-fill--neutral' in html
-    assert 'n=10' in html and '39,7–89,2%' in html
+    assert '7 / 10 · 70,0%' in html and 'Faixa Wilson 95%: 39,7–89,2%' in html
 
 
 APP = '''

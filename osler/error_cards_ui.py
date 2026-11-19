@@ -92,6 +92,34 @@ def _record(service,view):
         except ValueError as exc:st.error(str(exc))
 
 
+def _large_decks(view):
+    recovery_deck_dates=view.get('recovery_deck_dates')
+    budget=view['budget']
+    if not budget and recovery_deck_dates is None:return
+    explicit=today_local().isoformat() in view.get('settings',{}).get('days',{})
+    room=max(0,budget+(0 if explicit else budget//10)-view['done_today'])
+    decks=[t for t in view['ranked'] if not t.get('planned') and t['remaining']>room]
+    if not decks:return
+    with st.expander(f"Decks maiores que a carga restante ({len(decks)})"):
+        rows=[]
+        for deck in decks:
+            remaining=deck['remaining']
+            row={'Deck':' › '.join(deck['path']),'Cards restantes':remaining}
+            if recovery_deck_dates is not None:
+                date=recovery_deck_dates.get(deck['topic_id'])
+                row['Data da retomada']=_date(date) if date else 'Sem data'
+            else:
+                row['Limite mínimo hoje']=view['done_today']+remaining
+                row['Meta habitual mínima']=(10*remaining+10)//11
+            rows.append(row)
+        st.dataframe(rows,hide_index=True,width='stretch')
+        if recovery_deck_dates is not None:
+            st.caption('Na retomada, use Reorganizar minha retomada em Hoje. Dias de deck grande podem reduzir a carga de questões, conforme a meta definida para o dia.')
+        else:
+            st.caption(f'Os mínimos consideram um deck por vez. O limite de hoje inclui os {_n(view["done_today"])} cards já feitos. A meta habitual pressupõe um dia livre e inclui a margem de 10%.')
+            st.caption('Em Importar e ajustar, use Ajustar somente um dia para mudar o limite, até 2.000 cards. Se decks prioritários ocuparem a carga, você pode abrir o deck em Temas.')
+
+
 def _today(service,view):
     if not view['active']:
         st.info('Seu arquivo está guardado como inventário. Importe somente os pendentes ou escolha Nova passagem por todos em Importar e ajustar. Não presumimos atraso no acervo inteiro.' if view['snapshot'] else 'Não há cards disponíveis na fila atual. Os estudos que você já registrou continuam abaixo.')
@@ -100,8 +128,7 @@ def _today(service,view):
     if items:
         st.markdown(f"**{sum(t['planned'] for t in items)} cards em {len(items)} {'deck inteiro' if len(items)==1 else 'decks inteiros'} para fazer**")
         st.caption('Margem para decks inteiros: 10%.')
-    oversized=[t for t in view['ranked'] if t.get('oversized')]
-    if view['budget'] and oversized:st.info('Decks acima da referência e da margem: '+', '.join(t['path'][-1]+f" ({t['remaining']})" for t in oversized[:3])+'. Para fazê-los inteiros, aumente a referência de um dia em Importar e ajustar ou escolha o deck em Temas.')
+    _large_decks(view)
     if not items and view['budget'] and view['active']:st.info('Nenhum novo bloco de primeira passagem hoje. Os registros abaixo e os retornos da Osler continuam disponíveis.')
     if len(items)>12:
         page=st.number_input('Página dos blocos de cards',1,math.ceil(len(items)/12),1,key='ec_today_page')

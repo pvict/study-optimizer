@@ -10,7 +10,7 @@ import streamlit as st
 from .bento import area_slug,AREA_LABELS,chip,bar
 from .planner_service import today_local
 from .study_dashboard import date_label,hero_state,pause_remaining,week_summary
-from .study_feedback import day_activity
+from .study_feedback import day_activity,study_signal_labels
 from .study_activity_ui import render_day_activity
 from .study_components import render_planner_supply,render_bank_scope
 from .study_navigation_ui import go_view
@@ -88,8 +88,9 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
             errors=next((s.get('open_error_count',0) for s in view['planning_states'] if s['topic_id']==item['topic_id']),0)
             if len(item['path'])>2:
                 text+='<p class="o-path">'+escape(' › '.join(item['path'][1:-1]))+'</p>'
-            text+='<div class="o-block-context">'+chip('',state)+chip(item['stage'])
+            text+='<div class="o-block-context">'+(chip('',state) if state!='alerta' else '')+chip(item['stage'])
             if errors:text+=chip(str(errors)+(' erro aberto' if errors==1 else ' erros abertos'))
+            elif state=='alerta' and not study_signal_labels(item,day):text+=chip('',state)
             text+='</div>'
             if st.session_state.get('show_explanations',False):
                 text+='<p class="o-reason">'+escape(item['reason'])+'</p>'
@@ -109,7 +110,7 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
             st.caption(f'≈ {minutes} min')
         render_planner_supply(item)
         render_bank_scope(item,view['profile']['min_block'])
-        notices=[]
+        notices=study_signal_labels(item,day)
         if item.get('review_kind')=='lot_only':notices.append('Retorno de respostas sem convicção · a revisão completa mantém sua própria data.')
         if item.get('preventive_priority'):notices.append('Prioridade do plano preventivo')
         if item.get('swap_return'):notices.append('Tema remanejado após troca · reserva a partir de '+ '/'.join(reversed(item['reschedule_date'].split('-'))))

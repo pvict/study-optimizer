@@ -5,6 +5,25 @@ from test_assessments import setup_assessment
 from ui_actions import confirm_action
 
 
+def test_today_outside_plan_distinguishes_due_future_and_dispensed_reviews():
+    from osler.today_replanning_ui import reviews_outside_today
+
+    day='2026-10-15'
+    states=[{'topic_id':name,'path':['Área',name],'total':20,'next_review':day,'last_contact':None}
+            for name in ['Com bloco','Sem bloco','Atraso remanejado','Previsto depois','Dispensado','Adiado na Osler']]
+    states[-1]['return_not_before']='2026-10-16'
+    states[2]['reschedule_date']=states[3]['next_review']='2026-10-16'
+    view={'date':day,'planning_states':states,'plan':{'kind':'normal','items':[states[0]],
+          'planner_completions':[{'topic_id':'Dispensado'}]},
+          'agenda':{'rows':[{'topic_id':'Atraso remanejado','date':date,'remaining':12}
+                           for date in ['2026-10-13','2026-10-16']]}}
+    backlog=[{'topic_id':'Atraso remanejado','original_due':'2026-10-12'}]
+    assert reviews_outside_today(view,backlog)==[
+        {'Tema':'Área › Sem bloco','Data indicada':'15/10/2026','Reserva':'Sem reserva'},
+        {'Tema':'Área › Atraso remanejado','Data indicada':'12/10/2026','Reserva':'16/10/2026'},
+    ]
+
+
 def test_today_finds_dates_applies_and_undoes_without_recording_study(tmp_path,monkeypatch,project_root,sample_pdf):
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     service=AdaptiveService(repo)

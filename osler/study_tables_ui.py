@@ -15,6 +15,7 @@ from .confidence_presentation import confidence_presentation
 from .topic_contacts import forecast_topic_contacts,apply_next_contacts
 from .bento import area_slug,eyebrow,chip,bar
 from .study_errors import ErrorStore
+from .study_feedback import study_signal_labels
 
 
 def _open_extra(topic_id):
@@ -81,6 +82,7 @@ def _topic_list(rows,signature,go_record,cumulative=False,objective_goal=False,*
                     if value is None: st.caption('Sem acertos exatos registrados nesta base. O traço indica ausência de medição.')
                     st.caption(str(row['Questões'])+(' questões no app' if cumulative else ' questões no período')+(f' · meta do tema {target:g}%' if target is not None else ' · meta do tema não informada'))
                     st.caption(row['Base da convicção'])
+                    if row.get('Sinais do tema'):st.caption(row['Sinais do tema'])
                     action=row.get('Próxima ação')
                     if action in {'Priorizar agora','Distribuição gradual'}: st.caption('Próxima ação: '+action)
                     if 'Revisão devida' in row or action not in {'Priorizar agora','Distribuição gradual'}:
@@ -175,6 +177,9 @@ def render_topic_table(service,go_record):
                 return
         st.session_state['statistics_next_contacts']=cached
     rows=apply_next_contacts(rows,cached['forecast'])
+    state_by_id={t['topic_id']:t for t in specific_states}
+    for row in rows:
+        row['Sinais do tema']=' · '.join(study_signal_labels(state_by_id.get(row['topic_id'],{}),view['date']))
     coverage=cached['forecast'].get('coverage')
     if coverage:
         st.caption(f"{len(specific_states)} subtemas · {coverage['scheduled']} de {coverage['total']} blocos de agenda com data")
@@ -199,6 +204,7 @@ def render_topic_table(service,go_record):
     st.caption(f"{len(rows)} temas nos filtros · histórico importado mais recente por tema." if cumulative else f"{label(start) if start else 'Todo o histórico'} até {label(end)} · {len(rows)} temas nos filtros. Semana começa na segunda; mês segue o calendário.")
     st.button('Limpar filtros',key='statistics_clear',on_click=_clear_filters,disabled=not(search or area!='Todas' or focus!='Todos os temas' or mode!='Todas' or detail))
     fields=['Tema','Estado','Próxima revisão','Questões','Acerto (%)','Convicção principal (%)','Base da convicção','Questões realizadas','Domínio / evidência','Último contato','Prioridade','Próxima ação','Fonte do histórico'] if cumulative else ['Tema','Estado','Próxima revisão','Área','Questões','Acerto (%)','Convicção principal (%)','Base da convicção']
+    if any(r['Sinais do tema'] for r in rows):fields.insert(2,'Sinais do tema')
     explain('Próxima revisão: vaga prevista no calendário atual, até '+cached['forecast']['end']+'. Para temas não vistos, é o primeiro contato. As datas serão recalculadas com seus resultados; o vencimento original fica nos detalhes.')
     has_planner=any(r.get('Retrato Osler') for r in rows)
     if detail: fields+=['Tipo do próximo bloco','Revisão devida','Meta do tema (%)','Lotes consolidados (%)','Questões com convicção informada','Prioridade','Último contato','Incidência relativa (%)','Respondidas no PDF','Acerto no PDF','Situação','Novas','Repetidas','Mistas','Questões com acertos exatos','Questões aproximadas','Acerto aproximado (%)','Caminho']

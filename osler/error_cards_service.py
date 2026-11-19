@@ -267,8 +267,10 @@ class ErrorCardsService:
         active=queue['has_queue']
         recovery=question_view.get('agenda',{}).get('quantity_recovery')
         reserved=None
+        recovery_deck_dates=None
         if recovery and recovery['config']['snapshot_id']==queue['snapshot_id']:
             reserved=next((r for r in recovery['decks'] if r['date']==day),{'cards':0,'decks':[]})
+            recovery_deck_dates={deck['topic_id']:row['date'] for row in recovery['decks'] for deck in row['decks']}
             budget=reserved['cards']+done;reason='Decks inteiros reservados na retomada'
         ranked=plan_error_cards(queue['topics'],progress,question_view.get('states',[]),day,max(0,budget-done),
             [i['topic_id'] for i in qp.get('items',[])],queue['queue_start'],reference_budget=budget,completed_today=done,
@@ -282,7 +284,7 @@ class ErrorCardsService:
         return {**queue,'snapshot':snapshot,'settings':settings,'budget':budget,'budget_reason':reason,'done_today':done,'covered':covered,
                 'remaining':remaining,'unreconciled_covered':unreconciled,
                 'items':[t for t in ranked if t['planned']],'ranked':ranked,'progress':dict(progress),'history':history,
-                'active':active,'token':token,'routine':routine,'question_view':question_view}
+                'active':active,'token':token,'routine':routine,'question_view':question_view,'recovery_deck_dates':recovery_deck_dates}
 
     def forecast(self,view,horizon=120):
         if not view['active']:return {'days':[],'completion':None,'remaining':view['remaining']}

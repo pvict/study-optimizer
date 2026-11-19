@@ -80,3 +80,12 @@ _today_progress({'done_questions':12,'target_questions':0})
 ''').run()
     assert not app.exception
     assert any('12 questões registradas' in caption.value for caption in app.caption)
+
+
+def test_review_timing_and_accuracy_are_reported_separately():
+    from osler.study_feedback import study_signal_labels
+
+    state={'theme_review_due':'2026-10-14','review_committed':True}
+    assert study_signal_labels(state,'2026-10-15')==['Revisão vencida']
+    assert study_signal_labels({**state,'low_objective_accuracy':True},'2026-10-15')==['Revisão vencida','Acerto baixo']
+    assert study_signal_labels({'low_conviction':True},'2026-10-15')==['Convicção baixa']

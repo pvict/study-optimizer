@@ -93,6 +93,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         st.session_state['adaptive_topic']=next((t['topic_id'] for t in topics if t.get('is_leaf',True)),next(iter(lookup)))
     editing=st.session_state.get('study_edit')
     old=lookup.get(st.session_state.get('adaptive_topic')) if editing else None
+    subject=st.container(key='record-subject')
     if st.session_state.get('study_review_of') and st.session_state.get('adaptive_topic') in lookup:
         chosen=lookup[st.session_state['adaptive_topic']]
     elif old and not is_practice_topic(old):
@@ -104,12 +105,13 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     else: chosen=pick_topic(topics,'record',st.session_state.get('adaptive_topic'))
     if not chosen: return
     selected=chosen['topic_id']
-    st.subheader(chosen['path'][-1])
+    with subject:
+        st.subheader(chosen['path'][-1])
+        if len(chosen['path'])>1:st.caption(' › '.join(chosen['path'][:-1]))
     if chosen.get('group_members'):
         st.info('Bloco conjunto. O resultado será guardado nesta categoria, sem atribuir acertos ou domínio a cada filho.')
         with st.expander('Subtemas deste bloco'):
             for path in chosen['group_member_paths']: st.write(' · '.join(path[ len(chosen['path']):]))
-    st.caption(' › '.join(chosen['path'][:-1]))
     render_bank_scope(chosen,service.store.profile()['profile']['min_block'])
     review_parent=st.session_state.get('study_review_of');review_available=None
     if review_parent:
@@ -119,22 +121,26 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         if editing and editing['entry'].get('review_of')==review_parent:review_available+=editing['entry']['questions']
         st.info(f'Este retorno tem {review_available} questões disponíveis. Registre apenas respostas deste lote.')
         explain('Se fez outra lista do tema, use “Esta foi uma lista do tema” para manter as contagens sem esse vínculo.')
-    kind=st.segmented_control('O que você está registrando?',['bloco','acumulado','contato'],format_func={'bloco':'Um bloco que fiz','acumulado':'Um total acumulado anterior','contato':'Estudei sem fazer questões'}.get,key='study_kind',default='bloco',required=True,width='stretch')
-    with st.expander('Outras formas de registrar'):
+    form_section=st.container()
+    alternate=st.session_state.get('study_kind') not in (None,'bloco') or st.session_state.get('study_method')=='percentual'
+    with st.expander('Outras formas de registrar',expanded=alternate):
+        kinds={'bloco':'Bloco de questões','acumulado':'Total acumulado','contato':'Estudo sem questões'}
+        kind=st.segmented_control('Tipo de registro',list(kinds),format_func=kinds.get,key='study_kind',default='bloco',required=True,width='stretch')
         method=st.radio('Como informar o rendimento?',['acertos','percentual'],format_func={'acertos':'Quantidade de acertos','percentual':'Só tenho o percentual aproximado'}.get,horizontal=True,key='study_method') if kind!='contato' else 'acertos'
         if kind=='acumulado': st.caption('Este total ficará separado dos blocos e PDFs para evitar contar o mesmo estudo duas vezes.')
     editing=st.session_state.get('study_edit')
-    if editing or st.session_state.get('study_review_of'): st.button('Registrar outro estudo',on_click=go_record,args=(selected,20))
-    if editing: st.caption('Correção de um lançamento: a versão anterior será preservada.')
-    with st.form('study_entry'):
+    with form_section:
+        if kind!='bloco':st.markdown('**'+kinds[kind]+'**')
+        if editing:st.caption('Correção de um lançamento. A versão anterior será preservada.')
+    with form_section,st.form('study_entry'):
         if kind!='contato':
             fields=st.columns(3 if method=='acertos' else 2)
             left,right=fields[:2]
-            n=left.number_input('Quantas questões você fez?',min_value=1,max_value=1000000,value=20,key='study_n')
-            correct=right.number_input('Quantas acertou?',min_value=0,max_value=1000000,value=None,key='study_correct') if method=='acertos' else None
+            n=left.number_input('Questões feitas',min_value=1,max_value=1000000,value=20,key='study_n')
+            correct=right.number_input('Acertos',min_value=0,max_value=1000000,value=None,key='study_correct') if method=='acertos' else None
             correct_hint=right.empty()
             percent=right.number_input('Percentual aproximado de acerto',min_value=0.,max_value=100.,value=None,key='study_percent') if method=='percentual' else None
-            confident=fields[2].number_input('Desses acertos, quantos foram com convicção?',min_value=0,max_value=1000000,value=None,key='study_confident') if method=='acertos' else None
+            confident=fields[2].number_input('Acertos com convicção',min_value=0,max_value=1000000,value=None,key='study_confident',help='Opcional. Conte apenas as respostas certas em que você teve segurança.') if method=='acertos' else None
             confident_hint=fields[2].empty() if method=='acertos' else None
             if service.store.profile()['profile'].get('return_mode')=='theme':
                 explain('Acerto por acaso fica fora da convicção. Os resultados orientam a próxima revisão do tema; os lotes de sete dias ficam apenas como referência. Deixe vazio se não souber.')
@@ -181,6 +187,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of','study_cards_created']: st.session_state.pop(key,None)
         st.session_state['study_saved_toast']=True
         st.rerun()
+    if editing or review_parent:st.button('Registrar outro estudo',on_click=go_record,args=(selected,20))
     with st.expander('Importar vários resultados de uma vez'):
         st.write('CSV/TSV de blocos ou acumulados, ou tabela colada. Use id_sessao para identificar cada lançamento; reimportar o mesmo arquivo não duplica o histórico. Acertos e percentual são alternativas.')
         template='id_sessao;tema;data;tipo;modalidade;questoes;acertos;percentual;minutos;ultimo_contato;versao;acertos_conviccao;revisao_de;cards_criados\n'

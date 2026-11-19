@@ -260,7 +260,9 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if due and profile.start_date: due=max(due,profile.start_date)
         raw_signal=observed if observed is not None else topic['pdf_accuracy']['value']/100 if topic['answered_pdf'] and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None else None
         if alert: raw_signal=min(raw_signal,alert['percent']) if raw_signal is not None else alert['percent']
-        low_accuracy=not balanced and confidence_rate is not None and confidence_rate<.6 or raw_signal is not None and raw_signal<.6 or safety_alert and safety_rate<.6
+        low_objective_accuracy=raw_signal is not None and raw_signal<params.raw_low_threshold
+        low_conviction=not balanced and confidence_rate is not None and confidence_rate<.6 or safety_alert and safety_rate<.6
+        low_accuracy=low_conviction or raw_signal is not None and raw_signal<.6
         evidence=performance if balanced else confidence
         phase=learning_state({'seen':seen,'n':evidence['exact_n'],'rate':evidence['observed'],'lower':evidence['interval'][0] if evidence['interval'] else None,
                               'source':source if balanced else confidence_source,'overdue':overdue,'pending_due':pending_due,'raw_rate':raw_signal},profile)
@@ -279,7 +281,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
             balance_uncertain=bool(snapshot['unique_questions']<topic['answered_pdf'] or
                                    any(e['kind']=='bloco' and e['mode']=='novas' and e['day']==snapshot['observed_date'] for e in entries))
         states.append({**topic,'performance':performance,'repeated':repeated,'baseline':baseline,'performance_source':source,'alert_signal':alert,
-                       'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
+                       'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),
+                       'low_objective_accuracy':low_objective_accuracy,'low_conviction':bool(low_conviction),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
                        'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,'minimum_block':profile.min_block,
                        'retention_due':retention_due,'theme_review_due':theme_due,
                        'review_committed':committed,'review_origin':'retorno de respostas' if pending else 'acompanhamento de cartões' if topic.get('cards_reduced_day') else 'blocos registrados' if committed else 'fila inicial',

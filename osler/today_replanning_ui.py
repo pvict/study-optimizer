@@ -24,16 +24,61 @@ def _undo(service,plan_id,token):
         st.session_state['adaptive_error']=str(exc)
 
 
+def reviews_outside_today(view,backlog):
+    from .recovery import EXCLUSIVE
+    from .study_swaps import swap_rows
+
+    day=view['date']; plan=view['plan']; agenda=view['agenda']
+    if plan['kind']=='descanso' or plan.get('routine_override',{}).get('mode') in EXCLUSIVE:
+        return []
+    excluded={r['topic_id'] for r in plan['items']+plan.get('planner_completions',[])}
+    for swap in swap_rows(agenda.get('swaps',[]),view.get('sessions',[]),day):
+        excluded.update(swap['excluded_ids'])
+    bookings={}
+    for row in agenda.get('rows',[]):
+        if row.get('remaining',0)<=0 or not row.get('date'):
+            continue
+        topic_id=row['topic_id']; date=row['date']; previous=bookings.get(topic_id)
+        if not previous or previous<day and date>previous or date>=day and date<previous:
+            bookings[topic_id]=date
+    overdue={r['topic_id']:r['original_due'] for r in backlog}
+    outside=[]
+    for state in view['planning_states']:
+        topic_id=state['topic_id']; booked=bookings.get(topic_id)
+        if topic_id in excluded or state['total']<=0:
+            continue
+        if (state.get('return_not_before') or day)>day:
+            continue
+        due=overdue.get(topic_id) or state.get('next_review')
+        uncommitted=state.get('review_committed') is False and topic_id not in overdue and not state.get('pending_due')
+        if not due or due>day or uncommitted:
+            due=booked
+        if due and due<=day:
+            outside.append({'Tema':' › '.join(state['path']),'Data indicada':_date(due),
+                            'Reserva':_date(booked) if booked else 'Sem reserva'})
+    return outside
+
+
 def render_today_replanning(service,view):
     context=service.replanning(view['date'],view=view)
     rows=backlog_schedule(context['backlog'],context['rows'],view['date'])
     waiting=[r for r in view['agenda'].get('area_practice',[]) if r.get('status')=='waiting']
-    if not rows and not waiting:
+    outside=reviews_outside_today(view,rows)
+    if not rows and not waiting and not outside:
         st.session_state.pop('today_replan_preview_data',None)
         return
     pending=[r for r in rows if not r['recovery_current']]
-    count=f"{len(rows)} {'tema atrasado' if len(rows)==1 else 'temas atrasados'}" if rows else f"{len(waiting)} {'treino sem vaga' if len(waiting)==1 else 'treinos sem vaga'}"
+    if outside:
+        count=f"{len(outside)} {'revisão fora do plano de hoje' if len(outside)==1 else 'revisões fora do plano de hoje'}"
+    elif rows:
+        count=f"{len(rows)} {'tema atrasado' if len(rows)==1 else 'temas atrasados'}"
+    else:
+        count=f"{len(waiting)} {'treino sem vaga' if len(waiting)==1 else 'treinos sem vaga'}"
     with st.container(key='bento-today-recovery'), st.expander('Atrasos e próximas datas · '+count):
+        if outside:
+            st.markdown('**Revisões devidas que ficaram fora de hoje**')
+            st.dataframe(outside,hide_index=True,width='stretch')
+            st.caption('Consulte o Calendário para ver as próximas vagas previstas. Uma reserva pode existir mesmo quando o bloco não entrou hoje.')
         if rows:
             st.html('<dl class="o-recovery-counts">'+''.join(
                 '<div><dt>'+escape(label)+'</dt><dd>'+str(n)+'</dd></div>'
