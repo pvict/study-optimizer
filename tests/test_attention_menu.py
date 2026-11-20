@@ -11,7 +11,8 @@ def test_attention_has_own_sidebar_page_and_today_is_unchanged(tmp_path,sample_p
  assert not any('carga e os próximos ajustes' in h.value for h in app.subheader)
  app.button(key='nav_attention').click().run()
  assert not app.exception and app.title[0].value=='Temas em atenção'
- assert app.get('segmented_control') and app.text_input(key='attention_search')
+ filters=app.selectbox(key='attention_group')
+ assert 'Fora do intervalo' in filters.options and app.text_input(key='attention_search')
  app.button(key='nav_today').click().run()
  assert not app.exception and app.title[0].value=='Olá'
  assert not any(w.key=='attention_search' for w in app.text_input)
