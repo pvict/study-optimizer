@@ -145,3 +145,34 @@ def test_small_sample_uses_existing_minimum_block_and_does_not_claim_mastery():
                         performance_source='novas',performance={'exact_n':1,'observed':1,'reported_n':1})])['rows'][0]
     assert row['attention'] and 'Amostra pequena' in row['reason']
     assert row['accuracy']['n']==1 and row['accuracy']['rate']==1
+
+
+def test_contact_gap_uses_only_documented_topic_incidence_weighted_per_source():
+    late=state('late',path=PATH[:-1]+['Antigo'],last_contact='2026-09-28')
+    edge=state('edge',path=PATH[:-1]+['No limite'],last_contact='2026-09-29')
+    unknown=state('unknown',path=PATH[:-1]+['Sem data'])
+    inherited=state('inherited',path=PATH[:-1]+['Só grupo'],last_contact='2026-09-01')
+    first=dataset(rows=[{'path':late['path'],'value':2},{'path':unknown['path'],'value':8},
+                        {'path':PATH[:-1],'value':30}])
+    second=dataset(id=2,institutions=['UNIFESP'],unit='percentual',
+                   rows=[{'path':late['path'],'value':15},{'path':edge['path'],'value':5}])
+    model=overview([late,edge,unknown,inherited],[first,second],
+        profile={'max_contact_gap':30,'institution_weights':{'USP':1,'UNIFESP':3}},
+        incidence={'contexts':[{'dataset_id':1,'weight':.25},{'dataset_id':2,'weight':.75}]})
+    assert model['over_gap_count']==2
+    assert model['unknown_contact']==1
+    assert model['over_gap_share']==.25*.2+.75*.75
+    assert {r['topic_id'] for r in attention_filter(model['rows'],'Fora do intervalo')}=={'inherited','late'}
+    assert overview([late])['over_gap_share'] is None
+
+
+def test_high_incidence_low_practice_includes_unseen_and_excludes_parent_fallback():
+    names=['Sem questões','Pouca prática','Praticado','Só grupo','Incidência menor']
+    states=[state(str(i),path=PATH[:-1]+[name],incidence_strength=.9,
+                  limited_practice=i in (1,3,4),recorded_attempts=0 if i==0 else 7)
+            for i,name in enumerate(names)]
+    states[-1]['incidence_strength']=.45
+    tables=[dataset(rows=[{'path':PATH[:-1],'value':100},
+        *[{'path':s['path'],'value':10} for s in states if s['topic_id']!='3']])]
+    model=overview(states,tables)
+    assert {r['topic_id'] for r in attention_filter(model['rows'],'Pouca prática e alta incidência')}=={'0','1'}

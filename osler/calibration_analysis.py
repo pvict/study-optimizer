@@ -1,4 +1,5 @@
 """Análise descritiva estritamente somente leitura; nunca ajusta parâmetros."""
+from bisect import bisect_left
 from collections import defaultdict
 from contextlib import closing
 import csv,json,sqlite3
@@ -9,6 +10,9 @@ from .planning import _date
 from .models import normalize_path
 from .exports import _safe_cell
 from .study_read_model import waived_days
+
+
+REPEAT_LAG_RANGES = ((2, 4), (5, 9), (10, 18), (19, 25), (26, 35))
 
 
 def _band(rate):
@@ -27,32 +31,47 @@ def analyze_database(db_path,as_of):
     active={k:r for k,r in latest.items() if r['action']=='save' and r['entry']['day']<=as_of}
     sources={k:r['entry'] for k,r in active.items() if r['entry']['kind']=='bloco' and r['entry']['mode']!='repetidas' and r['entry'].get('correct') is not None}
     repeats=[(k,r['entry']) for k,r in active.items() if r['entry']['kind']=='bloco' and r['entry']['mode']=='repetidas' and r['entry'].get('correct') is not None]
+    source_topics={k:tuple(normalize_path(s['path'])) for k,s in sources.items()}
+    histories=defaultdict(list)
+    for key,source in sources.items():
+        histories[source_topics[key]].append((source['day'],key))
+    for history in histories.values():
+        history.sort()
     linked={e['review_of'] for _,e in repeats if e.get('review_of')}
     pairs={}
     for sid,e in sorted(repeats,key=lambda pair:(pair[1]['day'],pair[0])):
+        topic=tuple(normalize_path(e['path']))
         origin=e.get('review_of')
         linkage='review_of'
         if origin not in sources:
             if origin: continue
-            matches=[k for k,s in sources.items() if normalize_path(s['path'])==normalize_path(e['path']) and s['day']<e['day']]
-            if not matches: continue
-            origin=max(matches,key=lambda k:(sources[k]['day'],k)); linkage='same_topic_nearest_prior'
+            history=histories.get(topic,())
+            # A chave só com a data fica antes de todos os registros do próprio dia.
+            before=bisect_left(history,(e['day'],))
+            if not before: continue
+            origin=history[before-1][1]; linkage='same_topic_nearest_prior'
             if origin in linked: continue
-        if normalize_path(sources[origin]['path'])!=normalize_path(e['path']) or e['day']<=sources[origin]['day'] or origin in pairs: continue
+        if source_topics[origin]!=topic or e['day']<=sources[origin]['day'] or origin in pairs: continue
         pairs[origin]=(sid,e,linkage)
     groups=defaultdict(list)
-    for origin,(sid,e,linkage) in pairs.items():
+    repeat_pairs=0
+    for origin,(_,e,linkage) in pairs.items():
         source=sources[origin]; lag=(_date(e['day'])-_date(source['day'])).days
         initial=_band(source['correct']/source['questions'])
-        if lag in (3,7,14,21,30): groups[('repeat_accuracy',lag,initial,'',linkage,source['mode'])].append(e)
+        bounds=next((r for r in REPEAT_LAG_RANGES if r[0]<=lag<=r[1]),None)
+        if bounds:
+            groups[('repeat_accuracy',bounds,initial,'',linkage,source['mode'])].append(e)
+            repeat_pairs+=1
         if source.get('confident_correct') is not None:
-            groups[('confidence_next_review',lag,initial,_band(source['confident_correct']/source['questions']),linkage,source['mode'])].append(e)
+            groups[('confidence_next_review',(lag,lag),initial,_band(source['confident_correct']/source['questions']),linkage,source['mode'])].append(e)
     rows=[]
-    for (measurement,lag,initial,confidence,linkage,mode),entries in sorted(groups.items()):
+    for (measurement,bounds,initial,confidence,linkage,mode),entries in sorted(groups.items()):
         n=sum(e['questions'] for e in entries); correct=sum(e['correct'] for e in entries)
         lower,upper=wilson_interval(100*correct/n,n)
         topicdays=len({(tuple(normalize_path(e['path'])),e['day']) for e in entries})
-        rows.append({'measurement':measurement,'lag_days':lag,'initial_band':initial,'confidence_band':confidence,'linkage':linkage,'mode':mode,
+        lag_fields=({'lag_days':None,'lag_min_days':bounds[0],'lag_max_days':bounds[1]} if measurement=='repeat_accuracy'
+                    else {'lag_days':bounds[0]})
+        rows.append({'measurement':measurement,**lag_fields,'initial_band':initial,'confidence_band':confidence,'linkage':linkage,'mode':mode,
                      'n_attempts':n,'n_sessions':len(entries),'n_topicdays':topicdays,'correct':correct,'value':100*correct/n,
                      'wilson_low_pct':lower,'wilson_high_pct':upper,'warning':'Dados insuficientes' if n<30 or topicdays<5 else 'Tentativas correlacionadas; apenas descrição'})
     times=defaultdict(list)
@@ -79,19 +98,24 @@ def analyze_database(db_path,as_of):
     for name,numerator,denominator in [('adherence_questions',actual,planned),('adherence_topicdays',completed,blocks)]:
         rows.append({'measurement':name,'numerator':numerator,'denominator':denominator,'value':100*numerator/denominator if denominator else None,
                      'warning':'Dados insuficientes' if not denominator else 'Planos salvos; execução limitada ao previsto por tema/dia'})
-    if not groups: rows.append({'measurement':'repeat_accuracy','n_attempts':0,'n_sessions':0,'n_topicdays':0,'warning':'Dados insuficientes'})
+    if not repeat_pairs: rows.append({'measurement':'repeat_accuracy','n_attempts':0,'n_sessions':0,'n_topicdays':0,'warning':'Dados insuficientes'})
     adequate=any(r.get('measurement')=='repeat_accuracy' and r.get('n_attempts',0)>=30 and r.get('n_topicdays',0)>=5 for r in rows)
     status='Há grupos com amostra descritiva; isso não valida um modelo pessoal nem autoriza ajuste automático.' if adequate else 'Dados insuficientes para avaliar um modelo pessoal. As tabelas descrevem registros disponíveis; não preveem aprovação.'
+    lag_labels=', '.join(f'{lo}–{hi}' for lo,hi in REPEAT_LAG_RANGES)
     lines=['# Análise de calibração — '+as_of,'','Somente leitura. Nenhum parâmetro foi ajustado ou selecionado.','',status,'',
-           'Intervalos exatos de 3, 7, 14, 21 e 30 dias: somente a primeira revisão seguinte de cada origem. Vínculo explícito tem preferência; associação pelo tema não prova a identidade das questões.',
+           f'Acerto em repetidas por faixas inclusivas de {lag_labels} dias. {repeat_pairs} de {len(pairs)} pares de origem e revisão entram nessas faixas. A análise de convicção usa os dias exatos.',
+           'Usamos a primeira revisão seguinte de cada origem e damos preferência ao vínculo explícito. A associação pelo tema indica apenas que os blocos tratam do mesmo assunto.',
+           'O desempenho anterior influencia a data escolhida pelo agendador. A comparação entre faixas descreve associações e não estima o efeito de mudar um intervalo.',
            'Questões novas, mistas e repetidas são fontes separadas; PDFs e acumulados não são acrescentados. Wilson descreve contagens, mas questões podem estar correlacionadas.',
            'Amostras pequenas, escolha de questões fáceis, duração não informada e diferenças de banca limitam as conclusões. Nenhuma relação observada é causal.','',
            '| Medida | Área | Modalidade | Intervalo | Faixa inicial | Convicção inicial | Vínculo | Tentativas | Sessões | Tema/dias | Valor | Wilson 95% | Observação |','|---|---|---|---:|---|---|---|---:|---:|---:|---:|---|---|']
     for r in rows:
         value=r.get('value'); interval=f"{r['wilson_low_pct']:.1f}–{r['wilson_high_pct']:.1f}%" if 'wilson_low_pct' in r else 'Não aplicável'
-        cells=[r['measurement'],r.get('area',''),r.get('mode',''),r.get('lag_days',''),r.get('initial_band',''),r.get('confidence_band',''),r.get('linkage',''),r.get('n_attempts',''),r.get('n_sessions',''),r.get('n_topicdays',''),f'{value:.2f}' if value is not None else 'Sem dados',interval,r.get('warning','')]
+        lag=f"{r['lag_min_days']}–{r['lag_max_days']} dias" if 'lag_min_days' in r else r.get('lag_days','')
+        cells=[r['measurement'],r.get('area',''),r.get('mode',''),lag,r.get('initial_band',''),r.get('confidence_band',''),r.get('linkage',''),r.get('n_attempts',''),r.get('n_sessions',''),r.get('n_topicdays',''),f'{value:.2f}' if value is not None else 'Sem dados',interval,r.get('warning','')]
         lines.append('| '+' | '.join(str(c).replace('|','\\|').replace('\n',' ') for c in cells)+' |')
-    return {'rows':rows,'waived_days':sorted(waived),'markdown':'\n'.join(lines)+'\n'}
+    return {'rows':rows,'waived_days':sorted(waived),'repeat_pair_counts':{'included':repeat_pairs,'matched':len(pairs)},
+            'markdown':'\n'.join(lines)+'\n'}
 
 
 def write_report(db_path,output_dir,as_of):
@@ -102,7 +126,7 @@ def write_report(db_path,output_dir,as_of):
     md=output/f'analise-calibracao-{as_of}.md'; target=output/f'analise-calibracao-{as_of}.csv'
     if md.exists() or target.exists(): raise FileExistsError('Os relatórios já existem. Escolha outra pasta para preservar a versão anterior.')
     result=analyze_database(db_path,as_of); output.mkdir(parents=True,exist_ok=True)
-    fields=['measurement','area','mode','lag_days','initial_band','confidence_band','linkage','n_attempts','n_sessions','n_topicdays','correct','value','wilson_low_pct','wilson_high_pct','numerator','denominator','warning']
+    fields=['measurement','area','mode','lag_days','initial_band','confidence_band','linkage','n_attempts','n_sessions','n_topicdays','correct','value','wilson_low_pct','wilson_high_pct','numerator','denominator','warning','lag_min_days','lag_max_days']
     with target.open('x',encoding='utf-8-sig',newline='') as file:
         writer=csv.DictWriter(file,fieldnames=fields); writer.writeheader()
         for row in result['rows']: writer.writerow({k:_safe_cell(row.get(k,'')) for k in fields})

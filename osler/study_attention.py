@@ -1,11 +1,16 @@
 """Leitura descritiva da atenção por tema, sem recalcular a política de estudo."""
+from collections import defaultdict
+
 from .incidence import prepare_incidence
 from .models import normalize_path
 from .planning import _date
 from .review_policy import review_order
 
 
-GROUPS=('Atenção','Nunca praticados','Sem contato','Todos')
+HIGH_INCIDENCE=.75
+HIGH_INCIDENCE_GROUP='Pouca prática e alta incidência'
+OVER_GAP_GROUP='Fora do intervalo'
+GROUPS=('Atenção',HIGH_INCIDENCE_GROUP,OVER_GAP_GROUP,'Nunca praticados','Sem contato','Todos')
 
 
 def _incidences(path, prepared):
@@ -50,6 +55,24 @@ def _conviction(state,day):
     return {'rate':None,'n':None,'source':None}
 
 
+def _over_gap_share(rows,contexts):
+    total=defaultdict(float)
+    overdue=defaultdict(float)
+    for row in rows:
+        for incidence in row['incidences']:
+            if not incidence['exact']:
+                continue
+            key=incidence['dataset_id']
+            total[key]+=incidence['value']
+            if row['over_gap']:
+                overdue[key]+=incidence['value']
+    weights={c['dataset_id']:c.get('weight',0) for c in contexts if total[c['dataset_id']]>0}
+    known_weight=sum(weights.values())
+    if not known_weight:
+        return None
+    return sum(weight*overdue[key]/total[key] for key,weight in weights.items())/known_weight
+
+
 def attention_overview(view,datasets,day):
     """Produz linhas específicas completas, preservando bases e ordem existentes.
 
@@ -58,7 +81,11 @@ def attention_overview(view,datasets,day):
     """
     states=view.get('states',[])
     paths={tuple(normalize_path(t['path'])) for t in states}
-    targets=list(view.get('profile',{}).get('institution_weights',{}))
+    ancestors={path[:size] for path in paths for size in range(1,len(path))}
+    profile=view.get('profile',{})
+    targets=list(profile.get('institution_weights',{}))
+    max_gap=profile.get('max_contact_gap')
+    current_day=_date(day)
     prepared=prepare_incidence(datasets,targets,day)
     contexts=view.get('incidence',{}).get('contexts')
     if contexts is not None:
@@ -69,7 +96,7 @@ def attention_overview(view,datasets,day):
         path=state['path']; key=tuple(normalize_path(path))
         if (len(path)<2 or state.get('historical_aggregate') or state.get('rollup')
                 or state.get('is_leaf') is False
-                or any(len(p)>len(key) and p[:len(key)]==key for p in paths)):
+                or key in ancestors):
             continue
         incidence=_incidences(path,prepared)
         exact_incident=any(i['exact'] and i['value']>0 for i in incidence)
@@ -82,9 +109,14 @@ def attention_overview(view,datasets,day):
                         snapshot.get('unique_questions') or
                         (state.get('baseline') or {}).get('questions') or
                         (state.get('performance') or {}).get('reported_n'))
+        if 'question_exposure' in state:
+            practiced=state['question_exposure']>0
+        high_incidence=exact_incident and state.get('incidence_strength',0)>=HIGH_INCIDENCE
+        high_incidence_low_practice=high_incidence and (not practiced or state.get('limited_practice',False))
         last=state.get('last_contact')
         if last and last>day: last=None
-        age=(_date(day)-_date(last)).days if last else None
+        age=(current_day-_date(last)).days if last else None
+        over_gap=age is not None and max_gap is not None and age>max_gap
         interval=state.get('review_interval_days')
         stale=age is not None and interval is not None and age>=interval
         due=state.get('next_review')
@@ -115,6 +147,7 @@ def attention_overview(view,datasets,day):
                      'review_interval_days':interval,'never_practiced':not practiced,
                      'never_seen':state.get('status')=='sem_registro',
                      'incident_unpracticed':not practiced and exact_incident,
+                     'high_incidence_low_practice':high_incidence_low_practice,'over_gap':over_gap,
                      'stale':stale,'attention':needed,'reason':' · '.join(dict.fromkeys(reasons)),
                      'questions':state.get('recommended_questions') or state.get('minimum_block') or 10,
                      'importance':state.get('importance',0),
@@ -122,17 +155,22 @@ def attention_overview(view,datasets,day):
     rows.sort(key=lambda r:r['_order'])
     return {'rows':rows,'counts':{g:len(attention_filter(rows,g)) for g in GROUPS},
             'incident_unpracticed':sum(r['incident_unpracticed'] for r in rows),
-            'unknown_contact':sum(r['last_contact'] is None for r in rows)}
+            'unknown_contact':sum(r['last_contact'] is None for r in rows),
+            'over_gap_count':sum(r['over_gap'] for r in rows),
+            'over_gap_share':_over_gap_share(rows,contexts or []),'max_gap':max_gap}
 
 
 def attention_filter(rows,group='Atenção',search=''):
     if group not in GROUPS: raise ValueError('Grupo de atenção desconhecido.')
     query=normalize_path([search.strip()])[0] if search.strip() else ''
     selected=[r for r in rows if (group=='Todos' or group=='Atenção' and r['attention'] or
+            group==HIGH_INCIDENCE_GROUP and r['high_incidence_low_practice'] or
+            group==OVER_GAP_GROUP and r['over_gap'] or
             group=='Nunca praticados' and r['never_practiced'] or
             group=='Sem contato' and (r['stale'] or r['last_contact'] is None)) and
             (not query or query in ' '.join(normalize_path(r['path'])))]
     if group=='Nunca praticados':selected.sort(key=lambda r:(not r['incident_unpracticed'],-r['importance'],r['_order']))
+    if group==HIGH_INCIDENCE_GROUP:selected.sort(key=lambda r:(-r['importance'],r['_order']))
     return selected
 
 
