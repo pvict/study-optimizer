@@ -111,7 +111,8 @@ def balanced_dose(state,profile,entries,as_of):
     maintenance=bool(state['spacing']['streak']>=2 and measured and stats['exact_n']>=p.sufficient_sample and
                      not(critical or weak or stale or state.get('pending_due')))
     kind='diagnostic' if not measured or stale else 'reinforcement' if critical or weak else 'maintenance' if maintenance else 'practice'
-    if kind=='diagnostic' or critical: desired=max(desired,p.diagnostic_dose)
+    if critical or kind=='diagnostic' and (stale or not state.get('theme_continuation')):
+        desired=max(desired,p.diagnostic_dose)
     if maintenance: desired=profile.min_block+ceil(p.gap_dose*gap+p.maintenance_incidence_dose*strength)
     desired=max(profile.min_block,desired); available=min(state['total'],desired)
     reasons={'diagnostic':'Medir o tema com questões representativas; o histórico disponível não comprova retenção atual.',

@@ -10,7 +10,7 @@ import streamlit as st
 from .guide import GuideSettings
 from .guide_service import GuideService
 from .guided_ui import time_label
-from .incidence import parse_html_table, prepare_incidence
+from .incidence import parse_html_table, prepare_incidence, suggested_value_column
 from .planner_service import today_local
 
 
@@ -56,13 +56,15 @@ def render_guide_settings(repo,*,incidence_only=False):
         explain("Os demais nomes foram preservados para ajuste. Você não precisa completá-los para começar.")
         with st.expander("Ver de onde vieram os dados"):
             st.text("Instituições/recorte: " + ", ".join(current["institutions"]))
+            if current.get("value_column"):
+                st.caption("Coluna usada: " + current["value_column"])
             st.caption(f"Tabela recebida em {current['observed_date']}. Anos e filtros não presentes no arquivo não são presumidos.")
     else:
         st.write("Você pode usar o guia agora. Quando trouxer a tabela das instituições, ela ajudará a escolher os próximos assuntos.")
     with st.expander("Acrescentar outra tabela de incidência"):
-        st.write("Envie o HTML copiado manualmente da tabela. Também aceito CSV ou uma tabela de duas colunas colada abaixo. O arquivo é lido só nesta máquina.")
+        st.write("Envie a tabela copiada do Planner em HTML ou CSV. Você também pode colar as linhas ou informar tema e quantidade.")
         uploaded = st.file_uploader("Tabela HTML, CSV ou TSV", type=["html", "htm", "csv", "tsv"], key="incidence_upload")
-        pasted = st.text_area("Ou cole tema e quantidade de questões", placeholder="Tema;Questões\nNome do assunto;12", key="incidence_paste")
+        pasted = st.text_area("Ou cole o HTML ou as duas colunas", placeholder="Tema;Questões\nNome do assunto;12", key="incidence_paste")
         text, table = pasted, None
         if uploaded:
             try:
@@ -70,18 +72,25 @@ def render_guide_settings(repo,*,incidence_only=False):
             except UnicodeDecodeError:
                 st.error("Salve o arquivo em UTF-8 e envie novamente.")
                 text = ""
-        value_column = None
-        if text.lstrip().startswith("<"):
+        if text.lstrip("\ufeff \r\n\t").startswith("<"):
             try:
                 table = parse_html_table(text)
-                preferred = next((i for i, h in enumerate(table["headers"]) if i and "institui" in h.lower() and "quest" in h.lower()), 1)
-                st.caption(f"O arquivo contém {len(table['rows'])} linhas. Isso é o que foi recebido; não significa que toda a plataforma foi exportada.")
-                value_column = st.selectbox("Coluna usada para priorizar", list(range(1, len(table["headers"]))), index=preferred-1, format_func=lambda i: table["headers"][i])
+                st.caption(f"{len(table['rows'])} linhas recebidas.")
             except ValueError as exc:
                 st.error(str(exc))
                 text = ""
+        value_column = table["institution_count_column"] if table else None
+        if value_column is not None:
+            unit = "questoes"
+            st.caption("Coluna usada: Incidência das instituições (quantidade de questões).")
+        else:
+            unit = st.selectbox("O valor da coluna é", ["questoes", "percentual"], format_func={"questoes": "Quantidade de questões", "percentual": "Percentual"}.get)
+            if table:
+                columns = [i for i in range(len(table["headers"])) if i != table["theme_column"]]
+                preferred = suggested_value_column(table, unit)
+                value_column = st.selectbox("Coluna usada para priorizar", columns, index=columns.index(preferred) if preferred in columns else 0,
+                                            format_func=lambda i: table["headers"][i])
         context = st.text_input("Instituições selecionadas nessa consulta", value="; ".join(settings.institutions), placeholder="Se ainda não souber os nomes, escreva: Instituições selecionadas na Osler")
-        unit = st.selectbox("O valor da coluna é", ["questoes", "percentual"], format_func={"questoes": "Quantidade de questões", "percentual": "Percentual"}.get)
         if confirm_button("Usar esta tabela no meu plano", disabled=not text.strip() or not context.strip(),action_key='guide_settings_ui_82'):
             try:
                 notify_success(service.import_incidence(text, unit, [p.strip() for p in context.split(";") if p.strip()], today_local().isoformat(), value_column),'Importação processada.')

@@ -66,7 +66,7 @@ class StudyStore:
         with self.repository._connection() as db:
             return {r['day']:json.loads(r['payload']) for r in db.execute('SELECT day,payload FROM study_days')}
 
-    def save_batch(self, changes):
+    def save_batch(self, changes, *, expected_planning_token=None):
         if not changes or len({c[0] for c in changes}) != len(changes):
             raise ValueError('Selecione sessões distintas.')
         for session_id, entry, version in changes:
@@ -76,6 +76,10 @@ class StudyStore:
         ids = []
         with self.repository._connection() as db:
             db.execute('BEGIN IMMEDIATE')
+            if expected_planning_token is not None:
+                from .study_agenda import planning_token
+                if planning_token(db)!=expected_planning_token:
+                    raise ValueError('O plano mudou. Confira os subtemas do agrupamento antes de salvar.')
             current={e['session_id']:e for e in self.active('9999-12-31')}
             for sid,entry,version in changes: current[sid]={'session_id':sid,'entry':entry.to_dict()}
             review_queue(list(current.values()))

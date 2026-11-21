@@ -3,7 +3,7 @@ from dataclasses import replace
 from datetime import timedelta
 from math import ceil
 from .planning import _date
-from .study_allocation import topic_is_new,practice_minimum,practice_capacity
+from .study_allocation import new_topic_order,topic_is_new,practice_minimum,practice_capacity
 from .review_policy import review_order
 
 HORIZON=14
@@ -51,6 +51,8 @@ def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=
     # Compromissos futuros continuam na carga, mas não disputam uma nova admissão.
     candidates=sorted((t for t in states if not t.get('review_committed',True) and
                        (eligible_ids is None or t['topic_id'] in eligible_ids)),key=lambda t:review_order(t,day))
+    new_candidates=sorted((t for t in candidates if topic_is_new(t)),key=new_topic_order)
+    review_candidates=[t for t in candidates if not topic_is_new(t)]
     allocated_questions=allocated_questions or {}
     available_slots=profile.max_topics if available_slots is None else available_slots
     start=_date(day)
@@ -88,9 +90,8 @@ def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=
     floor=max(0,desired-new_done_questions)
     protected_new=0; new_slots=0; protected_ids=[]
     # O tamanho do acervo não pode ultrapassar a prioridade de revisão/incidência.
-    for t in candidates:
+    for t in new_candidates:
         if not floor or protected_new>=floor or new_slots>=available_slots:break
-        if not topic_is_new(t) or t.get('review_committed',True) or eligible_ids is not None and t['topic_id'] not in eligible_ids:continue
         due=t.get('allocation_due',t.get('next_review'))
         if due and due>day:continue
         q=min(dose(t),max(practice_minimum(t,profile.min_block),floor-protected_new),budget-protected_new,
@@ -136,15 +137,17 @@ def capacity_policy(states,profile,day,budget,target,limits=None,*,eligible_ids=
     effective=replace(profile,new_share=new_questions/max(1,target))
     meta['effective_share']=effective.new_share
     quota=[new_questions,max(0,budget-new_questions-loads[0])]
-    for group in (0,1):
-        left=quota[group]
-        for t in candidates:
-            if topic_is_new(t)==(group==0):left-=admit(t,left,protect=expired(t))
+    for pool,left in zip((new_candidates,review_candidates),quota):
+        for t in pool:
+            left-=admit(t,left,protect=expired(t))
     # Mesma cessão de sobra já usada no alocador: uma quota sem candidatos
     # não deixa vagas ociosas enquanto outros temas aguardam admissão.
     if 0<profile.new_share<1:
         left=max(0,budget-loads[0])
-        for t in candidates:left-=admit(t,left,protect=expired(t))
+        ordered_new=iter(new_candidates)
+        for t in candidates:
+            candidate=next(ordered_new) if topic_is_new(t) else t
+            left-=admit(candidate,left,protect=expired(candidate))
     kept=[t for t in states if t.get('review_committed',True) or t['topic_id'] in admitted or t.get('manual_adverse')]
     kept_ids={t['topic_id'] for t in kept}
     meta['deferred_admissions']=sum(not t.get('review_committed',True) and t['topic_id'] not in kept_ids and

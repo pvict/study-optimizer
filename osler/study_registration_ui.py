@@ -81,10 +81,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         render_quick_error(service,saved.get('session_id'))
         st.button('Registrar outro estudo',key='study_another_entry',on_click=go_record,args=(saved['topic_id'],20))
         return
-    topics,_=service.catalog(today_local().isoformat(),include_parents=True)
-    grouped=service.overview(today_local().isoformat())
-    active_groups={t['topic_id']:t for t in grouped['planning_states'] if t.get('group_members')}
-    topics=[active_groups.get(t['topic_id'],t) for t in topics]
+    topics=service.registration_catalog(today_local().isoformat())
     if not topics:
         st.info('Importe um relatório Qbank em Ferramentas para reconhecer os temas.')
         return
@@ -111,7 +108,8 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     if chosen.get('group_members'):
         st.info('Bloco conjunto. O resultado será guardado nesta categoria, sem atribuir acertos ou domínio a cada filho.')
         with st.expander('Subtemas deste bloco'):
-            for path in chosen['group_member_paths']: st.write(' · '.join(path[ len(chosen['path']):]))
+            depth=len(chosen['theme_path']) if chosen.get('fragment_group') else len(chosen['path'])
+            for path in chosen['group_member_paths']: st.write(' › '.join(path[depth:]))
     render_bank_scope(chosen,service.store.profile()['profile']['min_block'])
     review_parent=st.session_state.get('study_review_of');review_available=None
     if review_parent:
@@ -148,7 +146,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
                 explain('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
         else: n,correct,percent,confident=0,None,None,None
         cards_created=0
-        if kind=='bloco' and is_practice_topic(chosen):
+        if kind=='bloco' and is_practice_topic(chosen) and not chosen.get('fragment_group'):
             with st.expander('Flashcards criados (opcional)'):
                 cards_created=st.number_input('Quantos cards você criou?',0,5000,0,key='study_cards_created')
                 st.caption('Somente cards novos deste bloco.')
@@ -161,12 +159,15 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         detail=f"Tema: {chosen['path'][-1]} · Data: {day.strftime('%d/%m/%Y') if day else 'não informada'}\n\n{n} questões · {result_label}"
         if confident is not None:detail+=f' · {confident}/{n} com convicção'
         if cards_created:detail+=f' · {cards_created} novos flashcards'
+        members=chosen['group_member_paths'] if chosen.get('fragment_group') else []
+        if members:
+            detail+='\n\nSubtemas: '+' · '.join(' › '.join(p[len(chosen['theme_path']):]) for p in members)
         detail+='\n\nO resultado atualizará o desempenho e as próximas revisões.'
         review_error=(f'Você informou {n} questões, mas este retorno tem apenas {review_available} disponíveis. Se fez uma lista do tema, escolha “Esta foi uma lista do tema” abaixo. Os valores digitados serão mantidos.'
                       if review_available is not None and n>review_available else None)
         general_hint=st.empty()
         entry=StudyEntry(lookup[selected]['path'],day.isoformat() if day else '',int(n),int(correct) if correct is not None else None,percent,kind,mode,duration,last or None,
-                         confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'),cards_created=int(cards_created))
+                         confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'),cards_created=int(cards_created),fragment_members=members)
         def validate():
             errors=entry_validation(entry)
             if review_error and not errors:errors={'general':review_error}

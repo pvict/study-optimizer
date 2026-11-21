@@ -82,8 +82,11 @@ def render_result_feedback(view,session_id):
         st.write(f"Revisão geral: {feedback['theme_questions']} questões · {_date_label(feedback['theme_contact'])}.")
     pending=feedback['pending']
     if pending:
-        st.write(f"Retorno de {pending['questions']} respostas · {_date_label(pending['due_date'])}."+
-                 (' Incluído no próximo bloco.' if feedback.get('coordinated_return') else ''))
+        if feedback.get('small_bank'):
+            st.caption(f"{pending['questions']} respostas guardadas no histórico de retornos. O tema precisa de complemento para entrar na agenda automática.")
+        else:
+            st.write(f"Retorno de {pending['questions']} respostas · {_date_label(pending['due_date'])}."+
+                     (' Incluído no próximo bloco.' if feedback.get('coordinated_return') else ''))
     with st.expander('Detalhes do resultado e da revisão'):
         if e['questions']:
             st.write(f"{e['correct']} de {e['questions']} acertos" if e.get('correct') is not None else f"Percentual aproximado em {e['questions']} questões; contagem exata não informada.")
@@ -91,13 +94,13 @@ def render_result_feedback(view,session_id):
         getattr(st,feedback['level'])(feedback['message'])
         if feedback['mistakes'] is not None:
             st.caption(f"Erros: {feedback['mistakes']}"+(f" · Acertos sem convicção: {feedback['guesses']}" if feedback['guesses'] is not None else ''))
-        if feedback['small_block']: st.caption('Bloco menor que o mínimo de referência: este resultado, sozinho, não amplia o intervalo do tema.')
+        if feedback['small_block']: st.caption('Amostra pequena. O resultado fica no histórico. A agenda usa o mínimo configurado para definir urgência pelo desempenho.')
         if e['kind']=='bloco' and e['mode']!='novas': st.caption('Este é o resultado do bloco registrado. Acerto em repetidas não mede seu desempenho em questões novas.')
         st.write(feedback['next_action'])
         if previous_pending:
             st.write('Uma lista nova ou mista não encerra um lote anterior automaticamente: não sabemos quais questões foram repetidas. Se o retorno não estiver disponível na Osler, você pode adiá-lo no card do plano de hoje.')
         pending=feedback['pending']
-        if pending:
+        if pending and not feedback.get('small_bank'):
             if feedback.get('coordinated_return'):
                 st.info(f"Retorno coordenado em {_date_label(pending['due_date'])}: as {pending['questions']} respostas ainda sem convicção entram no mesmo bloco de {feedback['next_questions']} questões no total. Registre o lote vinculado e o complemento separadamente para preservar as contagens.")
             else:

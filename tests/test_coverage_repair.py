@@ -83,13 +83,13 @@ def test_automatic_recovery_never_creates_questions_beyond_the_pending_balance()
     args['reservations'] = [{**args['reservations'][0], 'remaining':3, 'questions':3,
                             'manual_date':False, 'automatic_replan':True}]
     plan = allocate_day(states,p,**args)
-    row = next(i for i in plan['items'] if i['topic_id']=='R1')
-    assert row['questions'] <= 3
+    assert all(i['topic_id']!='R1' for i in plan['items'])
     assert plan['capacity']['new_floor']['missing'] == 0
     agenda = {'rows':args['reservations'], 'overrides':{}}
     future = forecast_calendar(states,p,args['as_of'],8,[],{},plan,agenda,next_contact_only=True)
     recovered = [i for d in future for i in d['items'] if i['topic_id']=='R1' and i.get('rescheduled')]
-    assert sum(i['questions'] for i in recovered) == 3
+    assert not recovered
+    assert agenda['rows'][0]['remaining'] == 3
 
 
 def test_partial_automatic_booking_stays_available_without_resetting_next_review():

@@ -12,7 +12,7 @@ def render_bank_scope(item,minimum):
         if recommended>item['total']:
             st.info(f"Bloco indicado: {recommended} questões. Acervo importado: {item['total']}. Busque as questões complementares no banco completo da plataforma.")
         else:st.caption(f"Acervo: {item['total']} "+('questão disponível' if item['total']==1 else 'questões disponíveis')+'.')
-        explain('O tema recebe vaga mesmo abaixo do bloco mínimo; essa amostra não comprova domínio.')
+        explain('A agenda automática exige um acervo que alcance o bloco mínimo. A opção de adicionar este tema manualmente fica em Temas.')
     if item.get('partial_subdivision'):
         st.caption('Tema com subtemas · registro apenas neste tema.')
         explain('Não some as contagens entre o tema completo e seus subtemas.')

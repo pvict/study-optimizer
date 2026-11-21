@@ -21,6 +21,7 @@ class StudyEntry:
     confident_correct: int | None = None
     review_of: str | None = None
     cards_created: int = 0
+    fragment_members: list[list[str]] = field(default_factory=list)
 
     def validate(self):
         if not isinstance(self.path, list) or not self.path or any(not isinstance(p,str) or not p.strip() for p in self.path):
@@ -55,10 +56,20 @@ class StudyEntry:
             raise ValueError('Último contato não pode ser posterior ao registro.')
         if not isinstance(self.source,str) or not self.source.strip():
             raise ValueError('Informe a origem do registro.')
+        if self.fragment_members:
+            parent=tuple(normalize_path(self.path[:-1]))
+            if not isinstance(self.fragment_members,list) or any(
+                    not isinstance(p,list) or len(p)<=len(parent)
+                    or any(not isinstance(part,str) or not part.strip() for part in p)
+                    or tuple(normalize_path(p))[:len(parent)]!=parent for p in self.fragment_members):
+                raise ValueError('Os subtemas do agrupamento precisam pertencer ao mesmo tema.')
         return self
 
     def to_dict(self):
-        return asdict(self)
+        data=asdict(self)
+        if not self.fragment_members:
+            data.pop('fragment_members')
+        return data
 
 
 @dataclass(frozen=True)

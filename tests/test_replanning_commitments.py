@@ -19,6 +19,7 @@ class ReplanningCommitments(unittest.TestCase):
 
     def test_swapped_topic_does_not_get_a_second_inexecutable_booking_today(self):
         from osler.adaptive_service import AdaptiveService
+        from osler.study_models import StudyEntry
         from osler.storage import Repository
         topics=[{'topic_id':n,'path':['Area',n],'total':100,'answered_pdf':0,
                  'pdf_accuracy':{'value':None,'operator':'=','raw':'-'},
@@ -29,7 +30,8 @@ class ReplanningCommitments(unittest.TestCase):
              patch('osler.planner_service.ZoneInfo',return_value=timezone(timedelta(hours=-3))):
             s=AdaptiveService(Repository(folder))
             s.catalog=lambda *args,**kwargs:(topics,{'qbank':None,'flashcards':None})
-            s.store.save_profile(AdaptiveProfile(max_questions=80,max_topics=3,new_share=1),0)
+            s.store.save_profile(AdaptiveProfile(max_questions=80,max_topics=3,new_share=.5),0)
+            s.save_entry(StudyEntry(['Area','D'],'2026-11-14',0,kind='contato'),'real-contact-d')
             s.agenda.append({'kind':'daily_schedule','plan':{'date':'2026-11-15','items':[
                 {'topic_id':'D','path':['Area','D'],'questions':40}]}},s.agenda.token())
             original=next(r['topic_id'] for r in s.overview('2026-11-16')['plan']['items'] if r['topic_id']!='D')
@@ -86,7 +88,8 @@ class ReplanningCommitments(unittest.TestCase):
              patch('osler.planner_service.ZoneInfo',return_value=timezone(timedelta(hours=-3))):
             s=AdaptiveService(Repository(folder))
             s.catalog=lambda *args,**kwargs:(topics,{'qbank':None,'flashcards':None})
-            s.store.save_profile(AdaptiveProfile(max_questions=20,max_topics=1,new_share=1),0)
+            s.store.save_profile(AdaptiveProfile(max_questions=60,max_topics=1,new_share=.2),0)
+            s.save_entry(StudyEntry(['Area','C'],'2026-11-14',0,kind='contato'),'real-contact-c')
             s.agenda.append({'kind':'daily_schedule','plan':{'date':'2026-11-15','items':[
                 {'topic_id':'C','path':['Area','C'],'questions':20}]}},s.agenda.token())
             original=s.overview('2026-11-16')['plan']['items'][0]['topic_id']
@@ -99,9 +102,11 @@ class ReplanningCommitments(unittest.TestCase):
             s.apply_replan(preview)
             self.assertEqual([r for r in s.replanning()['rows'] if r['topic_id']!= 'C'],prior)
             self.assertEqual(s.overview('2026-11-16')['plan']['items'][0]['topic_id'],replacement)
+            planned_return=next(r['remaining'] for r in prior if r['topic_id']==original)
             with patch('osler.planner_service.today_local',return_value=date(2026,11,18)), \
                  patch('osler.adaptive_service.today_local',return_value=date(2026,11,18)):
-                s.save_entry(StudyEntry(['Area',original],'2026-11-17',20,20,confident_correct=20),'actual-return')
+                s.save_entry(StudyEntry(['Area',original],'2026-11-17',planned_return,planned_return,
+                                        confident_correct=planned_return),'actual-return')
                 self.assertIn('C',[r['topic_id'] for r in s.overview('2026-11-18')['plan']['items']])
 
     def test_advanced_modes_keep_shared_external_and_area_capacity(self):

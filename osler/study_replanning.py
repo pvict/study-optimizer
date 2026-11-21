@@ -5,6 +5,7 @@ from datetime import timedelta
 from .models import normalize_path
 from .planning import _date
 from .planner_snapshot import planner_supply
+from .study_allocation import explicit_recovery,fits_recovery_bank,has_small_bank,recovery_uses_total_capacity
 
 MODES={'balanced':'Distribuir na carga atual','reviews':'Priorizar revisões por alguns dias',
        'extra':'Acrescentar questões temporariamente','custom':'Escolher datas por tema'}
@@ -18,23 +19,37 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None,completions=()):
         if r['plan']['date']<as_of and (not start_date or r['plan']['date']>=start_date):
             latest[r['plan']['date']]=r['plan'];latest_ids[r['plan']['date']]=r.get('id',0)
     done=defaultdict(int)
+    first_contacts={}
     for s in sessions:
         e=s['entry']
-        if e['kind']=='bloco': done[(e['day'],tuple(normalize_path(e['path'])))]+=e['questions']
+        key=tuple(normalize_path(e['path']))
+        if e['kind']=='bloco': done[(e['day'],key)]+=e['questions']
+        if e['kind']!='acumulado':
+            first_contacts[key]=min(first_contacts.get(key,e['day']),e['day'])
+        if e.get('last_contact'):
+            first_contacts[key]=min(first_contacts.get(key,e['last_contact']),e['last_contact'])
     missed=defaultdict(list)
     covered_days=defaultdict(list)
     by_path={tuple(normalize_path(t['path'])):t for t in states}
+    for key,state in by_path.items():
+        contact=state.get('first_contact') or state.get('last_contact')
+        if contact:
+            first_contacts[key]=min(first_contacts.get(key,contact),contact)
     for day,plan in latest.items():
         for t in plan['items']:
             key=tuple(normalize_path(t['path']))
+            state=by_path.get(key)
+            if state is None or has_small_bank(state) or key not in first_contacts or first_contacts[key]>day:
+                continue
             captured=t.get('planner_supply')
-            supply=captured or planner_supply(by_path.get(key,{}),t['questions'],done[(day,key)],day)
+            supply=captured or planner_supply(state,t['questions'],done[(day,key)],day)
             # O complemento externo segue recomendado; indisponibilidade não é atraso do aluno.
             left=max(0,min(t['questions'],supply['planner_total'])-done[(day,key)]) if supply else max(0,t['questions']-done[(day,key)])
             if captured and captured['external_part'] and not left: covered_days[key].append(day)
             if left: missed[key].append((day,left))
     result=[]
     for state in states:
+        if has_small_bank(state): continue
         key=tuple(normalize_path(state['path']))
         failures=missed[key]
         closure=max((r for r in completions if r.get('manual_partial') and tuple(normalize_path(r['path']))==key),key=lambda r:(r['day'],r['id']),default=None)
@@ -117,19 +132,22 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
                        'reviews':max(0,q-round(q*p.new_share)-done.get('reviews',0)),
                        'total':max(0,q-done.get('total',0)), 'slots':max(0,p.max_topics-done.get('slots',0)),'rest':config['kind']=='descanso' or protected}
     for row in sorted(existing,key=lambda r:r['date']):
+        if not fits_recovery_bank(row,row,profile.min_block): continue
         left=row['remaining']
         group='new' if row.get('new_topic') else 'reviews'
         for day,c in capacity.items():
             if day<row['date'] or c['rest'] or c['slots']<=0 or row['topic_id'] in (blocked_topics or {}).get(day,()): continue
-            q=min(left,c[group],c['total'])
-            if q:
-                c[group]-=q; c['total']-=q; c['slots']-=1; left-=q
+            available=c['total'] if recovery_uses_total_capacity(row,profile,group) else c[group]
+            q=min(left,available,c['total'])
+            if q and (explicit_recovery(row) or q>=min(profile.min_block,c['total'])):
+                c[group]=max(0,c[group]-q); c['total']-=q; c['slots']-=1; left-=q
             if not left: break
     for row in backlog:
+        if has_small_bank(row,profile.min_block): continue
         group='new' if row.get('is_new_for_day') else 'reviews'
         q=row['questions']
         candidates=[dates.get(row['topic_id'])] if mode=='custom' and dates else list(capacity)
-        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and row['topic_id'] not in (blocked_topics or {}).get(d,()) and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q),None)
+        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and row['topic_id'] not in (blocked_topics or {}).get(d,()) and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q>=min(profile.min_block,capacity[d]['total']) and q>0),None)
         if not chosen:
             unassigned.append({'topic_id':row['topic_id'],'path':row['path'],'questions':q,'reason':'Sem vaga com a cota, datas, descanso e limites escolhidos.'})
             continue

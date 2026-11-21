@@ -10,12 +10,13 @@ SNAPSHOT_VERSION=2
 
 def evolution_snapshot(states,sessions,calendar,as_of,max_gap=30,area_results=(),planning_states=()):
     _date(as_of)
-    topics=[t for t in states if is_practice_topic(t) and not t.get('historical_aggregate')]
+    topics=[t for t in states if is_practice_topic(t) and not t.get('historical_aggregate') and not t.get('fragment_group')]
     ids={t['topic_id'] for t in topics}
     by_path={tuple(normalize_path(t['path'])):t['topic_id'] for t in topics}
     # O pai informa somente inclusão em um bloco conjunto. A distribuição por filho é desconhecida.
+    joint_topics=[t for t in states if t.get('fragment_group')]+[t for t in planning_states if t.get('group_members')]
     joint_groups={t['topic_id']:{'path':list(t['path']),'members':[i for i in t['group_members'] if i in ids]}
-                  for t in planning_states if t.get('group_members')}
+                  for t in joint_topics}
     joint_by_path={tuple(normalize_path(g['path'])):i for i,g in joint_groups.items()}
     def joint_for_path(path):
         key=tuple(normalize_path(path))

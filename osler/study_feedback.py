@@ -7,7 +7,8 @@ def study_signal_labels(state,day):
     """Prazo de revisão, acerto e segurança têm indicadores distintos."""
     labels=[]
     due=state.get('theme_review_due')
-    if due and due<day and state.get('review_committed',True):labels.append('Revisão vencida')
+    if due and due<day and state.get('review_committed',True) and not state.get('small_bank'):
+        labels.append('Revisão vencida')
     if state.get('low_objective_accuracy'):labels.append('Acerto baixo')
     if state.get('low_conviction'):labels.append('Convicção baixa')
     if state.get('pending_due'):labels.append('Retorno pendente')
@@ -81,6 +82,12 @@ def result_feedback(view,session_id):
         if dose_kind=='maintenance': next_action='Faça a manutenção com uma amostra de diferentes partes do tema; use novos exemplos quando possível.'
         elif dose_kind in {'diagnostic','practice'}: next_action='No próximo bloco, explore diferentes partes do tema e informe também a convicção.'
         if next_kind=='lot_only': next_action='Faça o retorno vinculado das respostas indicadas. Esse encontro já faz parte da carga; não exige um bloco completo adicional.'
+        if state.get('small_bank'):
+            reference=state.get('theme_recommended_questions',state['recommended_questions'])
+            noun='questão' if state['total']==1 else 'questões'
+            next_action=f"Falta complemento. O acervo tem {state['total']} {noun} e a referência é {reference}. Busque questões do mesmo tema no banco completo."
+            next_contact=next_questions=next_kind=theme_contact=theme_questions=None
+            coordinated=False
     else:
         next_action='Este registro não tem um tema específico disponível para planejar. Consulte Temas antes de escolher o próximo bloco.'
     return {'event':event,'entry':e,'target':target,'accuracy_pct':accuracy,'conviction_pct':conviction,
@@ -92,4 +99,5 @@ def result_feedback(view,session_id):
             'next_review_kind':next_kind,'theme_questions':theme_questions,'theme_contact':theme_contact,
             'planner_supply':planner_supply(state,next_questions,0,view['date']) if state and next_questions is not None else None,
             'dose_kind':dose_kind,'next_action':next_action,'level':level,'message':message,
+            'small_bank':bool(state and state.get('small_bank')),
             'small_block':e['kind']=='bloco' and n<view['profile']['min_block']}

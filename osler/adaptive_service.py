@@ -15,6 +15,7 @@ from .exports import _safe_cell
 from .files import write_immutable
 from .guide import GuideSettings
 from .guide_service import GuideService
+from .incidence import active_incidence_sources
 from .models import normalize_path
 from .planner_service import today_local, valid_date
 from .study_models import StudyEntry, AdaptiveProfile, StudyDay
@@ -22,7 +23,8 @@ from .study_storage import StudyStore
 from .reduction_storage import ReductionStore
 from .planner_storage import PlannerStore
 from .planning import _date
-from .topic_catalog import planning_frontier,mark_practice_units,is_practice_topic
+from .topic_catalog import (FRAGMENT_GROUP_LABEL,classify_theme_context,fragment_history,
+                            is_practice_topic,mark_practice_units,planning_frontier)
 from .review_queue import review_queue
 from .study_agenda import StudyAgenda
 from .study_replanning import effective_routine,recovery_theme_capacity
@@ -88,21 +90,46 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         topics=mark_practice_units(topics)
         return [t for t in topics if include_parents or is_practice_topic(t)],sources
 
-    def _validate_entry(self,entry,by_path=None):
+    def registration_catalog(self,as_of,topics=None):
+        """Inclui as unidades virtuais atuais e as que têm registros corrigíveis."""
+        if topics is None:
+            topics,_=self.catalog(as_of,include_parents=True)
+        view=self.overview(as_of)
+        registered={t['topic_id']:t for t in topics}
+        registered.update((t['topic_id'],t) for t in view['planning_states'] if t.get('group_members'))
+        registered.update((t['topic_id'],t) for t in view['states'] if t.get('fragment_group'))
+        return list(registered.values())
+
+    def _validate_entry(self,entry,by_path=None,*,editing=False):
         entry.validate()
         valid_date(entry.day,past=True)
+        today=today_local().isoformat()
+        key=tuple(normalize_path(entry.path))
         if by_path is None:
-            catalog,_=self.catalog(today_local().isoformat(),include_parents=True)
+            catalog,_=self.catalog(today,include_parents=True)
             by_path={tuple(normalize_path(t['path'])):t for t in catalog}
-        match=by_path.get(tuple(normalize_path(entry.path)))
+        if key not in by_path and key[-1]==normalize_path([FRAGMENT_GROUP_LABEL])[0]:
+            by_path.update((tuple(normalize_path(t['path'])),t) for t in self.registration_catalog(today,list(by_path.values()))
+                           if t.get('fragment_group'))
+        match=by_path.get(key)
         if match is None: raise ValueError('Tema não reconhecido de forma única no relatório atual. Use o caminho completo.')
-        if entry.cards_created and not is_practice_topic(match):
+        if entry.fragment_members:
+            expected={tuple(normalize_path(p)) for p in entry.fragment_members}
+            current={tuple(normalize_path(p)) for p in match.get('group_member_paths',[])} if match.get('fragment_group') else set()
+            if expected!=current:
+                raise ValueError('A composição do agrupamento mudou. Confira os subtemas antes de registrar.')
+        if match.get('fragment_group') and (match.get('historical_aggregate') or match.get('retained_group_return')) and not (editing or entry.review_of):
+            raise ValueError('A composição deste agrupamento mudou. Registre o novo estudo nos subtemas atuais.')
+        if entry.cards_created and (not is_practice_topic(match) or match.get('fragment_group')):
             raise ValueError('Associe os flashcards criados a um tema específico, não a um grupo ou grande área.')
-        return replace(entry,path=match['path'])
+        return replace(entry,path=match['path'],fragment_members=match['group_member_paths'] if match.get('fragment_group') else [])
 
     def save_entry(self,entry,session_id=None,expected_version=0):
-        entry=self._validate_entry(entry)
-        return self.store.save_batch([(session_id or uuid.uuid4().hex,entry,expected_version)])[0]
+        entry.validate()
+        grouped=bool(entry.path and normalize_path([entry.path[-1]])==normalize_path([FRAGMENT_GROUP_LABEL]))
+        token=self.agenda.token() if grouped else None
+        entry=self._validate_entry(entry,editing=expected_version>0)
+        return self.store.save_batch([(session_id or uuid.uuid4().hex,entry,expected_version)],expected_planning_token=token)[0]
 
     def import_text(self,text):
         lines=text.lstrip('\ufeff').splitlines()
@@ -116,6 +143,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         by_name={}
         for t in topics: by_name.setdefault(normalize_path([t['path'][-1]])[0],[]).append(t['path'])
         changes=[]
+        token=None
         digest=hashlib.sha256(text.encode()).hexdigest()[:20]
         for line,row in enumerate(reader,2):
             if None in row: raise ValueError(f'Linha {line}: número de colunas incompatível.')
@@ -126,6 +154,8 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
                 if len(matches)!=1: raise ValueError(f'Linha {line}: tema ausente ou ambíguo. Use a hierarquia completa.')
                 path=matches[0]
             try:
+                if token is None and path and normalize_path([path[-1]])==normalize_path([FRAGMENT_GROUP_LABEL]):
+                    token=self.agenda.token()
                 entry=StudyEntry(path,(row.get('data') or '').strip(),int(row['questoes']),
                                  correct=int(row['acertos']) if row.get('acertos') else None,
                                  percent=float(row['percentual'].rstrip('%').replace(',','.')) if row.get('percentual') else None,
@@ -135,12 +165,12 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
                                  confident_correct=int(row['acertos_conviccao']) if row.get('acertos_conviccao') else None,
                                  review_of=row.get('revisao_de') or None,
                                  cards_created=int(row.get('cards_criados') or 0))
-                entry=self._validate_entry(entry,by_path)
                 sid=row.get('id_sessao') or f'csv-{digest}-{line}'
                 version=int(row.get('versao') or 0)
+                entry=self._validate_entry(entry,by_path,editing=version>0)
             except (ValueError,TypeError) as exc: raise ValueError(f'Linha {line}: {exc}') from exc
             changes.append((sid,entry,version))
-        self.store.save_batch(changes)
+        self.store.save_batch(changes,expected_planning_token=token)
         return len(changes)
 
     def configure_day(self,day,questions,kind,expected_revision):
@@ -220,7 +250,6 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         if not profile.institution_weights and guide.institutions:
             profile=replace(profile,institution_weights={name:1 for name in guide.institutions})
         all_topics,sources=self.catalog(as_of,include_parents=True)
-        topics=[t for t in all_topics if is_practice_topic(t)]
         sessions=self.store.active(as_of)
         dated=sorted(sessions,key=lambda s:(s['entry']['day'],s['id']))
         measured=[e['entry']['minutes']/e['entry']['questions'] for e in dated
@@ -237,9 +266,24 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         if override.get('mode') in {'final_rest','mock_day','mock_reserved'}: kind='descanso'
         effective,routine_questions=effective_routine(effective,config,override)
         contacts=[(d['path'],d['day']) for d in self.guide.days() if d['status']!='descanso' and d['path']]
+        datasets=self.guide.datasets()
+        contexts,_,_=active_incidence_sources(datasets,effective.institution_weights,as_of)
+        all_topics=classify_theme_context(all_topics,[dataset['_index'] for dataset,_ in contexts],as_of,sessions,contacts)
+        topics=[t for t in all_topics if is_practice_topic(t)]
         from .study_errors import ErrorStore
         error_paths=ErrorStore(self.repository).adverse_paths(as_of)
-        states=topic_states(topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))
+        states=topic_states(topics,sessions,datasets,effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))
+        from .study_allocation import fits_recovery_bank
+        from .study_agenda import flexible_reservation
+        by_topic_id={t['topic_id']:t for t in states}
+        active_rows=[]
+        for row in agenda['rows']:
+            state=by_topic_id.get(row['topic_id'])
+            if state and (not fits_recovery_bank(state,row,effective.min_block) or
+                          flexible_reservation(row) and not (state.get('last_contact') or state.get('pending_reviews'))):
+                continue
+            active_rows.append(row)
+        agenda={**agenda,'rows':active_rows}
         from .topic_grouping import grouping_candidates,grouped_frontier,protect_group_evidence
         blocked={r['topic_id'] for r in agenda['rows']}
         blocked.update(t['topic_id'] for t in states if t.get('pending_reviews'))
@@ -248,7 +292,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
             blocked.update(swap.get('excluded_ids',[])); blocked.add(swap.get('to_topic_id',swap.get('topic_id','')))
         for cfg in agenda['overrides'].values():
             blocked.update(r['topic_id'] for r in cfg.get('rows',[]))
-        groups=grouping_candidates(all_topics,self.guide.datasets(),effective,as_of,blocked)
+        groups=grouping_candidates(all_topics,datasets,effective,as_of,blocked)
         planning_topics=grouped_frontier(all_topics,effective,groups)
         # Trocar de modo não pode apagar retornos de blocos conjuntos já registrados.
         from .topic_grouping import key as group_key
@@ -262,7 +306,19 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
             planning_topics=[t for t in planning_topics if t['topic_id'] not in {m['topic_id'] for m in members}]
             planning_topics.append({**parent,'rollup':True,'is_practice_unit':True,'group_members':[m['topic_id'] for m in members],
                                    'group_member_paths':[m['path'] for m in members],'retained_group_return':True})
-        planning_states=topic_states(planning_topics,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))
+        fragments=fragment_history(all_topics,sessions)
+        planning_topics=planning_frontier(planning_topics,effective.min_block,blocked=blocked,recorded=fragments,
+                                          reserved_paths=(t['path'] for t in all_topics))
+        if effective.return_mode=='linked':
+            pending_ids={t['topic_id'] for t in planning_topics}
+            for path,group in fragments.items():
+                members=set(group['group_members'])
+                if path not in pending_paths or group['topic_id'] in pending_ids or members&blocked or not members<=pending_ids:
+                    continue
+                pending_ids.difference_update(members)
+                planning_topics=[t for t in planning_topics if t['topic_id'] not in members]
+                planning_topics.append({**group,'historical_aggregate':False,'is_practice_unit':True,'retained_group_return':True})
+        planning_states=topic_states(planning_topics,sessions,datasets,effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))
         protect_group_evidence(planning_states,states)
         opened=ErrorStore(self.repository).active(as_of)
         booked={r['topic_id'] for r in agenda['rows']}
@@ -288,7 +344,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
             if t['topic_id'] in scheduled: t['reschedule_date']=scheduled[t['topic_id']]['date']
             if t['topic_id'] in return_not_before:t['return_not_before']=return_not_before[t['topic_id']]
             t.update(preventive_state(t,as_of,agenda.get('policies',[])))
-        incidence=incidence_weights(topics,self.guide.datasets(),effective.institution_weights,as_of,effective.parameters)
+        incidence=incidence_weights(topics,datasets,effective.institution_weights,as_of,effective.parameters)
         extras=[]
         by_id={t['topic_id']:t for t in planning_states}
         missing={e['topic_id'] for e in day_settings.extra_topics}-set(by_id)
@@ -343,8 +399,9 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         known_ids={t['topic_id'] for t in states}
         recorded_paths={tuple(normalize_path(e['entry']['path'])) for e in sessions}
         other_parents=[t for t in all_topics if t['topic_id'] not in known_ids and tuple(normalize_path(t['path'])) in recorded_paths]
+        other_parents.extend(t for t in fragments.values() if t['topic_id'] not in known_ids)
         if other_parents:
-            states+=[{**t,'historical_aggregate':True} for t in topic_states(other_parents,sessions,self.guide.datasets(),effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))]
+            states+=[{**t,'historical_aggregate':True} for t in topic_states(other_parents,sessions,datasets,effective.institution_weights,as_of,effective,contacts,error_paths,agenda.get('return_dates'))]
         return {'date':as_of,'planning_token':snapshot_token,'plan':plan,'states':states,'profile':profile.to_dict(),'profile_id':record['id'],'day':day,
                 'sessions':sessions,'sources':sources,'warnings':warnings,'portfolio':portfolio,'planning_states':planning_states,
                 'review_queue':review_queue(sessions,agenda.get('return_dates')) if effective.return_mode=='linked' else [],
@@ -401,6 +458,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
 
     def replanning(self,as_of=None,*,view=None):
         from .study_replanning import collect_backlog
+        from .study_allocation import has_small_bank
         as_of=as_of or today_local().isoformat()
         if view is None:view=self.overview(as_of)
         elif view['date']!=as_of or view.get('planning_token')!=self.agenda.token():
@@ -416,6 +474,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
                 if t['topic_id']==row['topic_id']: t['questions']=min(t['questions'],row['remaining'])
             if row['original_due']>=as_of or row['topic_id'] in known or row['topic_id'] not in by_id: continue
             t=by_id[row['topic_id']]
+            if has_small_bank(t) or not (t.get('last_contact') or t.get('pending_reviews')): continue
             original_due=max(row['original_due'],start_date) if start_date else row['original_due']
             backlog.append({**t,'original_due':original_due,'days_late':(_date(as_of)-_date(original_due)).days,
                             'risk':1.,'questions':row['remaining'],'missed_questions':row['remaining'],'source_days':[]})

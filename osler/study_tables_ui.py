@@ -176,10 +176,11 @@ def render_topic_table(service,go_record):
                 st.button('Atualizar tabela',on_click=st.rerun)
                 return
         st.session_state['statistics_next_contacts']=cached
-    rows=apply_next_contacts(rows,cached['forecast'])
     state_by_id={t['topic_id']:t for t in specific_states}
     for row in rows:
+        row['small_bank']=bool(state_by_id.get(row['topic_id'],{}).get('small_bank'))
         row['Sinais do tema']=' · '.join(study_signal_labels(state_by_id.get(row['topic_id'],{}),view['date']))
+    rows=apply_next_contacts(rows,cached['forecast'])
     coverage=cached['forecast'].get('coverage')
     if coverage:
         st.caption(f"{len(specific_states)} subtemas · {coverage['scheduled']} de {coverage['total']} blocos de agenda com data")

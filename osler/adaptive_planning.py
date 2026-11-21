@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from .classification import wilson_interval
 from .guide import daily_blocks
-from .incidence import prepare_incidence
+from .incidence import active_incidence_sources
 from .models import normalize_path
 from .planning import _date, _number
 from .topic_spacing import spacing_state, learning_state
@@ -29,31 +29,15 @@ def posterior(correct, n):
 def incidence_weights(topics,datasets,institution_weights,as_of,parameters=None):
     from .algorithm_parameters import V1
     parameters=parameters or V1
-    keys={t['topic_id']:tuple(normalize_path(t['path'])) for t in topics}
-    if not topics: return {'weights':{},'warnings':[],'coverage':0,'contexts':[]}
-    targets={normalize_path([k])[0]:v for k,v in institution_weights.items()}
-    prepared=prepare_incidence(datasets,list(targets),as_of)
-    groups={frozenset(normalize_path(d['institutions'])):d for d in prepared}
-    contexts,warnings=[],[]
-    uniform_mass=0
-    if targets:
-        total=sum(targets.values())
-        if all(frozenset([k]) in groups for k in targets):
-            contexts=[(groups[frozenset([k])],v/total) for k,v in targets.items()]
-        elif frozenset(targets) in groups:
-            contexts=[(groups[frozenset(targets)],1)]
-            if len(targets)>1: warnings.append('Tabela conjunta: seus membros não podem receber pesos individuais sem tabelas separadas.')
-        else:
-            contexts=[(groups[frozenset([k])],v/total) for k,v in targets.items() if frozenset([k]) in groups]
-            uniform_mass=1-sum(w for _,w in contexts)
-            warnings.append('Faltam tabelas para parte das instituições. Essa parcela usa exploração uniforme, não incidência presumida.')
-    elif prepared:
-        contexts=[(max(prepared,key=lambda d:(d['observed_date'],d['id'])),1)]
-        if len(prepared)>1: warnings.append('Sem pesos definidos, usei somente o conjunto mais recente; não somei conjuntos sobrepostos.')
-    else:
-        uniform_mass=1
-        warnings.append('Sem incidência aplicável: distribuição exploratória uniforme, sem tratar ausência como zero.')
-    weights={key:uniform_mass/len(topics) for key in keys}
+    if not topics: return {'weights':{},'theme_weights':{},'warnings':[],'coverage':0,'contexts':[]}
+    contexts,warnings,uniform_mass=active_incidence_sources(datasets,institution_weights,as_of)
+    members={t['topic_id']: t.get('group_member_topics') or [t] for t in topics}
+    units=[member for group in members.values() for member in group]
+    keys={t['topic_id']:tuple(normalize_path(t['path'])) for t in units}
+    banks={t['topic_id']:max(0,t.get('total') or 0) for t in units}
+    weights={key:uniform_mass/len(keys) for key in keys}
+    theme_keys={t['topic_id']:tuple(normalize_path(t.get('theme_path') or t['path'])) for t in topics}
+    theme_weights=dict.fromkeys(theme_keys,0.)
     covered=set()
     for dataset,context_weight in contexts:
         index=dataset['_index']
@@ -62,13 +46,19 @@ def incidence_weights(topics,datasets,institution_weights,as_of,parameters=None)
         for path in index:
             parent=next((path[:i] for i in range(len(path)-1,0,-1) if path[:i] in index),None)
             if parent: children[parent].append(path)
-        counts=defaultdict(int)
-        for path in chosen.values():
-            if path: counts[path]+=1
-        residual={p:max(0,index[p]['value']-sum(index[c]['value'] for c in children[p])) for p in counts}
-        raw={key:residual[path]/counts[path] if path else 0 for key,path in chosen.items()}
+        counts,bank_totals=defaultdict(int),defaultdict(int)
+        for key,path in chosen.items():
+            if path:
+                counts[path]+=1
+                bank_totals[path]+=banks[key]
+        residual={p:max(0,index[p]['value']-sum(index[c]['value'] for c in children[p])) for p in index}
+        raw={key:0. for key in keys}
+        for key,path in chosen.items():
+            if path:
+                fraction=banks[key]/bank_totals[path] if bank_totals[path] else 1/counts[path]
+                raw[key]=residual[path]*fraction
         rolled=set()
-        for t in topics:
+        for t in units:
             if not t.get('rollup'): continue
             key=t['topic_id']
             path=keys[key]
@@ -83,15 +73,26 @@ def incidence_weights(topics,datasets,institution_weights,as_of,parameters=None)
                     rolled.add(key)
         missing=[key for key,path in chosen.items() if path is None and key not in rolled]
         covered.update(key for key,path in chosen.items() if path is not None or key in rolled)
+        # O ranking usa a incidência de cada nó antes de qualquer exploração.
+        # Somar resíduos evita contar as linhas pai e filho duas vezes.
+        documented_total=sum(residual.values())
+        if documented_total:
+            for key,theme in theme_keys.items():
+                node=theme if theme in index else chosen.get(key)
+                value=index[node]['value'] if node else sum(raw[t['topic_id']] for t in members[key])
+                theme_weights[key]+=context_weight*value/documented_total
         if missing:
             exploration=sum(raw.values())*parameters.exploration_reserve/len(missing)
             for key in missing: raw[key]=exploration
-            warnings.append('Incidência parcial: temas sem linha receberam uma pequena reserva exploratória; contagens de pais foram repartidas entre folhas.')
+            warnings.append('Incidência parcial: temas sem linha receberam uma pequena reserva exploratória; contagens de pais foram repartidas pelo tamanho dos bancos das folhas.')
         total=sum(raw.values())
         if not total: warnings.append('Consulta sem peso positivo utilizável: usei exploração uniforme, sem interpretar isso como ausência de cobrança futura.')
         for key in weights:
-            weights[key]+=context_weight*(raw[key]/total if total else 1/len(topics))
-    return {'weights':weights,'warnings':list(dict.fromkeys(warnings)), 'coverage':len(covered)/len(topics),'known_topic_ids':sorted(covered),
+            weights[key]+=context_weight*(raw[key]/total if total else 1/len(keys))
+    combined_weights={key:sum(weights[t['topic_id']] for t in group) for key,group in members.items()}
+    known={key for key,group in members.items() if any(t['topic_id'] in covered for t in group)}
+    return {'weights':combined_weights,'theme_weights':theme_weights,'warnings':list(dict.fromkeys(warnings)),
+            'coverage':len(known)/len(topics),'known_topic_ids':sorted(known),
             'contexts':[{'dataset_id':d['id'],'institutions':d['institutions'],'observed_date':d['observed_date'],'weight':w,'unit':d['unit']} for d,w in contexts]}
 
 
@@ -116,6 +117,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     params=profile.parameters
     balanced=profile.review_strategy=='balanced_v2'
     incidence=incidence_weights(topics,datasets,institution_weights,as_of,params)
+    strongest_incidence=max(incidence['weights'].values(),default=0) if incidence['contexts'] else 0
     by_path=defaultdict(list)
     for event in sessions:
         e=event['entry']
@@ -124,7 +126,9 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
     contact_paths={}
     for path,contact in contacts or []:
         key=tuple(normalize_path(path))
-        if contact<=as_of: contact_paths[key]=max(contact,contact_paths.get(key,contact))
+        if contact<=as_of:
+            first,last=contact_paths.get(key,(contact,contact))
+            contact_paths[key]=min(first,contact),max(last,contact)
     states=[]
     queued=review_queue(sessions,return_dates) if all('session_id' in s for s in sessions) else []
     base_profile=profile
@@ -160,17 +164,25 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if not primary and manual_baseline: primary=[manual_baseline]
         performance=_series(primary)
         source='novas' if fresh else 'mistas' if mixed else 'acumulado' if baseline and primary else 'observacao' if primary else 'pdf' if topic['answered_pdf'] else 'sem_medicao'
+        minimum=profile.min_block
+        measured=performance['reported_n']>=minimum
         mean=performance['mean']
         if not primary and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None:
             mean=topic['pdf_accuracy']['value']/100
         contact_dates=[e['day'] for e in entries if e['kind']!='acumulado']+[e['last_contact'] for e in entries if e.get('last_contact')]
-        known=contact_paths.get(tuple(normalize_path(topic['path'])))
-        if known: contact_dates.append(known)
+        guide_contacts=contact_paths.get(key,())
+        known=guide_contacts[-1] if guide_contacts else None
+        contact_dates.extend(guide_contacts)
         if snapshot and snapshot['last_contact']: contact_dates.append(snapshot['last_contact'])
         last=max(contact_dates) if contact_dates else None
         age=(day-_date(last)).days if last else None
         seen=bool(topic['answered_pdf'] or topic.get('studied_cards') or entries or last or snapshot and snapshot['unique_questions'])
+        starts_leaf=not (topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline
+                         or snapshot and snapshot['unique_questions'] or any(d<as_of for d in contact_dates))
+        theme_path=topic.get('theme_path') or topic['path']
+        theme_continuation=bool(starts_leaf and topic.get('theme_started') and len(theme_path)<len(topic['path']))
         observed=performance['reported_percent']
+        small_sample=observed is not None and not measured
         # Sinais adversos alteram urgência, mantendo cada modalidade fora do posterior das outras.
         signals=[]
         for mode in ('novas','mistas','repetidas'):
@@ -184,14 +196,16 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                               not any(e['day']>snapshot['observed_date'] for e in fresh+mixed))
         safety_alert=bool(snapshot_current and safety_rate is not None and snapshot['unique_questions']>=5 and safety_rate<profile.target_accuracy/100)
         scheduling_observed=min(x for x in (observed,alert['percent'] if alert else None) if x is not None) if observed is not None or alert else None
-        interval=params.failure_interval if observed is not None and observed<params.raw_low_threshold else params.second_interval if observed is not None and observed<profile.target_accuracy/100 else params.max_contact_gap if performance['exact_n']>=params.sufficient_sample else params.first_interval
+        interval=params.failure_interval if measured and observed<params.raw_low_threshold else params.second_interval if measured and observed<profile.target_accuracy/100 else params.max_contact_gap if performance['exact_n']>=params.sufficient_sample else params.first_interval
         importance=incidence['weights'][topic['topic_id']]
-        incidence_strength=importance/max(incidence['weights'].values()) if incidence['contexts'] and max(incidence['weights'].values()) else 0
+        incidence_strength=importance/strongest_incidence if strongest_incidence else 0
         spacing=spacing_state(entries,profile,as_of,incidence_strength)
-        if entries: interval=spacing['interval'] if spacing['last_evidence_day'] else min(interval,spacing['interval'])
+        if entries:
+            if spacing['last_evidence_day']: interval=spacing['interval']
+            elif not small_sample: interval=min(interval,spacing['interval'])
         else: interval=max(1,math.ceil(interval/(1+.5*incidence_strength)))
         if not committed: interval=initial_interval(snapshot if snapshot_current else None,profile,incidence_strength)
-        if alert and not balanced: interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
+        if alert and not balanced and alert['n']>=minimum: interval=min(interval,params.failure_interval if alert['percent']<params.raw_low_threshold else params.second_interval)
         if balanced:
             latest_primary=next((e for e in reversed(daily_evidence(entries,as_of,profile.min_block)) if e['mode']==source and e['n']>=profile.min_block),None)
             if latest_primary and latest_primary['rate']<params.failure_threshold: interval=min(interval,params.failure_interval)
@@ -213,10 +227,11 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
             confidence=repeated['confidence']
             confidence_source='repetidas'
         confidence_rate=confidence['observed']
-        adverse_urgent=(observed is not None and performance['reported_n']>=10 and observed<.6 or
-                        alert and alert['n']>=10 and alert['percent']<.6 or
+        supported_low_confidence=bool(not balanced and confidence['exact_n']>=minimum and confidence_rate is not None and confidence_rate<.6)
+        adverse_urgent=(measured and observed<.6 or
+                        alert and alert['n']>=minimum and alert['percent']<.6 or
                         manual.get('erros_criticos') is True or manual.get('erros_recorrentes') is True or
-                        not balanced and confidence_rate is not None and confidence_rate<.6 or
+                        supported_low_confidence or
                         safety_alert and snapshot['unique_questions']>=10 and safety_rate<.6 and (incidence_strength>=.1 or not incidence['contexts']))
         below_goal=confirmed_deficit(performance,profile.target_accuracy/100,profile.min_block) if balanced else observed is not None and performance['reported_n']>=10 and observed<profile.target_accuracy/100
         evidence_priority='urgente' if adverse_urgent else 'alta' if (alert or safety_alert or below_goal or linked_adverse) else 'normal'
@@ -236,12 +251,13 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         if balanced and primary and not below_goal: reason='Ampliar a amostra e conferir retenção em um contato espaçado'
         if reduced_due: reason='Revisitar por questões após redução seletiva de cartões'
         if alert: reason=f"Reforçar erros recentes em questões {alert['mode']} ({100*alert['percent']:.0f}% em {alert['n']} questões)"
-        if not balanced and confidence_rate is not None and confidence_rate<.6: reason='Recuperar acerto com convicção abaixo de 60%'
+        if supported_low_confidence: reason='Recuperar acerto com convicção abaixo de 60%'
         if pending_due: reason=f'Revisar {pending_due} respostas ainda sem convicção, com retorno marcado'
         if safety_alert and not pending_due: reason=f"Reforçar segurança acumulada da Osler ({100*safety_rate:.1f}% em {snapshot['unique_questions']} questões distintas; retrato de {snapshot['observed_date']})"
         if manual_adverse: reason='Reforçar erros críticos ou recorrentes informados por você'
         elif reported_difficulty: reason='Dificuldade alta relatada em '+difficulty_day+'; retomar e medir o rendimento'
         if linked_adverse: reason='Há erros em retornos vinculados ainda não recuperados; eles não entram na taxa de questões novas'
+        if small_sample: reason+=f" · Amostra pequena ({performance['reported_n']} de {minimum} questões de referência)"
         theme_contacts=[e['day'] for e in entries if e['kind']!='acumulado' and not e.get('review_of')]+[e['last_contact'] for e in entries if e.get('last_contact') and not e.get('review_of')]
         if known: theme_contacts.append(known)
         if snapshot and snapshot['last_contact']: theme_contacts.append(snapshot['last_contact'])
@@ -250,7 +266,7 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         coordination=None
         if balanced:
             due,coordination=coordinate_due(due,pending,profile,as_of,spacing['last_evidence_day'] or theme_last,
-                protected=bool(manual_adverse or registered_error or linked_adverse or topic.get('cards_reduced_day') or observed is not None and observed<params.raw_low_threshold or alert and alert['percent']<params.raw_low_threshold))
+                protected=bool(manual_adverse or registered_error or linked_adverse or topic.get('cards_reduced_day') or measured and observed<params.raw_low_threshold or alert and alert['n']>=minimum and alert['percent']<params.raw_low_threshold))
         theme_due=due
         if pending: due=min([q['due_date'] for q in pending]+([due] if due else []))
         if reduced_due:
@@ -258,17 +274,19 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
             due=min(due,reduction_return) if due else reduction_return
         retention_due=due
         if due and profile.start_date: due=max(due,profile.start_date)
-        raw_signal=observed if observed is not None else topic['pdf_accuracy']['value']/100 if topic['answered_pdf'] and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None else None
-        if alert: raw_signal=min(raw_signal,alert['percent']) if raw_signal is not None else alert['percent']
+        raw_signal=observed if measured else None
+        if observed is None and topic['answered_pdf'] and topic['pdf_accuracy']['operator']=='=' and topic['pdf_accuracy']['value'] is not None:
+            raw_signal=topic['pdf_accuracy']['value']/100
+        if alert and alert['n']>=minimum: raw_signal=min(raw_signal,alert['percent']) if raw_signal is not None else alert['percent']
         low_objective_accuracy=raw_signal is not None and raw_signal<params.raw_low_threshold
-        low_conviction=not balanced and confidence_rate is not None and confidence_rate<.6 or safety_alert and safety_rate<.6
+        low_conviction=supported_low_confidence or safety_alert and snapshot['unique_questions']>=minimum and safety_rate<.6
         low_accuracy=low_conviction or raw_signal is not None and raw_signal<.6
         evidence=performance if balanced else confidence
         phase=learning_state({'seen':seen,'n':evidence['exact_n'],'rate':evidence['observed'],'lower':evidence['interval'][0] if evidence['interval'] else None,
                               'source':source if balanced else confidence_source,'overdue':overdue,'pending_due':pending_due,'raw_rate':raw_signal},profile)
         if balanced and phase=='dominado' and spacing['streak']<2: phase='aprendendo'
         if linked_adverse: phase='alerta'
-        if safety_alert and safety_rate<.6: phase='alerta'
+        if safety_alert and snapshot['unique_questions']>=minimum and safety_rate<.6: phase='alerta'
         if not committed and seen and not low_accuracy and not reduced_due: phase='aprendendo'
         if manual_adverse or registered_error: phase='alerta'
         if reported_difficulty: phase='alerta'
@@ -283,12 +301,15 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
         states.append({**topic,'performance':performance,'repeated':repeated,'baseline':baseline,'performance_source':source,'alert_signal':alert,
                        'confidence':confidence,'confidence_source':confidence_source,'learning_state':phase,'low_accuracy':bool(low_accuracy),
                        'low_objective_accuracy':low_objective_accuracy,'low_conviction':bool(low_conviction),'next_review':due,'pending_due':pending_due,'pending_reviews':pending,'spacing':spacing,
-                       'last_contact':last,'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,'minimum_block':profile.min_block,
+                       'first_contact':min(contact_dates,default=None),'last_contact':last,
+                       'days_without_contact':age,'review_interval_days':interval,'priority':priority,'evidence_priority':evidence_priority,'status':status,'target_accuracy':profile.target_accuracy,'minimum_block':profile.min_block,
                        'retention_due':retention_due,'theme_review_due':theme_due,
                        'review_committed':committed,'review_origin':'retorno de respostas' if pending else 'acompanhamento de cartões' if topic.get('cards_reduced_day') else 'blocos registrados' if committed else 'fila inicial',
                        'initial_contact_deadline':(_date(last)+timedelta(days=profile.max_contact_gap)).isoformat() if not committed and seen and last else None,
                        'domain_evidence':domain_evidence(seen,snapshot if snapshot_current else None,phase=='dominado',bool(low_accuracy or manual_adverse or registered_error),profile.target_accuracy),
                        'importance':importance,'incidence_strength':incidence_strength,'incidence_known':topic['topic_id'] in incidence.get('known_topic_ids',[]),'score':score,'reason':reason,'available_new':available,'bank_balance_uncertain':balance_uncertain,
+                       'theme_incidence':incidence.get('theme_weights',{}).get(topic['topic_id'],0),
+                       'theme_continuation':theme_continuation,'is_new_for_day':starts_leaf and not theme_continuation,
                        'planner_safety':snapshot,'planner_snapshot_current':snapshot_current,'manual_adverse':manual_adverse,'registered_error':registered_error,
                        'reported_difficulty':reported_difficulty,
                        'recorded_attempts':sum(e['questions'] for e in entries if e['kind']=='bloco'),
@@ -308,7 +329,6 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                 states[-1]['next_review']=min([q['due_date'] for q in pending]+([operational_due] if operational_due else []),default=None)
         from .study_capacity import practice_state
         states[-1].update(practice_state(states[-1],as_of,profile))
-        states[-1]['is_new_for_day']=not(topic['answered_pdf'] or topic.get('studied_cards') or baselines or manual_baseline or snapshot and snapshot['unique_questions'] or any(d<as_of for d in contact_dates))
         # Indicador de exposição, separado do posterior de acertos. As fontes
         # acumuladas podem se sobrepor; nunca as somamos como novas tentativas.
         exposure=max(topic['answered_pdf'] or 0, snapshot['unique_questions'] if snapshot else 0,
@@ -346,6 +366,10 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     excluded={topic_id for row in swaps for topic_id in row['excluded_ids']}|unavailable_ids
     swapped_ids={row['topic_id'] for row in swaps}
     from .study_agenda import flexible_reservation
+    from .study_allocation import explicit_recovery,fits_recovery_bank,has_small_bank,recovery_uses_total_capacity
+    state_by_id={t['topic_id']:t for t in states}
+    reservations=[r for r in reservations or [] if r['topic_id'] in state_by_id and
+                  fits_recovery_bank(state_by_id[r['topic_id']],r,profile.min_block)]
     automatic={r['topic_id']:r for r in reservations or [] if flexible_reservation(r) and r['date']<=as_of and r['remaining']>0}
     def recovery_context(t):
         row=automatic.get(t['topic_id'])
@@ -354,7 +378,6 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         return {**t,'automatic_due':row['original_due'],'automatic_remaining':row['remaining'],
                 'allocation_due':min(t.get('allocation_due',t.get('next_review')) or as_of,as_of)} if row else t
     states=[recovery_context(t) for t in states]
-    if capacity_states is not None:capacity_states=[recovery_context(t) for t in capacity_states]
     if question_target is None: _number(minutes,'Tempo disponível',integer=True,positive=True,maximum=720)
     else: _number(question_target,'Meta de questões',integer=True,maximum=1000)
     if kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
@@ -414,6 +437,16 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
                            'reason':'Tema escolhido para substituir '+row['from_path'][-1]+' apenas neste dia'})
     budget-=sum(p['questions'] for p in pinned)
     base_pins=[p for p in pinned if not p.get('is_extra_swap')]
+    recovery_floor=min(profile.min_block,budget)
+    short_recoveries={r['topic_id'] for r in reservations if r['date']<=as_of and
+                      0<r['remaining']<recovery_floor and not explicit_recovery(r)}
+    linked_returns={tid for tid in short_recoveries if
+                    any(lot['due_date']<=as_of for lot in state_by_id[tid].get('pending_reviews',[]))}
+    if linked_returns:
+        short_recoveries-=linked_returns
+        for tid in linked_returns: automatic.pop(tid,None)
+        states=[state_by_id[t['topic_id']] if t['topic_id'] in linked_returns else t for t in states]
+        by_id={t['topic_id']:t for t in states}
     from .study_allocation import topic_is_new
     group_targets={'new':round((question_target if question_target is not None else target)*profile.new_share)}
     group_targets['reviews']=(question_target if question_target is not None else target)-group_targets['new']
@@ -428,9 +461,9 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         if not t or t['topic_id'] in excluded|swapped_ids or row['date']>as_of or len(recovered)+len(base_pins)>=profile.max_topics: continue
         group='new' if topic_is_new(t) else 'reviews'
         remaining_budget=max(0,budget-sum(r['questions'] for r in recovered))
-        group_budget=remaining_budget if row.get('manual_date') or row.get('daily_proposal') or row.get('swap_return') or row.get('return_unavailable') or row.get('final_review') or row.get('correction') or profile.workload_mode=='adaptive' and group=='reviews' else group_targets[group]
+        group_budget=remaining_budget if recovery_uses_total_capacity(row,profile,group) else group_targets[group]
         q=min(row['remaining'],t['total'] if row.get('correction') else practice_capacity(t,profile),group_budget,remaining_budget)
-        if q:
+        if q and (q>=recovery_floor or explicit_recovery(row)):
             group_targets[group]=max(0,group_targets[group]-q)
             recovered.append({**t,'questions':q,'new_questions':min(q,t['available_new']),'repeat_questions':max(0,q-t['available_new']),
                               'added_by_user':False,'rescheduled':not row.get('daily_proposal',False),'daily_proposal_preserved':bool(row.get('daily_proposal')),'reschedule_date':row['date'],'original_due':row['original_due'],
@@ -446,8 +479,11 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     allocated_questions={}
     for item in recovered+base_pins+extras:
         allocated_questions[item['topic_id']]=allocated_questions.get(item['topic_id'],0)+item['questions']
-    candidates,allocation_profile,capacity=capacity_policy(capacity_states if capacity_states is not None else states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits,
-        eligible_ids={t['topic_id'] for t in states if t['topic_id'] not in recovery_ids|excluded|swapped_ids and
+    automatic_capacity_states=[recovery_context(t) for t in (capacity_states if capacity_states is not None else states)
+                     if not has_small_bank(t,profile.min_block) and t['topic_id'] not in short_recoveries]
+    candidates,allocation_profile,capacity=capacity_policy(automatic_capacity_states,profile,as_of,budget,question_target if question_target is not None else target,capacity_limits,
+        eligible_ids={t['topic_id'] for t in states if t['topic_id'] not in recovery_ids|excluded|swapped_ids|short_recoveries and
+                      not has_small_bank(t,profile.min_block) and
                       (not t.get('reschedule_date') or t['reschedule_date']<=as_of)},
         allocated_questions=allocated_questions,available_slots=max(0,profile.max_topics-len(recovered)-len(base_pins)),
         new_done_questions=max(0,round((question_target if question_target is not None else target)*profile.new_share)-group_targets['new']))
@@ -463,7 +499,8 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     candidate_ids={t['topic_id'] for t in candidates}
     candidates=[{**t,'intake_protected':t['topic_id']==capacity.get('protected_intake_topic') or t['topic_id'] in capacity.get('protected_new_topic_ids',[])} for t in states if t['topic_id'] in candidate_ids]
     available=[{**t,'allocation_capacity':practice_capacity(t,profile)-extra_counts.get(t['topic_id'],0)} for t in candidates
-               if t['topic_id'] not in recovery_ids|excluded|swapped_ids and (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
+               if t['topic_id'] not in recovery_ids|excluded|swapped_ids|short_recoveries and not has_small_bank(t,profile.min_block) and
+               (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
                (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of) and
                t['total']>0 and t['total']-extra_counts.get(t['topic_id'],0)>=max(1,min(practice_minimum(t,minimum),t['recommended_questions']) if t.get('allow_small_lot') else practice_minimum(t,minimum))]
     available.sort(key=lambda t:review_order(t,as_of))
@@ -543,7 +580,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             return allocate_day(states,trial,minutes,kind,sessions,as_of,question_target,extra_topics,reservations,
                                 limits,capacity_states,swaps,allocation_credits,unavailable_ids,finalize_plan=finalize_plan,question_ceiling=question_ceiling)
         eligible_new=[t for t in states if
-            topic_is_new(t) and t['total']>0 and t['topic_id'] not in excluded|swapped_ids and
+            topic_is_new(t) and not has_small_bank(t,profile.min_block) and t['topic_id'] not in excluded|swapped_ids|short_recoveries and
             (not t.get('reschedule_date') or t['reschedule_date']<=as_of) and
             (not t.get('allocation_due',t.get('next_review')) or t.get('allocation_due',t.get('next_review'))<=as_of)]
         capacity['new_floor']=floor_adjustments(profile,plan,evaluate,has_candidates=bool(eligible_new),

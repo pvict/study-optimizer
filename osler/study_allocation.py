@@ -31,8 +31,36 @@ def topic_is_new(t):
     return t.get('is_new_for_day',t['status']=='sem_registro')
 
 
+def new_topic_order(topic):
+    return (-topic.get('theme_incidence',0),-topic['total'],topic['path'])
+
+
+def has_small_bank(topic,minimum=None):
+    """Compare o acervo conhecido com o piso aplicável ao planejamento."""
+    if minimum is None:
+        from .algorithm_parameters import V1
+        minimum=topic.get('minimum_block',V1.minimum_block)
+    total=topic.get('total')
+    return total<minimum if total is not None else bool(topic.get('small_bank'))
+
+
+def explicit_recovery(row):
+    """Compromissos especiais e saldos do dia têm sua própria dose."""
+    return any(row.get(flag) for flag in
+               ('daily_proposal','swap_return','return_unavailable','final_review','correction'))
+
+
+def recovery_uses_total_capacity(row,profile,group):
+    return bool(row.get('manual_date') or explicit_recovery(row) or
+                profile.workload_mode=='adaptive' and group=='reviews')
+
+
+def fits_recovery_bank(topic,row,minimum):
+    return not has_small_bank(topic,minimum) or bool(row.get('final_review') or row.get('correction'))
+
+
 def practice_minimum(topic,minimum):
-    """Acervo pequeno positivo é uma exceção ao piso, não motivo para excluir o tema."""
+    """Piso efetivo de uma atividade escolhida do banco ou de um saldo vinculado."""
     return min(minimum,topic['total'],topic.get('automatic_remaining',minimum))
 
 
@@ -40,7 +68,7 @@ def practice_capacity(topic,profile):
     capacity=topic['total']
     if profile.review_strategy=='balanced_v2' and topic_is_new(topic) and topic['total']<profile.min_block and topic.get('review_kind')!='lot_only':
         capacity=max(topic['total'],topic.get('recommended_questions',topic['total']))
-    return min(capacity,topic.get('automatic_remaining',capacity))
+    return min(capacity,topic.get('automatic_remaining',capacity),topic.get('forecast_bank_remaining',capacity))
 
 
 def _fill(selected,counts,target,capped=False):
@@ -69,7 +97,9 @@ def category_allocation(available,states,profile,budget,day_target,today):
         spare=budget-want_new-want_reviews
         want_new+=round(spare*profile.new_share)
         want_reviews=budget-want_new
-    pools=[[t for t in available if topic_is_new(t)],[t for t in available if not topic_is_new(t)]]
+    available=[t for t in available if not topic_is_new(t) or t['total']>=profile.min_block]
+    pools=[sorted((t for t in available if topic_is_new(t)),key=new_topic_order),
+           [t for t in available if not topic_is_new(t)]]
     balanced=profile.review_strategy=='balanced_v2'
     minimum=profile.min_block if balanced else min(profile.min_block,budget)
     def floor(t):
@@ -111,7 +141,9 @@ def category_allocation(available,states,profile,budget,day_target,today):
     for group,quota in zip(groups,[want_new,want_reviews]): _fill([t for t,q in group],counts,quota,capped)
     # Ceder sobra é explícito; uma preferência de 0%/100% permanece estrita.
     if 0<profile.new_share<1:
-        for t in available:
+        ordered_new=iter(pools[0])
+        for candidate in available:
+            t=next(ordered_new) if topic_is_new(candidate) else candidate
             left=budget-sum(counts.values())
             if left<=0: break
             if any(t['topic_id']==chosen['topic_id'] for chosen in selected) or len(selected)>=profile.max_topics: continue

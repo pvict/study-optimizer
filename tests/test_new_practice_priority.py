@@ -5,19 +5,18 @@ from osler.study_allocation import category_allocation
 from test_adaptive_planning import topic
 
 
-def test_sparse_planner_must_not_reduce_recommended_new_practice_to_one_question():
+def test_sparse_planner_keeps_recommended_new_practice_outside_automatic_slots():
     p=AdaptiveProfile(max_questions=40,max_topics=2,new_share=.5,min_block=10,review_strategy='balanced_v2',return_mode='theme')
-    rows=topic_states([topic('HighNew',total=1),topic('Review',answered=40)],[],[],{},'2026-10-15',p)
+    rows=topic_states([topic('HighNew',total=1),topic('New'),topic('Review',answered=40)],[],[],{},'2026-10-15',p)
     for t in rows:t.update(recommended_questions=20,theme_recommended_questions=20)
     result=allocate_day(rows,p,None,'normal',[],'2026-10-15',question_target=40)
-    new=next(t for t in result['items'] if t['topic_id']=='HighNew')
-    assert new['questions']==20 and new['total']==1
-    assert new['new_questions']==1 and new['external_bank_questions']==19 and new['repeat_questions']==0
-    from osler.study_registration_ui import first_block_action
-    assert first_block_action(new,'2026-10-15','balanced_v2')['mode']=='novas'
-    reservation={**new,'date':'2026-10-15','original_due':'2026-10-15','remaining':20,'daily_proposal':True}
+    small=next(t for t in rows if t['topic_id']=='HighNew')
+    assert small['recommended_questions']==20 and small['total']==1
+    assert small['complement_per_block']>=p.min_block-1
+    assert {t['topic_id'] for t in result['items']}=={'New','Review'}
+    reservation={**small,'date':'2026-10-15','original_due':'2026-10-15','remaining':20,'daily_proposal':True}
     preserved=allocate_day(rows,p,None,'normal',[],'2026-10-15',question_target=40,reservations=[reservation])
-    assert next(t for t in preserved['items'] if t['topic_id']=='HighNew')['questions']==20
+    assert {t['topic_id'] for t in preserved['items']}=={'New','Review'}
 
 
 def test_feasible_protected_new_floor_is_not_traded_for_more_review_questions():

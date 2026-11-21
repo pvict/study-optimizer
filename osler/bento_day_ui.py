@@ -97,6 +97,8 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
         st.html(text)
         if item.get('is_new_for_day'):
             st.html(chip('Tema novo'))
+        elif item.get('theme_continuation'):
+            st.html(chip('Continuação de tema'))
         elif item.get('limited_practice'):
             st.html(chip('Pouca prática em questões'))
         if item.get('group_members'):
@@ -104,7 +106,8 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
             with st.popover('Ver temas agrupados'):
                 st.markdown('**'+escape(item['path'][-1])+'**')
                 for path in item['group_member_paths']:
-                    st.write(' › '.join(path[len(item['path']):]))
+                    parent=item.get('theme_path') if item.get('fragment_group') else item['path']
+                    st.write(' › '.join(path[len(parent or []):] or path[-1:]))
         if hero and view['time_source']=='Mediana de blocos registrados':
             minutes=ceil(n*view['plan']['effective_profile']['minutes_per_question'])
             st.caption(f'≈ {minutes} min')

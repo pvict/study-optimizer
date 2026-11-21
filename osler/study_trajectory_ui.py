@@ -22,6 +22,8 @@ def trajectory_detail(state,profile,start,limit=None):
     if state.get('review_kind')=='lot_only': st.caption('O retorno do lote de erros tem sua própria data e quantidade. A tabela abaixo é da revisão completa do tema.')
     if roadmap['complement_per_block']:
         st.warning(f"Banco pequeno: {state['total']} questões conhecidas. Para o bloco de referência de {reference}, faltam {roadmap['complement_per_block']} questões de outra fonte sobre este mesmo tema. Ele não foi substituído por um assunto amplo.")
+    if roadmap['bank_cycles_limited']:
+        st.caption(roadmap['assumption'])
     if state.get('questions',reference)>reference:
         st.caption('O bloco deste dia foi ampliado pela divisão de carga ou por uma inclusão na agenda. A referência acima é a necessidade atual do tema.')
     rows=trajectory_rows(roadmap)

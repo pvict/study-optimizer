@@ -119,7 +119,7 @@ def attention_overview(view,datasets,day):
         over_gap=age is not None and max_gap is not None and age>max_gap
         interval=state.get('review_interval_days')
         stale=age is not None and interval is not None and age>=interval
-        due=state.get('next_review')
+        due=None if state.get('small_bank') else state.get('next_review')
         adverse=bool(state.get('low_accuracy') or state.get('manual_adverse') or
                      state.get('registered_error') or state.get('reported_difficulty') or
                      state.get('alert_signal') or state.get('linked_adverse') or
@@ -136,6 +136,7 @@ def attention_overview(view,datasets,day):
         elif last is None: reasons.append('Último contato desconhecido; não é atraso medido')
         if state.get('pending_due'): reasons.append(f"{state['pending_due']} respostas com retorno para hoje ou antes")
         elif due and due<=day: reasons.append('Revisão prevista para '+due)
+        if state.get('small_bank'): reasons.append('Falta complemento para o bloco mínimo')
         if practiced and accuracy['rate'] is None: reasons.append('Acerto objetivo ainda sem medição nesta base')
         if limited:
             reasons.append('Percentual aproximado; confirmar com contagens exatas' if accuracy['approximate']
@@ -144,6 +145,7 @@ def attention_overview(view,datasets,day):
         rows.append({'topic_id':state['topic_id'],'path':list(path),'incidences':incidence,
                      'accuracy':accuracy,'conviction':_conviction(state,day),
                      'last_contact':last,'days_without_contact':age,'next_review':due,
+                     'small_bank':bool(state.get('small_bank')),
                      'review_interval_days':interval,'never_practiced':not practiced,
                      'never_seen':state.get('status')=='sem_registro',
                      'incident_unpracticed':not practiced and exact_incident,
@@ -202,6 +204,6 @@ def attention_table(rows):
                        'Convicção':f"{100*c['rate']:.1f}% · n={c['n'] if c['n'] is not None else 'não informado'} · {c['source']}" if c['rate'] is not None else 'Não informada',
                        'Último contato':row['last_contact'] or 'Desconhecido',
                        'Dias sem contato':row['days_without_contact'],
-                       'Próxima revisão':row['next_review'] or 'Sem data definida',
+                       'Próxima revisão':row['next_review'] or ('Falta complemento' if row['small_bank'] else 'Sem data definida'),
                        'Por que olhar':row['reason']})
     return result

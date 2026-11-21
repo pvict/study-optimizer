@@ -9,7 +9,7 @@ de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendár
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.29.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.30.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 Em **Simulados → Treinos por área**, programe um ou dois treinos semanais por instituição, mova datas e registre resultados. As questões reservadas fazem parte da meta diária. O rodízio percorre as cinco grandes áreas e as instituições escolhidas; alterar frequência ou carga preserva os treinos já realizados.
 
@@ -20,6 +20,8 @@ Em **Simulados → Correção**, informe os temas errados agora ou depois de reg
 A interface Bento usa um menu lateral único, cards claros, ações visíveis e detalhes recolhidos. Hoje reúne o próximo bloco e o que já foi feito; Calendário distingue estudo registrado, hoje e previsão; Evolução abre pelo histórico real e mantém projeções em Cenários. Flashcards mostra decks e recomendações antes dos ajustes; Arquivos abre pela biblioteca e conserva as ferramentas técnicas em Avançado. Ajustes reúne Meta e rotina, Minhas provas e Instituições e incidências. O nome opcional é usado somente na sessão atual. [Entrega da fase 5, capturas e limites](docs/design/bento-fase5-entrega.md) · [Sistema de design](DESIGN.md).
 
 ## O que o aplicativo oferece
+
+- **Bancos pequenos e temas novos:** fragmentos abaixo do mínimo pedem complemento ou entram num bloco conjunto de subtemas do mesmo tema quando há acervo suficiente. O plano reserva vagas para blocos úteis, usa a incidência das instituições para ordenar novos e separa a continuação de um tema de um primeiro contato. [Critérios e limites](docs/research/planejamento-bancos-pequenos-v0.15.md).
 
 - **Cards criados nos blocos:** informe a quantidade ao registrar suas questões; a fila do tema acompanha edições e lançamentos desconsiderados, sem duplicar os cards já abrangidos por um novo HTML. Criar não conta como estudar e não muda sua carga diária. **Redução com dados atuais:** até três sugestões seletivas, com fontes datadas, temas protegidos e reavaliação em sete dias. [Funcionamento, critérios e limites](docs/research/reducao-atual-e-novos-cards.md).
 

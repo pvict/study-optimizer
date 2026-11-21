@@ -45,7 +45,9 @@ def spacing_state(entries,profile,as_of,incidence_strength=0):
 def learning_state(evidence,profile):
     p=profile.parameters
     rate=evidence['rate']
-    if not evidence['seen'] or evidence['pending_due'] or evidence['overdue'] or rate is not None and rate<p.failure_threshold or evidence.get('raw_rate') is not None and evidence['raw_rate']<p.failure_threshold:
+    low_measured=evidence['n']>=profile.min_block and rate is not None and rate<p.failure_threshold
+    low_raw=evidence.get('raw_rate') is not None and evidence['raw_rate']<p.failure_threshold
+    if not evidence['seen'] or evidence['pending_due'] or evidence['overdue'] or low_measured or low_raw:
         return 'alerta'
     if rate is not None and rate>=profile.target_accuracy/100 and evidence['n']>=p.sufficient_sample and evidence['lower'] is not None and evidence['lower']>=p.mastery_wilson_lower and evidence['source'] in {'novas','mistas'}:
         return 'dominado'

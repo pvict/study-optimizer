@@ -26,6 +26,7 @@ def _undo(service,plan_id,token):
 
 def reviews_outside_today(view,backlog):
     from .recovery import EXCLUSIVE
+    from .study_allocation import has_small_bank
     from .study_swaps import swap_rows
 
     day=view['date']; plan=view['plan']; agenda=view['agenda']
@@ -45,12 +46,14 @@ def reviews_outside_today(view,backlog):
     outside=[]
     for state in view['planning_states']:
         topic_id=state['topic_id']; booked=bookings.get(topic_id)
-        if topic_id in excluded or state['total']<=0:
+        if topic_id in excluded or has_small_bank(state,view.get('profile',{}).get('min_block')):
             continue
         if (state.get('return_not_before') or day)>day:
             continue
         due=overdue.get(topic_id) or state.get('next_review')
         uncommitted=state.get('review_committed') is False and topic_id not in overdue and not state.get('pending_due')
+        if uncommitted and not state.get('last_contact'):
+            continue
         if not due or due>day or uncommitted:
             due=booked
         if due and due<=day:

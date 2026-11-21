@@ -100,7 +100,7 @@ def test_admission_accounts_for_future_rest_and_smaller_daily_target():
 def test_small_linked_lot_cannot_postpone_due_whole_theme():
     from test_confidence import event
     from test_adaptive_planning import topic
-    events=[event('first','2026-10-01',5,0,0)]
+    events=[event('first','2026-10-01',10,5,5)]
     before=topic_states([topic()],events,[],{},'2026-10-08',profile())[0]
     after=topic_states([topic()],events+[event('lot','2026-10-08',5,5,5,'first')],[],{},'2026-10-08',profile())[0]
     assert after['last_contact']=='2026-10-08'

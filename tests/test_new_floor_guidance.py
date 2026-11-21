@@ -53,9 +53,9 @@ class NewFloorGuidance(unittest.TestCase):
         states=[{**t,'total':2,'available_new':2,'recommended_questions':2} for t in states if t['topic_id']=='N']
         args['reservations']=[]
         info=allocate_day(states,p,**args,diagnose_new_floor=True)['capacity']['new_floor']
-        self.assertEqual(info['missing'],10)
-        self.assertEqual(info['new_capacity'],2)
-        self.assertEqual(info['reason'],'limited_candidates')
+        self.assertEqual(info['missing'],12)
+        self.assertEqual(info['planned'],0)
+        self.assertEqual(info['reason'],'no_candidates')
 
     def test_notice_reports_missing_questions_from_the_final_plan(self):
         states,p,args=scenario()
