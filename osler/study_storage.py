@@ -41,24 +41,32 @@ class StudyStore:
             row=db.execute('SELECT * FROM study_days WHERE day=?',(day,)).fetchone()
             return {'day':day,'revision':row['revision'],'settings':json.loads(row['payload'])} if row else {'day':day,'revision':0,'settings':StudyDay(questions=default_questions).to_dict()}
 
-    def save_day(self,day,settings,expected_revision):
+    def save_day(self,day,settings,expected_revision,*,expected_planning_token=None,audit_preview=None):
         _date(day)
         settings.validate()
         if type(expected_revision) is not int or expected_revision<0: raise ValueError('Versão do dia inválida.')
         with self.repository._connection() as db:
             db.execute('BEGIN IMMEDIATE')
+            if expected_planning_token is not None:
+                from .study_agenda import planning_token
+                if planning_token(db)!=expected_planning_token:raise ValueError('Os dados mudaram. Confira a prévia novamente.')
             row=db.execute('SELECT revision FROM study_days WHERE day=?',(day,)).fetchone()
             if (row['revision'] if row else 0)!=expected_revision:
                 raise ValueError('O plano do dia foi atualizado em outra tela. Recarregue antes de salvar.')
             db.execute('INSERT INTO study_days(day,revision,payload,updated_at) VALUES(?,?,?,?) ON CONFLICT(day) DO UPDATE SET revision=excluded.revision,payload=excluded.payload,updated_at=excluded.updated_at',
                        (day,expected_revision+1,_encoded(settings.to_dict()),utc_now()))
+            if audit_preview is not None:
+                payload=_encoded({'kind':'day_goal.change','day':day,'created_day':audit_preview['created_day'],
+                    'revision':expected_revision+1,'preview':audit_preview})
+                db.execute('INSERT INTO study_plan_runs(payload,digest,created_at) VALUES(?,?,?)',
+                           (payload,hashlib.sha256(payload.encode()).hexdigest(),utc_now()))
             return expected_revision+1
 
     def days(self):
         with self.repository._connection() as db:
             return {r['day']:json.loads(r['payload']) for r in db.execute('SELECT day,payload FROM study_days')}
 
-    def save_batch(self, changes):
+    def save_batch(self, changes, *, expected_planning_token=None):
         if not changes or len({c[0] for c in changes}) != len(changes):
             raise ValueError('Selecione sessões distintas.')
         for session_id, entry, version in changes:
@@ -68,6 +76,10 @@ class StudyStore:
         ids = []
         with self.repository._connection() as db:
             db.execute('BEGIN IMMEDIATE')
+            if expected_planning_token is not None:
+                from .study_agenda import planning_token
+                if planning_token(db)!=expected_planning_token:
+                    raise ValueError('O plano mudou. Confira os subtemas do agrupamento antes de salvar.')
             current={e['session_id']:e for e in self.active('9999-12-31')}
             for sid,entry,version in changes: current[sid]={'session_id':sid,'entry':entry.to_dict()}
             review_queue(list(current.values()))
@@ -144,7 +156,7 @@ class StudyStore:
                 if profile.exam_weight_basis!=policy['basis']: raise ValueError('Confirme os pesos em uma prévia antes de salvar.')
             profile_id=db.execute('INSERT INTO study_profiles(payload,created_at) VALUES(?,?)',(_encoded(profile.to_dict()),utc_now())).lastrowid
             if audit_preview is not None:
-                payload=_encoded({'kind':'review_strategy.change','profile_before':expected_id,'profile_after':profile_id,'preview':audit_preview})
+                payload=_encoded({'kind':audit_preview.get('audit_kind','review_strategy.change'),'profile_before':expected_id,'profile_after':profile_id,'preview':audit_preview})
                 db.execute('INSERT INTO study_plan_runs(payload,digest,created_at) VALUES(?,?,?)',
                     (payload,hashlib.sha256(payload.encode()).hexdigest(),utc_now()))
             return profile_id

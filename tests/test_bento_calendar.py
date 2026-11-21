@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from copy import deepcopy
 from datetime import date
 
@@ -101,7 +102,7 @@ def test_calendar_swap_preserves_questions_and_results(tmp_path, monkeypatch):
     app = _app(service)
     app.button(key='swap_open_calendar_A').click().run()
     assert not app.exception
-    app.button(key='swap_suggest_calendar_A').click().run()
+    confirm_action(app.button(key='swap_suggest_calendar_A').click().run())
     assert not app.exception
     plan = service.overview('2026-10-15')['plan']
     assert plan['items'][0]['topic_id'] == 'B'
@@ -134,10 +135,10 @@ def test_calendar_completion_can_be_reversed_without_recording_answers(tmp_path,
     before = deepcopy(service.store.events())
     app = _app(service)
     assert not app.exception
-    app.button(key='calendar_skip_complement_A').click().run()
+    confirm_action(app.button(key='calendar_skip_complement_A').click().run())
     assert not app.exception
     assert not any(i['topic_id'] == 'A' for i in service.overview(DAY)['plan']['items'])
-    next(b for b in app.button if b.label == 'Desfazer dispensa').click().run()
+    confirm_action(next(b for b in app.button if b.label == 'Desfazer dispensa').click().run())
     assert not app.exception and app.button(key='calendar_skip_complement_A')
     assert service.store.events() == before
 

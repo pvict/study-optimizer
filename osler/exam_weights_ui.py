@@ -1,4 +1,6 @@
 """Dados necessários, impacto e aplicação explícita no mesmo contexto."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import pandas as pd
 import streamlit as st
 from .exam_goals import active_exams
@@ -60,8 +62,8 @@ def render_exam_weights(service):
             for warning in after['warnings']: st.caption(warning)
         stale=preview['token']!=service.agenda.token()
         if stale: st.info('Os dados mudaram. Monte outra prévia antes de aplicar.')
-        if st.button('Aplicar importância e aviso',key='exam_weight_apply',type='primary',disabled=stale):
-            try: service.apply_exam_weights(preview)
+        if confirm_button('Aplicar importância e aviso',key='exam_weight_apply',type='primary',disabled=stale,action_key='exam_weights_ui_63'):
+            try: notify_success(service.apply_exam_weights(preview),'Agenda atualizada.')
             except ValueError as exc:
                 _clear(); st.error(str(exc)); return
             _clear()

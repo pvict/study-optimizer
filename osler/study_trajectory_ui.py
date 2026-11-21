@@ -1,4 +1,5 @@
 """Trajetória individual e capacidade: referências futuras ficam separadas do progresso."""
+from .ui_help import explain
 import hashlib
 import json
 import pandas as pd
@@ -17,17 +18,19 @@ def trajectory_detail(state,profile,start,limit=None):
     a.metric('Referência do próximo bloco',reference)
     b.metric('Feitas em blocos registrados',roadmap['recorded_attempts'])
     st.write(state.get('dose_reason','A quantidade será ajustada após seu próximo resultado.'))
-    st.caption('Após registrar o resultado, recalculamos a quantidade e o intervalo. As revisões seguintes ficam a definir; as vagas previstas estão no Calendário.')
+    explain('Após registrar o resultado, recalculamos a quantidade e o intervalo. As revisões seguintes ficam a definir; as vagas previstas estão no Calendário.')
     if state.get('review_kind')=='lot_only': st.caption('O retorno do lote de erros tem sua própria data e quantidade. A tabela abaixo é da revisão completa do tema.')
     if roadmap['complement_per_block']:
         st.warning(f"Banco pequeno: {state['total']} questões conhecidas. Para o bloco de referência de {reference}, faltam {roadmap['complement_per_block']} questões de outra fonte sobre este mesmo tema. Ele não foi substituído por um assunto amplo.")
+    if roadmap['bank_cycles_limited']:
+        st.caption(roadmap['assumption'])
     if state.get('questions',reference)>reference:
         st.caption('O bloco deste dia foi ampliado pela divisão de carga ou por uma inclusão na agenda. A referência acima é a necessidade atual do tema.')
     rows=trajectory_rows(roadmap)
     if limit: rows=rows[:limit]
     st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch',height=min(330,36*(len(rows)+1)))
     if not rows: st.info('Não há próximo contato indicado dentro do período de preparação.')
-    st.caption('Esta sequência não fixa o número de revisões necessário. A manutenção continua conforme seus resultados, até o fim da preparação. Questões contam tentativas, incluindo repetições.')
+    explain('Esta sequência não fixa o número de revisões necessário. A manutenção continua conforme seus resultados, até o fim da preparação. Questões contam tentativas, incluindo repetições.')
     st.caption(f"PDF: {roadmap['pdf_answered']} respondidas, separado dos blocos datados. O PDF não permite numerar encontros anteriores.")
     return roadmap
 
@@ -46,7 +49,7 @@ def render_trajectories(service,view):
         return
     with st.container(border=True):
         st.subheader('Próximos blocos e revisões')
-        st.caption('A recomendação vale para o próximo bloco. Resultados com convicção em dias espaçados permitem manutenção menor; erros ou longo tempo sem medição pedem nova avaliação.')
+        explain('A recomendação vale para o próximo bloco. Resultados com convicção em dias espaçados permitem manutenção menor; erros ou longo tempo sem medição pedem nova avaliação.')
         summary=trajectory_summary(states,profile,view['date'],[])
         st.caption(f"{summary['small_bank_topics']} temas têm banco menor que o mínimo por bloco. Continuam na lista com o complemento necessário, sem blocos automáticos de uma questão.")
         fields=['Tema','Próximo bloco','Critério','Feitas em blocos registrados','Complemento por encontro']
@@ -62,8 +65,8 @@ def render_trajectories(service,view):
             capacity=summary['scheduled_questions']
             st.caption(f"Cenário de capacidade: {capacity:,} tentativas com vaga prevista até {summary['horizon_end']}, mantendo as doses e os intervalos atuais. Não é uma quantidade necessária comprovada; será atualizado com seus resultados.")
             if summary['unscheduled_topics']: st.warning(f"{summary['unscheduled_topics']} temas ainda estão sem vaga prevista. Priorize pela incidência, acrescente blocos ou redistribua a carga.")
-            st.caption('Vaga prevista continua sendo planejamento. Acertos futuros não foram presumidos. A distribuição pode ampliar um bloco e reduzir vagas para outros temas.')
-        else: st.caption('A tabela não reserva datas. Confira a rotina para ver as vagas possíveis dentro da sua meta diária.')
+            explain('Vaga prevista continua sendo planejamento. Acertos futuros não foram presumidos. A distribuição pode ampliar um bloco e reduzir vagas para outros temas.')
+        else: explain('A tabela não reserva datas. Confira a rotina para ver as vagas possíveis dentro da sua meta diária.')
         frame=pd.DataFrame(summary['rows'])
         st.dataframe(frame[fields],hide_index=True,width='stretch',height=280)
         safe=frame.map(lambda v:_safe_cell(v) if isinstance(v,str) else v)

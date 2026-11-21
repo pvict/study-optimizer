@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 
@@ -18,7 +19,7 @@ def test_daily_plan_has_integer_questions_and_result_shortcut(tmp_path,monkeypat
     assert app.session_state['adaptive_view']=='Registrar resultados'
     app.number_input(key='study_n').set_value(10)
     app.number_input(key='study_correct').set_value(7)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     assert len(AdaptiveService(repo).store.active('2026-10-15'))==1
 
@@ -53,7 +54,7 @@ def test_profile_form_preserves_displayed_revision_on_concurrent_change(tmp_path
     store=AdaptiveService(repo).store
     store.save_profile(AdaptiveProfile(target_accuracy=85,max_questions=100),0)
     next(x for x in app.number_input if x.label=='Meta de acerto nos temas (%)').set_value(80.)
-    next(b for b in app.button if b.label=='Salvar planejamento').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar planejamento').click().run())
     assert not app.exception
     assert any('atualizado' in e.value for e in app.error)
     assert store.profile()['id']==1

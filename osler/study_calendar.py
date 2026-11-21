@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from .planning import _date
 from .adaptive_planning import allocate_day
-from .study_replanning import effective_routine
+from .study_replanning import effective_routine,recovery_theme_capacity
 from .study_prevention import preventive_state,projected_backlog
 from .review_policy import review_order
 from .study_capacity import practice_state,capacity_limits
@@ -12,19 +12,32 @@ from .study_swaps import swap_rows
 from .final_review import special_config,final_reservations
 from .study_triage_policy import apply_triage
 from .exam_practice import practice_context,decorate_practice_plan
+from .study_agenda import unavailable_return_ids
+from .study_allocation import fits_recovery_bank,has_small_bank
+from .topic_trajectory import MAX_BANK_CYCLES
 
 
-def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False):
+def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False,progress=None):
+    return list(iter_forecast_calendar(states,profile,start,days,sessions,settings,today_plan,agenda,
+                spacing_scenario=spacing_scenario,next_contact_only=next_contact_only,progress=progress))
+
+
+def iter_forecast_calendar(states,profile,start,days,sessions,settings,today_plan=None,agenda=None,*,spacing_scenario='unchanged',next_contact_only=False,progress=None):
+    """Mesma previsão por dia, permitindo encerrar uma consulta já satisfeita."""
     from .evolution_spacing import SCENARIOS,advance_projected_spacing
     if spacing_scenario not in SCENARIOS: raise ValueError('Escolha um cenário de espaçamento válido.')
     if next_contact_only and spacing_scenario!='unchanged': raise ValueError('Próximos contatos não presumem sucesso futuro.')
     if type(days) is not int or not 1<=days<=548: raise ValueError('O calendário prevê até18meses.')
     working=deepcopy(states)
+    bank_remaining={} if next_contact_only else {t['topic_id']:MAX_BANK_CYCLES*t['total'] for t in working
+                   if profile.min_block<=t['total']<2*profile.min_block}
     contact_counts={t['topic_id']:len([d for d in t.get('spacing',{}).get('block_days',[]) if d<=start]) for t in working}
     pending={q['session_id']:{**q,'remaining':q['questions']} for t in working for q in t.get('pending_reviews',[])}
-    output=[]
+    automatic_ids={t['topic_id'] for t in working if not has_small_bank(t,profile.min_block)}
+    automatic_pending={q['session_id'] for t in working if t['topic_id'] in automatic_ids for q in t.get('pending_reviews',[])}
     agenda=deepcopy(agenda or {'rows':[],'overrides':{}})
     for offset in range(days):
+        if progress and (offset%7==0 or offset==days-1):progress(offset,days)
         day=(_date(start)+timedelta(days=offset)).isoformat()
         if agenda.get('triage_policies'):
             for state in working:
@@ -37,18 +50,19 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         daily_profile,daily_target=effective_routine(profile,config,agenda['overrides'].get(day,{}))
         if (profile.start_date and day<profile.start_date) or (spacing_scenario=='progressive' and day>profile.exam_date):
             plan=allocate_day([],daily_profile,None,config['kind'],sessions if offset==0 else [],day,question_target=daily_target)
-            output.append({**plan,'projection':True,'pending_planned':0,'pending_backlog':0,'topic_backlog':0,'backlog_items':[]})
+            yield {**plan,'projection':True,'pending_planned':0,'pending_backlog':0,'topic_backlog':0,'backlog_items':[]}
             continue
         active=[]
         for state in working:
+            if state['topic_id'] not in automatic_ids: continue
             returns=[q['due_date'] for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
             if next_contact_only and state.get('awaiting_result') and not any(d<=day for d in returns): continue
             decorated=preventive_state(state,day,agenda.get('policies',[]),returns)
             decorated['pending_reviews']=[{**q,'questions':pending[q['session_id']]['remaining']} for q in state.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]
-            decorated.update(practice_state(decorated,day,daily_profile))
             due=decorated['allocation_due']
             eligible=(not state.get('reschedule_date') or state['reschedule_date']<=day) and (not offset or day==profile.start_date or due is None or due<=day)
             if not eligible: continue
+            decorated.update(practice_state(decorated,day,daily_profile))
             original=min(returns+([state['next_review']] if state.get('next_review') else []),default=None)
             contact_age=max(0,(_date(day)-_date(state['last_contact'])).days) if state.get('last_contact') else 0
             reduced=state.get('cards_reduced_day')
@@ -65,6 +79,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         active.extend(by_id[r['topic_id']] for r in daily_swaps if r['remaining'] and r['topic_id'] in by_id and r['topic_id'] not in present)
         extras=[{**by_id[e['topic_id']],'extra_id':e['extra_id'],'requested':e['questions'],'after_event_id':e['after_event_id']} for e in config.get('extra_topics',[]) if e['topic_id'] in by_id]
         due_reservations=[r for r in agenda['rows'] if r['date']<=day and r['remaining']>0 and
+                          r['topic_id'] in by_id and fits_recovery_bank(by_id[r['topic_id']],r,profile.min_block) and
                           (not r.get('planner_completed_day') or day<=r['planner_completed_day'])]
         if override.get('mode')=='final_review':
             due_reservations=final_reservations(override,day,sessions)
@@ -74,14 +89,29 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
         # Reservas também podem antecipar a fila normal; jamais duplicar o tema.
         active_ids={t['topic_id'] for t in active}
         active.extend(by_id[r['topic_id']] for r in due_reservations if r['topic_id'] in by_id and r['topic_id'] not in active_ids)
-        capacity_states=[{**t,'pending_reviews':[{**q,'questions':pending[q['session_id']]['remaining']} for q in t.get('pending_reviews',[]) if pending[q['session_id']]['remaining']>0]} for t in working]
+        # Sem lotes, a capacidade só lê o estado já existente; não copiar o
+        # catálogo inteiro em cada dia de uma previsão de centenas de dias.
+        capacity_states=[{**t,'pending_reviews':[{**q,'questions':pending[q['session_id']]['remaining']} for q in t['pending_reviews'] if pending[q['session_id']]['remaining']>0]}
+                         if t.get('pending_reviews') else t for t in working]
+        ordinary_limits={}
+        if bank_remaining:
+            committed={r['topic_id'] for r in due_reservations}|{r['topic_id'] for r in daily_swaps}
+            committed.update(t['topic_id'] for t in active if any(q['due_date']<=day for q in t.get('pending_reviews',[])))
+            ordinary_limits={key:left for key,left in bank_remaining.items() if key not in committed}
+            def cap_repetitions(rows):
+                return [{**t,'forecast_bank_remaining':ordinary_limits[t['topic_id']]} if t['topic_id'] in ordinary_limits else t
+                        for t in rows if ordinary_limits.get(t['topic_id'],daily_profile.min_block)>=daily_profile.min_block]
+            active=cap_repetitions(active)
+            capacity_states=cap_repetitions(capacity_states)
         allocation_sessions=practice_context(agenda,day,sessions)['ordinary_sessions'] if override.get('area_reserved') else sessions
-        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],allocation_sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations,capacity_states=capacity_states,capacity_limits=capacity_limits(profile,day,settings,agenda),swaps=daily_swaps)
+        plan=deepcopy(today_plan) if offset==0 and today_plan else allocate_day(active,daily_profile,None,config['kind'],allocation_sessions if offset==0 else [],day,question_target=daily_target,extra_topics=extras,reservations=due_reservations,capacity_states=capacity_states,capacity_limits=capacity_limits(profile,day,settings,agenda),swaps=daily_swaps,unavailable_ids=unavailable_return_ids(agenda,day),question_ceiling=recovery_theme_capacity(config,override) if extras else None)
         plan['routine_override']=agenda['overrides'].get(day,{})
         scheduled_pending=0
         for item in plan['items']:
             if item['topic_id'] not in by_id: continue
             t=by_id[item['topic_id']]
+            if item['topic_id'] in bank_remaining:
+                bank_remaining[item['topic_id']]=max(0,bank_remaining[item['topic_id']]-item['questions']+item.get('extra_pending',0))
             if item.get('rescheduled'):
                 for row in due_reservations:
                     if row['topic_id']==item['topic_id']: row['remaining']=max(0,row['remaining']-item['questions'])
@@ -89,7 +119,7 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             already_recorded=day in t.get('spacing',{}).get('block_days',[])
             number=contact_counts[t['topic_id']]-(1 if already_recorded else 0)
             item['review_number']=number
-            item['stage']='Revisão '+str(number) if number else 'Primeiro contato' if t['status']=='sem_registro' else 'Diagnóstico'
+            item['stage']='Revisão '+str(number) if number else 'Continuação do tema' if t.get('theme_continuation') else 'Primeiro contato' if t['status']=='sem_registro' else 'Diagnóstico'
             if next_contact_only:
                 item['forecast_basis']='known_return' if item.get('review_kind')=='lot_only' else 'next_contact'
                 item['conditional']=offset>0
@@ -120,15 +150,18 @@ def forecast_calendar(states,profile,start,days,sessions,settings,today_plan=Non
             t['available_new']=max(0,t['available_new']-item['new_questions'])
             t['status']='revisao'
             t['is_new_for_day']=False
+            t['theme_continuation']=False
             t['priority']=t.get('evidence_priority',t['priority'])
             t['review_committed']=True
             # Só projeção: evidência observada, posteriors e sessões não são alterados.
         decorate_practice_plan(plan,agenda,day,sessions)
-        backlog=projected_backlog(working,pending,day,start_date=profile.start_date)
-        output.append({**plan,'projection':offset>0,'forecast_mode':'next_contact' if next_contact_only else spacing_scenario,
+        automatic_states=[t for t in working if t['topic_id'] in automatic_ids
+                          and ordinary_limits.get(t['topic_id'],daily_profile.min_block)>=daily_profile.min_block]
+        backlog=projected_backlog(automatic_states,pending,day,start_date=profile.start_date)
+        yield {**plan,'projection':offset>0,'forecast_mode':'next_contact' if next_contact_only else spacing_scenario,
                        'awaiting_results':sum(bool(t.get('awaiting_result')) for t in working),
                        'pending_planned':scheduled_pending,
-                       'pending_backlog':sum(q['remaining'] for q in pending.values() if q['due_date']<=day),
+                       'pending_backlog':sum(pending[sid]['remaining'] for sid in automatic_pending if pending[sid]['due_date']<=day),
                        'topic_backlog':len(backlog),'backlog_items':backlog,
-                       'initial_topics_waiting':sum(not t.get('review_committed',True) and t['status']!='sem_registro' for t in working)})
-    return output
+                       'initial_topics_waiting':sum(not t.get('review_committed',True) and t['status']!='sem_registro' for t in automatic_states)}
+    if progress:progress(days,days)

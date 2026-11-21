@@ -1,4 +1,6 @@
 """Seleção e acompanhamento de decisões do usuário; nenhuma ação na Osler."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date
 import json
 import sqlite3
@@ -51,10 +53,10 @@ def _batches(service):
     with st.form(f"planner_notes_{item_id}_{item['revision']}"):
         note = st.text_area("Observação do item (opcional)", value=item["note"])
         reeval = st.text_input("Data de reavaliação (AAAA-MM-DD, opcional)", value=item["reevaluation_date"] or "")
-        save = st.form_submit_button("Salvar observação e reavaliação")
+        save = confirm_submit("Salvar observação e reavaliação",action_key='planner_ui_54')
     if save:
         try:
-            service.update_item(item_id, note or "Reavaliação atualizada pelo usuário.", reeval.strip() or None, item["revision"])
+            notify_success(service.update_item(item_id, note or "Reavaliação atualizada pelo usuário.", reeval.strip() or None, item["revision"]),'Alterações salvas.')
             st.session_state["planner_notice"] = "Observação registrada com histórico."
             st.rerun()
         except (ValueError, sqlite3.Error) as exc:
@@ -68,10 +70,10 @@ def _batches(service):
             reason = st.text_area("Quer deixar uma observação? (opcional)")
             if target in {"aplicado_manualmente", "reativado"}:
                 st.caption("Use este botão somente depois de realizar a ação pessoalmente na Osler.")
-            submitted = st.form_submit_button(actions[target])
+            submitted = confirm_submit(actions[target],action_key='planner_ui_71')
         if submitted:
             try:
-                service.transition(item_id, target, reason or f"Usuário escolheu: {actions[target]}.", item["revision"], action_date.isoformat(), confirmed=True)
+                notify_success(service.transition(item_id, target, reason or f"Usuário escolheu: {actions[target]}.", item["revision"], action_date.isoformat(), confirmed=True),'Alterações salvas.')
                 st.session_state["planner_notice"] = "Etapa registrada localmente. Confira o histórico e a data de reavaliação."
                 st.rerun()
             except (ValueError, sqlite3.Error) as exc:
@@ -142,10 +144,10 @@ def render_planner(repo):
         with st.form("planner_create"):
             name = st.text_input("Nome do lote", value="Lote de avaliação manual")
             note = st.text_area("Finalidade do lote")
-            create = st.form_submit_button("Criar lote sugerido", disabled=not selected)
+            create = confirm_submit("Criar lote sugerido", disabled=not selected,action_key='planner_ui_145')
         if create:
             try:
-                bid = service.create_batch(matching, selected, name, note or "Temas selecionados pelo usuário para avaliação.", day, cfg)
+                bid = notify_success(service.create_batch(matching, selected, name, note or "Temas selecionados pelo usuário para avaliação.", day, cfg),'Alterações salvas.')
                 st.session_state["planner_notice"] = f"Lote {bid:02d} criado como sugerido, sem aprovação ou aplicação."
                 st.session_state.pop("planner_selection", None)
                 st.session_state["planner_batch_id"] = bid

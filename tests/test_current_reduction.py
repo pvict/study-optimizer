@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from copy import deepcopy
 
@@ -418,7 +419,7 @@ def test_current_ui_shows_selective_evidence_and_records_real_manual_action(tmp_
     assert any('High Yield' in c.value for c in app.caption)
     view = service.current_overview('2026-10-15')
     app.multiselect(key='current_reduction_selection').set_value([view['suggestions'][0]['topic_id']]).run()
-    next(b for b in app.button if b.label == 'Já fiz essa redução seletiva na Osler').click().run()
+    confirm_action(next(b for b in app.button if b.label == 'Já fiz essa redução seletiva na Osler').click().run())
     assert not app.exception
     assert service.store.events()[0]['kind'] == 'aplicado'
     assert service.store.events()[0]['policy_version'] == 'current-reduction-v1'

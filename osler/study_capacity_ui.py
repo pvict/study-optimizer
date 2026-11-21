@@ -1,4 +1,7 @@
 """Um resumo de capacidade, com custo de cobertura e risco residual visíveis."""
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import streamlit as st
 import pandas as pd
 
@@ -22,9 +25,9 @@ def render_capacity_summary(service,start):
         if active:
             st.caption('Ajuste automático ativo · sua proporção escolhida é a referência; novos temas cedem espaço às revisões quando necessário.')
         else:
-            st.caption('Proposta: ajustar a entrada de temas à capacidade de repetir, preservando a carga e os resultados registrados.')
-            if st.button('Ativar ajuste automático',key='activate_capacity',type='primary'):
-                service.configure_workload('adaptive',comparison['profile_id'])
+            explain('Proposta: ajustar a entrada de temas à capacidade de repetir, preservando a carga e os resultados registrados.')
+            if confirm_button('Ativar ajuste automático',key='activate_capacity',type='primary',action_key='study_capacity_ui_26'):
+                notify_success(service.configure_workload('adaptive',comparison['profile_id']),'Alterações salvas.')
                 st.session_state.pop('capacity_comparison',None)
                 st.session_state['adaptive_notice']='Ajuste automático ativado. Sua carga e a proporção de referência foram preservadas.'
                 st.rerun()

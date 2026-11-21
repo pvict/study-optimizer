@@ -22,7 +22,8 @@ class EvolutionServiceMixin:
         end=max(as_of,min(profile.exam_date,(_date(as_of)+timedelta(days=547)).isoformat()))
         calendar=forecast_calendar(view['planning_states'],profile,as_of,(_date(end)-_date(as_of)).days+1,
                                    view['sessions'],settings,agenda=view['agenda'],spacing_scenario=spacing_scenario) if profile.exam_date>=as_of else []
-        snapshot=evolution_snapshot(view['states'],view['sessions'],calendar,as_of,profile.max_contact_gap,view['agenda'].get('area_results',[]))
+        snapshot=evolution_snapshot(view['states'],view['sessions'],calendar,as_of,profile.max_contact_gap,
+                                    view['agenda'].get('area_results',[]),planning_states=view['planning_states'])
         for point,day in zip(snapshot['points'][1:],calendar):
             point['reviews_waiting']=day.get('topic_backlog',0)
             point['pending_responses']=day.get('pending_backlog',0)

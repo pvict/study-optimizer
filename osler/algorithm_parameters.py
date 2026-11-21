@@ -1,5 +1,6 @@
 """Parâmetros explícitos e imutáveis. Registrar não seleciona nem calibra."""
 from dataclasses import dataclass,asdict,fields
+from functools import lru_cache
 import json
 from .storage import utc_now
 from .planning import _number
@@ -57,6 +58,19 @@ class AlgorithmParameters:
 
 
 V1=AlgorithmParameters()
+
+
+@lru_cache(maxsize=64)
+def _validated_values(items):
+    return AlgorithmParameters(**{name:value for name,kind,value in items}).validate()
+
+
+def parameters_from_values(values):
+    """Reutiliza apenas configurações numéricas imutáveis, validadas por conteúdo."""
+    if not isinstance(values,dict) or any(type(v) not in (int,float) for v in values.values()):
+        return AlgorithmParameters(**values).validate()
+    # Tipo compõe a chave: True não pode reutilizar um inteiro já validado.
+    return _validated_values(tuple((k,type(v),v) for k,v in sorted(values.items())))
 
 
 def current_parameters(repo):

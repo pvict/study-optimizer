@@ -12,6 +12,47 @@ from .study_allocation import topic_is_new
 
 
 class DailySwapServiceMixin:
+    def preview_return_deferral(self,day,topic_id):
+        """Adia disponibilidade declarada; nunca altera resultados ou a origem do lote."""
+        if day!=today_local().isoformat(): raise ValueError('Adie o retorno pelo plano de hoje.')
+        token=self.agenda.token()
+        view=self.overview(day)
+        item=next((t for t in view['plan']['items'] if t['topic_id']==topic_id),None)
+        if item is None: raise ValueError('Esse bloco não está mais no plano. Atualize a página.')
+        lots=[q for q in item.get('pending_reviews',[]) if q['due_date']<=day]
+        if not lots: raise ValueError('Este bloco não tem retornos previstos para hoje.')
+        tomorrow=(_date(day)+timedelta(days=1)).isoformat()
+        if tomorrow>view['profile']['exam_date']: raise ValueError('Amanhã está depois do fim da preparação. Ajuste a data em Ajustes antes de adiar.')
+        previous=next((r for r in view['agenda']['rows'] if r['topic_id']==topic_id),{})
+        cutoff=max((e['id'] for e in self.store.events()),default=0)
+        row={'topic_id':topic_id,'path':item['path'],'date':tomorrow,'original_due':tomorrow,
+             'previous_original_due':previous.get('original_due',min(q.get('original_due_date',q['due_date']) for q in lots)),
+             'questions':max(item['questions'],previous.get('remaining',0)),
+             'new_topic':topic_is_new(item),'return_unavailable':True}
+        payload={'kind':'reschedule.apply','scope':'return_unavailable','created_day':day,'available_from':tomorrow,
+                 'selected':[topic_id],'rows':[row],'overrides':{},'cutoff':cutoff,
+                 'return_dates':{q['session_id']:tomorrow for q in lots}}
+        agenda=self.agenda.active(view['sessions'],day,proposed=payload)
+        after=self.overview(day,_agenda_override=agenda)
+        original_ids={i['topic_id'] for i in view['plan']['items']}
+        replacements=[i for i in after['plan']['items'] if i['topic_id'] not in original_ids]
+        if self.agenda.token()!=token: raise ValueError('Seu plano mudou. Confira o adiamento novamente.')
+        return {'day':day,'topic_id':topic_id,'token':token,'available_from':tomorrow,'item':item,
+                'plan':after['plan'],'replacements':replacements,'payload':payload}
+
+    def defer_return(self,day,topic_id,expected_token):
+        if self.agenda.token()!=expected_token: raise ValueError('Seu plano mudou. Confira o adiamento novamente.')
+        preview=self.preview_return_deferral(day,topic_id)
+        if preview['token']!=expected_token: raise ValueError('Seu plano mudou. Confira o adiamento novamente.')
+        return self.agenda.append({**preview['payload'],'request_id':uuid.uuid4().hex},expected_token)
+
+    def undo_return_deferral(self,day,plan_id,expected_token):
+        if day!=today_local().isoformat(): raise ValueError('Desfaça pelo plano de hoje.')
+        active=self.agenda.active(self.store.active(day),day)
+        record=next((r for r in active.get('return_deferrals',[]) if r['id']==plan_id and r['created_day']==day),None)
+        if record is None: raise ValueError('Esse adiamento já não está ativo hoje.')
+        return self.agenda.append({'kind':'reschedule.cancel','plan_id':plan_id,'created_day':day},expected_token)
+
     def _swap_return_plan(self,view,original):
         from .study_calendar import forecast_calendar
         profile=AdaptiveProfile(**view['profile'])

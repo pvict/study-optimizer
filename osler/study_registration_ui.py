@@ -1,4 +1,7 @@
 """Formulário e confirmação de estudo; persistência e validação pertencem ao serviço/modelo."""
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import uuid
 import streamlit as st
 from .planner_service import today_local
@@ -6,7 +9,6 @@ from .study_models import StudyEntry
 from .topic_picker_ui import pick_topic
 from .study_activity_ui import render_result_feedback
 from .study_errors_ui import render_quick_error
-from .bento import area_slug,AREA_LABELS,eyebrow
 from .balanced_reviews import review_parts
 from .topic_catalog import is_practice_topic
 from .study_components import render_bank_scope
@@ -42,6 +44,12 @@ def _next(action,go_record,go_review):
     else:go_record(action['topic_id'],action['questions'],action['mode'])
 
 
+def _detach_review():
+    """Muda apenas o rascunho; as contagens enviadas pelo formulário permanecem."""
+    st.session_state.pop('study_review_of',None)
+    st.session_state['study_mode']='mistas'
+
+
 def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     if 'study_mode' not in st.session_state:
         previous=[r for r in service.store.active(today_local().isoformat()) if r['entry']['kind']=='bloco']
@@ -54,12 +62,12 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         question_view=service.overview(today_local().isoformat())
         plan=question_view['plan']
         summary=f"Salvo. Hoje: {plan['done_questions']} de {plan['target_questions']}." if plan['target_questions'] else f"Salvo. Hoje: {plan['done_questions']} questões · sem meta de blocos."
-        st.html('<div class="o-record-saved"><strong>'+summary+'</strong><p>Questões registradas no seu dia de estudo.</p></div>')
-        if st.session_state.pop('study_saved_toast',False):st.toast('Resultado salvo.',icon=':material/check_circle:')
+        st.html('<div class="o-record-saved"><strong>'+summary+'</strong></div>')
+        st.session_state.pop('study_saved_toast',False)  # toast central de gravação
         if plan['items']:
             action=first_block_action(plan['items'][0],question_view['date'],question_view['profile']['review_strategy'])
             st.button('Próximo bloco',key='study_next_block',type='primary',on_click=_next,args=(action,go_record,go_review),width='stretch')
-        else:st.caption('Nenhum outro bloco no plano de hoje. Você pode voltar ao plano ou registrar outro estudo.')
+        else:st.caption('Sem outros blocos hoje.')
         st.button('Voltar ao plano',key='study_back_to_plan',type='secondary' if plan['items'] else 'primary',on_click=back_to_plan,width='stretch')
         render_result_feedback(question_view,saved.get('session_id'))
         from .error_cards_service import ErrorCardsService
@@ -73,16 +81,19 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
         render_quick_error(service,saved.get('session_id'))
         st.button('Registrar outro estudo',key='study_another_entry',on_click=go_record,args=(saved['topic_id'],20))
         return
-    topics,_=service.catalog(today_local().isoformat(),include_parents=True)
+    topics=service.registration_catalog(today_local().isoformat())
     if not topics:
-        st.info('Importe um relatório Qbank em Ferramentas para reconhecer os temas. Nenhum indicador por subtema é obrigatório.')
+        st.info('Importe um relatório Qbank em Ferramentas para reconhecer os temas.')
         return
     lookup={t['topic_id']:t for t in topics}
     if st.session_state.get('adaptive_topic') not in lookup:
         st.session_state['adaptive_topic']=next((t['topic_id'] for t in topics if t.get('is_leaf',True)),next(iter(lookup)))
     editing=st.session_state.get('study_edit')
     old=lookup.get(st.session_state.get('adaptive_topic')) if editing else None
-    if old and not is_practice_topic(old):
+    subject=st.container(key='record-subject')
+    if st.session_state.get('study_review_of') and st.session_state.get('adaptive_topic') in lookup:
+        chosen=lookup[st.session_state['adaptive_topic']]
+    elif old and not is_practice_topic(old):
         chosen=old
         st.caption('Corrigindo registro agregado antigo: '+ ' › '.join(old['path'])+'. O caminho será preservado; novos blocos usam temas específicos.')
     elif is_practice_topic(lookup.get(st.session_state.get('adaptive_topic'),{})):
@@ -91,69 +102,102 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
     else: chosen=pick_topic(topics,'record',st.session_state.get('adaptive_topic'))
     if not chosen: return
     selected=chosen['topic_id']
-    slug=area_slug(chosen['path'])
-    st.html(eyebrow(AREA_LABELS[slug],slug))
-    st.subheader(chosen['path'][-1])
-    st.caption(' › '.join(chosen['path'][:-1]))
+    with subject:
+        st.subheader(chosen['path'][-1])
+        if len(chosen['path'])>1:st.caption(' › '.join(chosen['path'][:-1]))
+    if chosen.get('group_members'):
+        st.info('Bloco conjunto. O resultado será guardado nesta categoria, sem atribuir acertos ou domínio a cada filho.')
+        with st.expander('Subtemas deste bloco'):
+            depth=len(chosen['theme_path']) if chosen.get('fragment_group') else len(chosen['path'])
+            for path in chosen['group_member_paths']: st.write(' › '.join(path[depth:]))
     render_bank_scope(chosen,service.store.profile()['profile']['min_block'])
-    if st.session_state.get('study_review_of'): st.info('Revisão vinculada a uma pendência. Só acertos com convicção saem dessa fila; o restante retorna em 7 dias.')
-    kind=st.segmented_control('O que você está registrando?',['bloco','acumulado','contato'],format_func={'bloco':'Um bloco que fiz','acumulado':'Um total acumulado anterior','contato':'Estudei sem fazer questões'}.get,key='study_kind',default='bloco',required=True,width='stretch')
-    with st.expander('Outras formas de registrar'):
+    review_parent=st.session_state.get('study_review_of');review_available=None
+    if review_parent:
+        from .review_queue import review_queue
+        active=service.store.active(today_local().isoformat())
+        review_available=next((r['questions'] for r in review_queue(active) if r['session_id']==review_parent),0)
+        if editing and editing['entry'].get('review_of')==review_parent:review_available+=editing['entry']['questions']
+        st.info(f'Este retorno tem {review_available} questões disponíveis. Registre apenas respostas deste lote.')
+        explain('Se fez outra lista do tema, use “Esta foi uma lista do tema” para manter as contagens sem esse vínculo.')
+    form_section=st.container()
+    alternate=st.session_state.get('study_kind') not in (None,'bloco') or st.session_state.get('study_method')=='percentual'
+    with st.expander('Outras formas de registrar',expanded=alternate):
+        kinds={'bloco':'Bloco de questões','acumulado':'Total acumulado','contato':'Estudo sem questões'}
+        kind=st.segmented_control('Tipo de registro',list(kinds),format_func=kinds.get,key='study_kind',default='bloco',required=True,width='stretch')
         method=st.radio('Como informar o rendimento?',['acertos','percentual'],format_func={'acertos':'Quantidade de acertos','percentual':'Só tenho o percentual aproximado'}.get,horizontal=True,key='study_method') if kind!='contato' else 'acertos'
         if kind=='acumulado': st.caption('Este total ficará separado dos blocos e PDFs para evitar contar o mesmo estudo duas vezes.')
     editing=st.session_state.get('study_edit')
-    if editing or st.session_state.get('study_review_of'): st.button('Registrar outro estudo',on_click=go_record,args=(selected,20))
-    if editing: st.caption('Correção de um lançamento: a versão anterior será preservada.')
-    with st.form('study_entry'):
+    with form_section:
+        if kind!='bloco':st.markdown('**'+kinds[kind]+'**')
+        if editing:st.caption('Correção de um lançamento. A versão anterior será preservada.')
+    with form_section,st.form('study_entry'):
         if kind!='contato':
             fields=st.columns(3 if method=='acertos' else 2)
             left,right=fields[:2]
-            n=left.number_input('Quantas questões você fez?',min_value=1,max_value=1000000,value=20,key='study_n')
-            correct=right.number_input('Quantas acertou?',min_value=0,max_value=1000000,value=None,key='study_correct') if method=='acertos' else None
+            n=left.number_input('Questões feitas',min_value=1,max_value=1000000,value=20,key='study_n')
+            correct=right.number_input('Acertos',min_value=0,max_value=1000000,value=None,key='study_correct') if method=='acertos' else None
             correct_hint=right.empty()
             percent=right.number_input('Percentual aproximado de acerto',min_value=0.,max_value=100.,value=None,key='study_percent') if method=='percentual' else None
-            confident=fields[2].number_input('Desses acertos, quantos foram com convicção?',min_value=0,max_value=1000000,value=None,key='study_confident') if method=='acertos' else None
+            confident=fields[2].number_input('Acertos com convicção',min_value=0,max_value=1000000,value=None,key='study_confident',help='Opcional. Conte apenas as respostas certas em que você teve segurança.') if method=='acertos' else None
             confident_hint=fields[2].empty() if method=='acertos' else None
-            st.caption('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
+            if service.store.profile()['profile'].get('return_mode')=='theme':
+                explain('Acerto por acaso fica fora da convicção. Os resultados orientam a próxima revisão do tema; os lotes de sete dias ficam apenas como referência. Deixe vazio se não souber.')
+            else:
+                explain('Acerto por acaso fica fora da convicção. Erros e chutes retornam para revisão em 7 dias. Deixe vazio se não souber.')
         else: n,correct,percent,confident=0,None,None,None
         cards_created=0
-        if kind=='bloco' and is_practice_topic(chosen):
-            with st.expander('Flashcards criados neste bloco (opcional)'):
-                cards_created=st.number_input('Quantos flashcards de erros você criou?',0,5000,0,key='study_cards_created')
-                st.caption('Conte apenas os cards novos que você criou neste bloco, não os que revisou. Eles entram automaticamente na fila deste tema; a meta diária de cards não muda.')
+        if kind=='bloco' and is_practice_topic(chosen) and not chosen.get('fragment_group'):
+            with st.expander('Flashcards criados (opcional)'):
+                cards_created=st.number_input('Quantos cards você criou?',0,5000,0,key='study_cards_created')
+                st.caption('Somente cards novos deste bloco.')
         with st.expander('Data, modalidade e detalhes'):
             day=st.date_input('Data do estudo ou corte do acumulado',value=today_local(),max_value=today_local(),key='study_date',format='DD/MM/YYYY',help='O dia de estudo vai das 04h até antes das 04h do dia seguinte, no horário de Brasília. Registros anteriores mantêm a data informada.')
             mode=st.selectbox('Essas questões eram',['novas','repetidas','mistas'],format_func={'novas':'Novas para mim','repetidas':'Questões que já fiz antes','mistas':'Mistura ou não sei separar'}.get,key='study_mode') if kind!='contato' else 'mistas'
             duration=st.number_input('Minutos gastos neste estudo',min_value=0.1,max_value=1440.,value=None,key='study_duration')
             last=st.text_input('Último contato conhecido no acumulado (AAAA-MM-DD)',key='study_last_contact') if kind=='acumulado' else None
-        submitted=st.form_submit_button('Salvar resultado e atualizar meu plano',type='primary')
+        result_label='Contato sem questões' if kind=='contato' else f'{correct}/{n} acertos' if correct is not None else f'Acerto aproximado: {percent}%' if percent is not None else 'Acertos não informados'
+        detail=f"Tema: {chosen['path'][-1]} · Data: {day.strftime('%d/%m/%Y') if day else 'não informada'}\n\n{n} questões · {result_label}"
+        if confident is not None:detail+=f' · {confident}/{n} com convicção'
+        if cards_created:detail+=f' · {cards_created} novos flashcards'
+        members=chosen['group_member_paths'] if chosen.get('fragment_group') else []
+        if members:
+            detail+='\n\nSubtemas: '+' · '.join(' › '.join(p[len(chosen['theme_path']):]) for p in members)
+        detail+='\n\nO resultado atualizará o desempenho e as próximas revisões.'
+        review_error=(f'Você informou {n} questões, mas este retorno tem apenas {review_available} disponíveis. Se fez uma lista do tema, escolha “Esta foi uma lista do tema” abaixo. Os valores digitados serão mantidos.'
+                      if review_available is not None and n>review_available else None)
         general_hint=st.empty()
-    if submitted:
-        entry=StudyEntry(lookup[selected]['path'],day.isoformat(),int(n),int(correct) if correct is not None else None,percent,kind,mode,duration,last or None,
-                         confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'),
-                         cards_created=int(cards_created))
-        errors=entry_validation(entry)
-        if errors:
+        entry=StudyEntry(lookup[selected]['path'],day.isoformat() if day else '',int(n),int(correct) if correct is not None else None,percent,kind,mode,duration,last or None,
+                         confident_correct=int(confident) if confident is not None else None,review_of=st.session_state.get('study_review_of'),cards_created=int(cards_created),fragment_members=members)
+        def validate():
+            errors=entry_validation(entry)
+            if review_error and not errors:errors={'general':review_error}
             if 'correct' in errors:correct_hint.error(errors['correct'])
             elif 'confident' in errors:confident_hint.error(errors['confident'])
-            else:general_hint.error(errors['general'])
-            return
+            elif errors:general_hint.error(errors['general'])
+            return not errors
+        submitted=confirm_submit('Salvar resultado e atualizar meu plano',type='primary',action_key='study_registration_ui_129',details=detail,validate=validate)
+        if review_parent and not editing:
+            st.caption('Listas não encerram lotes vinculados.')
+            st.form_submit_button('Esta foi uma lista do tema',key='study_detach_review',on_click=_detach_review)
+    if submitted:
+        if not validate():return
         sid=editing['session_id'] if editing else st.session_state.setdefault('study_entry_id',uuid.uuid4().hex)
-        service.save_entry(entry,sid,editing['version'] if editing else 0)
+        notify_success(service.save_entry(entry,sid,editing['version'] if editing else 0),'Resultado registrado.')
         st.session_state['last_study_mode']=entry.mode
         st.session_state['study_saved']={'topic':chosen['path'][-1],'topic_id':selected,'session_id':sid}
         for key in ['study_edit','study_entry_id','study_correct','study_percent','study_confident','study_review_of','study_cards_created']: st.session_state.pop(key,None)
         st.session_state['study_saved_toast']=True
         st.rerun()
+    if editing or review_parent:st.button('Registrar outro estudo',on_click=go_record,args=(selected,20))
     with st.expander('Importar vários resultados de uma vez'):
         st.write('CSV/TSV de blocos ou acumulados, ou tabela colada. Use id_sessao para identificar cada lançamento; reimportar o mesmo arquivo não duplica o histórico. Acertos e percentual são alternativas.')
         template='id_sessao;tema;data;tipo;modalidade;questoes;acertos;percentual;minutos;ultimo_contato;versao;acertos_conviccao;revisao_de;cards_criados\n'
         st.download_button('Baixar cabeçalho da tabela',template.encode('utf-8-sig'),'resultados_modelo.csv','text/csv')
         upload=st.file_uploader('Resultados CSV ou TSV',type=['csv','tsv'],key='study_upload')
         pasted=st.text_area('Ou cole a tabela de resultados',key='study_paste')
-        if st.button('Importar resultados',disabled=not upload and not pasted.strip()):
+        if confirm_button('Importar resultados',disabled=not upload and not pasted.strip(),action_key='study_registration_ui_154'):
             text=upload.getvalue().decode('utf-8-sig') if upload else pasted
-            count=service.import_text(text)
+            count=notify_success(service.import_text(text),'Importação processada.')
             st.session_state['adaptive_notice']=f'{count} lançamentos processados. Reenvios idênticos foram reconhecidos.'
             st.rerun()
     with st.expander('Corrigir ou desconsiderar um lançamento'):
@@ -164,7 +208,7 @@ def render_registration(service,go_record,go_review,back_to_plan,edit_entry):
             event=by_id[chosen]
             st.caption('Desconsiderar remove a contribuição do cálculo, preservando o histórico.')
             st.button('Editar este lançamento',on_click=edit_entry,args=(event,))
-            if st.button('Desconsiderar este lançamento'):
-                service.store.void(chosen,event['version'])
+            if confirm_button('Desconsiderar este lançamento',action_key='study_registration_ui_167'):
+                notify_success(service.store.void(chosen,event['version']),'Alterações salvas.')
                 st.session_state['adaptive_notice']='Lançamento desconsiderado. O histórico foi preservado.'
                 st.rerun()

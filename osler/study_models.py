@@ -21,6 +21,7 @@ class StudyEntry:
     confident_correct: int | None = None
     review_of: str | None = None
     cards_created: int = 0
+    fragment_members: list[list[str]] = field(default_factory=list)
 
     def validate(self):
         if not isinstance(self.path, list) or not self.path or any(not isinstance(p,str) or not p.strip() for p in self.path):
@@ -55,10 +56,20 @@ class StudyEntry:
             raise ValueError('Último contato não pode ser posterior ao registro.')
         if not isinstance(self.source,str) or not self.source.strip():
             raise ValueError('Informe a origem do registro.')
+        if self.fragment_members:
+            parent=tuple(normalize_path(self.path[:-1]))
+            if not isinstance(self.fragment_members,list) or any(
+                    not isinstance(p,list) or len(p)<=len(parent)
+                    or any(not isinstance(part,str) or not part.strip() for part in p)
+                    or tuple(normalize_path(p))[:len(parent)]!=parent for p in self.fragment_members):
+                raise ValueError('Os subtemas do agrupamento precisam pertencer ao mesmo tema.')
         return self
 
     def to_dict(self):
-        return asdict(self)
+        data=asdict(self)
+        if not self.fragment_members:
+            data.pop('fragment_members')
+        return data
 
 
 @dataclass(frozen=True)
@@ -69,6 +80,7 @@ class AdaptiveProfile:
     minutes_per_question: float = 3
     max_topics: int = 4
     new_share: float = .2
+    minimum_new_share: float = .2
     institution_weights: dict[str,float] = field(default_factory=dict)
     uncertainty_weight: float = .5
     recent_days: int = 90
@@ -84,13 +96,23 @@ class AdaptiveProfile:
     exam_weight_basis: str = ''
     parameter_values: dict = field(default_factory=dict)
     review_strategy: str = 'legacy_v1'
+    return_mode: str = 'linked'
+    grouping_mode: str = 'osler'
+    grouping_paths: list[list[str]] = field(default_factory=list)
 
     @property
     def parameters(self):
-        from .algorithm_parameters import AlgorithmParameters
-        return AlgorithmParameters(**self.parameter_values).validate()
+        from .algorithm_parameters import parameters_from_values
+        return parameters_from_values(self.parameter_values)
 
     def validate(self):
+        if self.grouping_mode not in {'osler','balanced','custom'}: raise ValueError('Modo de agrupamento inválido.')
+        if self.return_mode not in {'linked','theme'}: raise ValueError('Escolha revisões por tema ou com lotes vinculados.')
+        if not isinstance(self.grouping_paths,list) or any(not isinstance(p,list) or len(p)<3 or any(not isinstance(s,str) or not s.strip() for s in p) for p in self.grouping_paths):
+            raise ValueError('Escolha categorias específicas válidas.')
+        paths=[tuple(normalize_path(p)) for p in self.grouping_paths]
+        if len(paths)!=len(set(paths)) or any(a!=b and a==b[:len(a)] for a in paths for b in paths):
+            raise ValueError('Agrupamentos não podem se sobrepor.')
         if not isinstance(self.review_strategy,str) or self.review_strategy not in {'legacy_v1','balanced_v2'}: raise ValueError('Estratégia de revisão inválida.')
         if not isinstance(self.exam_weight_basis,str) or self.exam_weight_basis and (len(self.exam_weight_basis)!=64 or any(c not in '0123456789abcdef' for c in self.exam_weight_basis)):
             raise ValueError('Confirmação de pesos inválida. Refaça a prévia em Minhas provas.')
@@ -108,6 +130,7 @@ class AdaptiveProfile:
         _number(self.max_topics, 'Temas por dia', integer=True, positive=True, maximum=10)
         _number(self.minutes_per_question, 'Minutos por questão', positive=True, maximum=1440)
         _number(self.new_share, 'Reserva para temas novos', maximum=1)
+        _number(self.minimum_new_share, 'Piso de temas novos', maximum=1)
         _number(self.uncertainty_weight, 'Exploração da incerteza', maximum=2)
         _number(self.recent_days, 'Janela recente', positive=True, integer=True, maximum=730)
         _number(self.min_block,'Mínimo por bloco',positive=True,integer=True,maximum=100)
@@ -139,9 +162,11 @@ class StudyDay:
     questions: int = 60
     kind: str = 'normal'
     extra_topics: list[dict] = field(default_factory=list)
+    effective_goal: bool = False
 
     def validate(self):
         _number(self.questions,'Meta diária',integer=True,positive=True,maximum=1000)
+        if type(self.effective_goal) is not bool:raise ValueError('Escolha válida para a meta efetiva do dia.')
         if self.kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
         if not isinstance(self.extra_topics,list): raise ValueError('Revisões adicionais inválidas.')
         seen=set()

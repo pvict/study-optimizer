@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from datetime import date
 from streamlit.testing.v1 import AppTest
@@ -15,29 +16,29 @@ def test_exam_form_three_targets_edit_principal_void_and_sources(tmp_path,monkey
     assert not app.exception
     app.text_input(key='exam_field_institution').set_value('Prova de teste')
     app.number_input(key='exam_field_cutoff').set_value(75.)
-    app.button(key='save_exam').click().run()
+    confirm_action(app.button(key='save_exam').click().run())
     assert app.error and not ExamGoals(repo).active()
     for name,day in [('A',date(2027,10,1)),('B',date(2027,9,1)),('C',date(2027,11,1))]:
         app.text_input(key='exam_field_institution').set_value(name)
         app.date_input(key='exam_field_date').set_value(day)
         app.number_input(key='exam_field_cutoff').set_value(75.)
         app.text_input(key='exam_field_source').set_value('Fonte sintética de teste')
-        app.button(key='save_exam').click().run()
+        confirm_action(app.button(key='save_exam').click().run())
         assert not app.exception and not app.error
     exams=ExamGoals(repo)
     assert len(exams.active())==3
     first=next(e for e in exams.active() if e['target']['institution']=='A')
     app.selectbox(key='exam_primary').set_value(first['target_id'])
-    app.button(key='save_exam_primary').click().run()
+    confirm_action(app.button(key='save_exam_primary').click().run())
     assert not app.exception and StudyStore(repo).profile()['profile']['exam_date']=='2027-10-01'
     app.selectbox(key='exam_selected').set_value(first['target_id']).run()
     app.button(key='edit_exam').click().run()
     app.number_input(key='exam_field_cutoff').set_value(80.)
-    app.button(key='save_exam').click().run()
+    confirm_action(app.button(key='save_exam').click().run())
     assert not app.exception
     assert next(e for e in exams.active() if e['target_id']==first['target_id'])['version']==2
     app.selectbox(key='exam_selected').set_value(first['target_id']).run()
-    app.button(key='void_exam').click().run()
+    confirm_action(app.button(key='void_exam').click().run())
     assert not app.exception and len(exams.active())==2
     assert StudyStore(repo).profile()['profile']['exam_date']=='2027-09-01'
     assert len(exams.events())==5
@@ -53,7 +54,7 @@ def test_empty_exam_date_shows_recoverable_error(tmp_path,monkeypatch,project_ro
     app.number_input(key='exam_field_cutoff').set_value(75.)
     app.text_input(key='exam_field_source').set_value('Documento de teste')
     app.date_input(key='exam_field_date').set_value(None)
-    app.button(key='save_exam').click().run()
+    confirm_action(app.button(key='save_exam').click().run())
     assert not app.exception
     assert app.error and not ExamGoals(repo).active()
 

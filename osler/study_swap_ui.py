@@ -1,4 +1,7 @@
 """Troca pontual com prévia do tema escolhido e da reserva do tema retirado."""
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import streamlit as st
 from .topic_picker_ui import pick_topic,reset_picker
 from .study_allocation import topic_is_new
@@ -19,7 +22,7 @@ def _open(day,topic_id):
 
 def _apply(service,day,source,target,token,mode):
     try:
-        service.swap_topic(day,source,target,token,mode)
+        notify_success(service.swap_topic(day,source,target,token,mode),'Agenda atualizada.')
         st.session_state['adaptive_notice']='Tema trocado. O tema retirado ficou reservado no calendário; seu histórico foi preservado.'
         _close()
     except ValueError as exc:
@@ -29,7 +32,7 @@ def _apply(service,day,source,target,token,mode):
 
 def _undo(service,day,slot,token):
     try:
-        service.undo_swap(day,slot,token)
+        notify_success(service.undo_swap(day,slot,token),'Alterações salvas.')
         st.session_state['adaptive_notice']='Troca desfeita. A reserva criada por ela também foi retirada; os estudos registrados continuam no histórico.'
         _close()
     except ValueError as exc: st.session_state['adaptive_error']=str(exc)
@@ -64,9 +67,9 @@ def render_swap_controls(service,day,item,scope='today',button_container=None):
             st.markdown('**'+chosen['path'][-1]+'**')
             st.caption(' › '.join(chosen['path'][:-1]))
             st.write(_describe(chosen))
-            st.caption('Mesmo tipo de bloco; prioridade igual ou de uma categoria vizinha. Entre essas opções, buscamos a pontuação mais próxima.')
-            st.button('Usar esta sugestão',key=f'swap_suggest_{scope}_{item["topic_id"]}',type='primary',disabled=reservation is None,
-                      on_click=_apply,args=(service,day,item['topic_id'],chosen['topic_id'],options['token'],'recommended'))
+            explain('Mesmo tipo de bloco; prioridade igual ou de uma categoria vizinha. Entre essas opções, buscamos a pontuação mais próxima.')
+            confirm_button('Usar esta sugestão',key=f'swap_suggest_{scope}_{item["topic_id"]}',type='primary',disabled=reservation is None,
+                      on_click=_apply,args=(service,day,item['topic_id'],chosen['topic_id'],options['token'],'recommended'),action_key='study_swap_ui_68')
         else: st.info('Não há outra opção do mesmo tipo e com prioridade semelhante disponível hoje. Você pode escolher manualmente.')
     with manual:
         if not options['manual']: st.info('Nenhum outro tema tem banco suficiente para este bloco fora dos estudos e reservas já existentes.')
@@ -76,8 +79,8 @@ def render_swap_controls(service,day,item,scope='today',button_container=None):
             if topic_is_new(chosen)!=topic_is_new(original): st.caption('Esta escolha muda a divisão entre temas novos e revisões só neste dia.')
             due=chosen.get('theme_review_due')
             if due and due>day: st.caption('Você estará antecipando o contato com este tema.')
-            st.button('Trocar por este tema',key=f'swap_manual_{scope}_{item["topic_id"]}',disabled=reservation is None,
-                      on_click=_apply,args=(service,day,item['topic_id'],chosen['topic_id'],options['token'],'manual'))
+            confirm_button('Trocar por este tema',key=f'swap_manual_{scope}_{item["topic_id"]}',disabled=reservation is None,
+                      on_click=_apply,args=(service,day,item['topic_id'],chosen['topic_id'],options['token'],'manual'),action_key='study_swap_ui_79')
     st.button('Cancelar troca',key=f'swap_cancel_{scope}_{item["topic_id"]}',on_click=_close)
 
 
@@ -90,5 +93,5 @@ def render_swap_history(service,view):
             for row in view['agenda']['rows']:
                 if row.get('swap_return')==swap['slot_id']:
                     st.caption(row['path'][-1]+' · reservado para '+ '/'.join(reversed(row['date'].split('-')))+f" · {row['remaining']} questões")
-            st.button('Desfazer troca',key='swap_undo_'+swap['slot_id'],on_click=_undo,
-                      args=(service,view['date'],swap['slot_id'],service.agenda.token()))
+            confirm_button('Desfazer troca',key='swap_undo_'+swap['slot_id'],on_click=_undo,
+                      args=(service,view['date'],swap['slot_id'],service.agenda.token()),action_key='study_swap_ui_93')

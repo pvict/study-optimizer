@@ -93,7 +93,7 @@ def test_theme_trajectory_keeps_theme_date_and_complement_separate_from_error_lo
     current.update(recommended_questions=5, theme_recommended_questions=22,
                    next_review='2026-10-22', theme_review_due='2026-10-29', review_kind='lot_only')
     roadmap=topic_trajectory(current, AdaptiveProfile(), '2026-10-22')
-    assert roadmap['steps'][0]['questions']==22
+    assert roadmap['steps'][0]['questions']==5
     assert roadmap['steps'][0]['date']=='2026-10-29'
     assert roadmap['complement_per_block']==17
     from osler.topic_trajectory import trajectory_summary

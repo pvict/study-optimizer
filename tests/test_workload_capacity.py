@@ -7,7 +7,9 @@ from osler.study_calendar import forecast_calendar
 from test_initial_review_policy import imported
 
 
-def profile(**kwargs): return AdaptiveProfile(workload_mode='adaptive',**kwargs)
+# Estes cenários isolam o controle de admissões SEM piso obrigatório de novos.
+# O piso padrão é verificado em test_new_floor_and_missed_practice.py.
+def profile(**kwargs): return AdaptiveProfile(workload_mode='adaptive',minimum_new_share=0,**kwargs)
 
 
 def test_due_reviews_reduce_new_quota_without_raising_daily_load():
@@ -98,7 +100,7 @@ def test_admission_accounts_for_future_rest_and_smaller_daily_target():
 def test_small_linked_lot_cannot_postpone_due_whole_theme():
     from test_confidence import event
     from test_adaptive_planning import topic
-    events=[event('first','2026-10-01',5,0,0)]
+    events=[event('first','2026-10-01',10,5,5)]
     before=topic_states([topic()],events,[],{},'2026-10-08',profile())[0]
     after=topic_states([topic()],events+[event('lot','2026-10-08',5,5,5,'first')],[],{},'2026-10-08',profile())[0]
     assert after['last_contact']=='2026-10-08'

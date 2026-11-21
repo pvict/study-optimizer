@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 
@@ -19,19 +20,20 @@ def test_today_uses_question_goal_without_time_widget_and_persists_extra(tmp_pat
     assert {'nav_today','nav_flashcards','nav_files'} <= {b.key for b in app.button}
     assert {'nav_today','nav_calendar','nav_evolution','nav_topics','nav_register','nav_settings'} <= {b.key for b in app.button}
     assert not any('tempo total' in s.label.lower() for s in app.select_slider)
-    assert any('0 de 60 questões registradas' in h.value for h in app.get('html'))
+    assert any('0 de 60 questões' in m.value for m in app.markdown)
     app.number_input(key='day_questions').set_value(40)
-    next(b for b in app.button if b.label=='Atualizar meta de hoje').click().run()
+    app.button(key='today_goal_preview').click().run()
+    confirm_action(app.button(key='today_goal_apply').click().run())
     assert not app.exception
     assert AdaptiveService(repo).overview('2026-10-15')['plan']['target_questions']==40
     selected=max(AdaptiveService(repo).overview('2026-10-15')['states'],key=lambda t:t['total'])
     app.text_input(key='extra_search').set_value(selected['path'][-1]).run()
     field=next(n for n in app.number_input if n.key.startswith('extra_count_'))
     field.set_value(5).run()
-    next(b for b in app.button if b.label=='Adicionar ao meu dia').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Adicionar ao meu dia').click().run())
     assert not app.exception
     assert AdaptiveService(repo).overview('2026-10-15')['plan']['target_questions']==45
-    assert any('Adicionado por você' in c.value for c in app.caption)
+    assert any('questões extras para hoje' in c.value for c in app.caption)
 
 
 def test_topic_table_has_real_period_controls_and_export(tmp_path,monkeypatch,project_root,sample_pdf):

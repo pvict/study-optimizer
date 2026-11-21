@@ -1,4 +1,6 @@
 """Um roteiro de estudo em linguagem cotidiana, sem formulário por assunto."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date
 import sqlite3
 
@@ -22,8 +24,7 @@ def _open_reduction():
 def render_today(repo):
     service = GuideService(repo)
     settings = service.settings()["settings"]
-    st.title("Vamos cuidar do estudo de hoje")
-    st.write("Questões primeiro. Entenda os erros. Use flashcards em uma revisão curta.")
+    st.title("Estudo de hoje")
     if "guide_notice" in st.session_state:
         st.success(st.session_state.pop("guide_notice"))
     left, right = st.columns([1.2, 1])
@@ -34,8 +35,8 @@ def render_today(repo):
     result = service.guide(today_local().isoformat(), minutes, kind)
     if kind == "descanso":
         st.info("Hoje é descanso. Amanhã o roteiro recomeça, sem acrescentar uma dívida ao seu dia.")
-        if st.button("Registrar meu descanso"):
-            service.save_day(result["date"], "descanso", [])
+        if confirm_button("Registrar meu descanso",action_key='guided_ui_37'):
+            notify_success(service.save_day(result["date"], "descanso", []),'Alterações salvas.')
             st.session_state["guide_notice"] = "Descanso registrado. Seu próximo dia continua leve."
             st.rerun()
         return
@@ -76,11 +77,11 @@ def render_today(repo):
     with st.expander("Quer registrar como foi o assunto? É opcional"):
         feedback = st.selectbox("Como você se sentiu nas questões?", ["nao_registrei", "dificil", "tranquilo"], format_func={"nao_registrei": "Prefiro não registrar", "dificil": "Ainda estou errando ou ficando em dúvida", "tranquilo": "Consegui explicar bem as respostas"}.get, key="guide_feedback")
     c1, c2 = st.columns(2)
-    done = c1.button("Terminei por hoje", type="primary")
-    partial = c2.button("Consegui fazer uma parte")
+    done = confirm_button("Terminei por hoje", type="primary",action_key='guided_ui_79',container=c1)
+    partial = confirm_button("Consegui fazer uma parte",action_key='guided_ui_80',container=c2)
     if done or partial:
         try:
-            service.save_day(result["date"], "feito" if done else "parcial", focus["path"] if focus else [], feedback)
+            notify_success(service.save_day(result["date"], "feito" if done else "parcial", focus["path"] if focus else [], feedback),'Alterações salvas.')
             st.session_state["guide_notice"] = "Dia registrado. Amanhã você recebe um novo ponto de partida, sem compensações automáticas."
             st.rerun()
         except (ValueError, sqlite3.Error) as exc:
@@ -92,7 +93,7 @@ def render_today(repo):
 def render_path(repo):
     service = GuideService(repo)
     result = service.guide(today_local().isoformat())
-    st.title("Seu caminho até novembro de 2027")
+    st.title("Roteiro de estudo")
     st.write("A ideia é ganhar desempenho nas provas sem transformar a revisão em um segundo trabalho.")
     if result["settings"]["institutions"]:
         st.text("Provas em foco: " + ", ".join(result["settings"]["institutions"]))
@@ -108,7 +109,7 @@ def render_path(repo):
             st.caption(f"{a:%d/%m/%Y} a {b:%d/%m/%Y}")
             st.write(phase["action"])
     st.caption("As fases são um roteiro inicial. As datas serão ajustadas quando houver o calendário oficial das suas provas; não são datas de edital nem garantia de aprovação.")
-    st.subheader("O que vale conferir nesta semana")
+    st.subheader("Revisão da semana")
     st.write("• Você conseguiu fazer questões com correção?\n\n• Quais erros apareceram de novo?\n\n• Os flashcards couberam no tempo curto reservado?\n\n• Há espaço para um bloco de prova anterior?")
     days = service.days()
     if days:

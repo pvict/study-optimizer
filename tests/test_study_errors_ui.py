@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
@@ -28,7 +29,7 @@ render_errors(service)
     assert not ErrorStore(repo).active('2026-10-15')
     assert any('opcional' in e.label.lower() for e in app.expander)
     app.text_input(key='quick_error_test-block_0_note').set_value('Rever o conceito que faltou')
-    app.button(key='quick_error_test-block_0_save').click().run()
+    confirm_action(app.button(key='quick_error_test-block_0_save').click().run())
     assert not app.exception and not app.error
     rows = ErrorStore(repo).active('2026-10-15')
     assert len(rows) == 1 and rows[0]['source_session_id'] == 'test-block'
@@ -36,7 +37,7 @@ render_errors(service)
     app.run()
     assert len(ErrorStore(repo).active('2026-10-15')) == 1
     assert any('1 erro aberto' in c.value for c in app.caption)
-    app.button(key='resolve_error_' + rows[0]['error_key']).click().run()
+    confirm_action(app.button(key='resolve_error_' + rows[0]['error_key']).click().run())
     assert not app.exception and not ErrorStore(repo).active('2026-10-15')
     assert ErrorStore(repo).events()[-1]['action'] == 'resolve'
 
@@ -57,6 +58,6 @@ render_errors(AdaptiveService(Repository(Path({str(tmp_path)!r}))))
     assert not app.exception
     store.save(StudyError(['Área', 'Tema'], '2026-10-15', 'chute', note='Atualizado'),
                error_key=saved['error_key'], expected_version=1)
-    app.button(key='resolve_error_' + saved['error_key']).click().run()
+    confirm_action(app.button(key='resolve_error_' + saved['error_key']).click().run())
     assert not app.exception and app.error
     assert store.active('2026-10-15')[0]['note'] == 'Atualizado'

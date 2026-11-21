@@ -1,4 +1,7 @@
 """Calendário em cards semanais/mensais e detalhe do dia, com previsão identificada."""
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success,preserve_drafts
+
 import calendar
 from datetime import timedelta,date
 from html import escape
@@ -81,6 +84,10 @@ def _day_summary(day,plan,context,today):
     if plan is None:
         st.caption('Fora do período disponível')
         return
+    if plan.get('routine_override',{}).get('mode')=='external_day':
+        external=plan['routine_override']
+        st.caption(f"Revisões na Osler · limite de {external['external_target']} questões · {external['external_done']} informadas como feitas")
+        return
     if plan.get('routine_override',{}).get('mode')=='mock_reserved':
         done=day.isoformat() in context.get('mock_result_days',set())
         st.caption('Simulado realizado' if done else 'Simulado programado')
@@ -92,6 +99,7 @@ def _day_summary(day,plan,context,today):
         st.caption('Antes do início · sem meta')
         return
     for task in plan.get('area_tasks',[]):
+        if task.get('recovery'):st.warning('Treino atrasado desde '+ '/'.join(reversed(task['missed_date'].split('-')))+' · recuperação nesta data.')
         st.caption('Treino por área · '+task['institution']+' · '+task['area']+f" · {task['questions']} questões"+(' · realizado' if task['completed'] else ''))
     if plan.get('historical'):
         done=plan.get('done_questions')
@@ -115,10 +123,19 @@ def _date_button(day,plan,selected):
 
 
 def render_calendar(service,go_record,go_review=None):
+    if not st.session_state.get('calendar_schedule_open'):
+        preserve_drafts('mock_schedule_first','mock_schedule_interval','mock_occurrence','mock_occurrence_date')
+    if not st.session_state.get('calendar_reorganize_open'):
+        preserve_drafts('replan_mode','replan_start','replan_days','replan_extra','replan_all',prefixes=('replan_topics_',))
+    if not st.session_state.get('calendar_management_open'):
+        preserve_drafts('prevention_enabled','prevention_start','prevention_days','prevention_mode','prevention_extra',
+                        'prevention_all','final_exam','final_start','final_questions',prefixes=('prevention_topics_',))
     today=today_local()
     start_date=service.store.profile()['profile'].get('start_date')
-    service.remember_day(service.overview(today.isoformat()))
-    context=service.replanning()
+    today_view=service.overview(today.isoformat())
+    service.remember_day(today_view)
+    if today_view['planning_token']!=service.agenda.token():today_view=service.overview(today.isoformat())
+    context=service.replanning(view=today_view)
     context['mock_result_days']=service.recorded_mock_days()
     context['exam_dates']=service.exam_dates()
     context['correction_days']=service.exam_learning_agenda()
@@ -136,12 +153,14 @@ def render_calendar(service,go_record,go_review=None):
         reference=picker.date_input('Ir para uma data',min_value=minimum,max_value=maximum,key='calendar_reference',on_change=_reference_changed,format='DD/MM/YYYY')
     with st.container(key='bento-calendar-replanning'):
         count=len(context['backlog'])
-        label=f'{count} '+('tema pede nova data' if count==1 else 'temas pedem nova data')
-        with st.expander('Reorganizar · '+label):
-            if count:st.caption('Temas atrasados nesta agenda podem receber novas datas. A prévia não altera seus resultados.')
-            render_replanning(service,context)
+        label=f'{count} '+('tema atrasado' if count==1 else 'temas atrasados')
+        reorganize=st.expander('Reorganizar · '+label,key='calendar_reorganize_open',on_change='rerun')
+        if reorganize.open:
+            with reorganize:
+                if count:st.caption('Temas atrasados nesta agenda podem receber novas datas. A prévia não altera seus resultados.')
+                render_replanning(service,context)
     end=min(today+timedelta(days=547),reference.replace(day=calendar.monthrange(reference.year,reference.month)[1])+timedelta(days=7))
-    plans=service.calendar(max(1,(end-today).days+1))
+    plans=service.calendar(max(1,(end-today).days+1),view=context['view'])
     by_date={p['date']:p for p in plans}
     by_date.update(past_calendar(context['view']['planning_states'],context['view']['sessions'],service.agenda.daily_plans(),(today-timedelta(days=96)).isoformat(),today.isoformat(),context['backlog']))
     from .exam_practice import decorate_practice_plan
@@ -151,7 +170,7 @@ def render_calendar(service,go_record,go_review=None):
         if key in by_date:
             by_date[key]['routine_override']=override
     days=[reference-timedelta(days=reference.weekday())+timedelta(days=i) for i in range(7)] if mode!='Mês' else list(calendar.Calendar().itermonthdates(reference.year,reference.month))
-    st.caption('Escolha um dia para ver os blocos. Previsões mudam com seus resultados.')
+    explain('Escolha um dia para ver os blocos. Previsões mudam com seus resultados.')
     render_exam_dates(service,days[0].isoformat(),days[-1].isoformat())
     selected=st.session_state.get('calendar_selected',reference.isoformat())
     if selected not in by_date: selected=reference.isoformat()
@@ -178,9 +197,12 @@ def render_calendar(service,go_record,go_review=None):
         else:st.info('Fora do período disponível. Escolha outra data no calendário.')
         from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,context['view'],selected)
-    with st.expander('Programar ou mudar datas dos simulados'):
-        render_mock_schedule(service)
-    with st.expander('Mais opções do calendário',expanded=bool(st.session_state.get('prevention_enabled'))),st.container(key='calendar_management'):
+    schedule=st.expander('Programar ou mudar datas dos simulados',key='calendar_schedule_open',on_change='rerun')
+    if schedule.open:
+        with schedule:render_mock_schedule(service)
+    management=st.expander('Mais opções do calendário',key='calendar_management_open',on_change='rerun')
+    if management.open:
+      with management,st.container(key='calendar_management'):
         if start_date:st.caption('Início do cronograma: '+ '/'.join(reversed(start_date.split('-'))))
         st.caption('As revisões seguintes serão recalculadas com seus resultados; retornos de questões já registrados continuam na agenda.')
         if any(t.get('review_committed') is False for t in context['view']['planning_states']):
@@ -198,8 +220,11 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         if correction['date']==selected:
             st.info('Correção de '+correction['name']+'. '+('Informe os temas errados na aba Simulados → Correção para distribuir a prática.' if correction['needs_details'] else 'Os temas de reforço usam parte da meta normal deste dia.'))
     for task in plan.get('area_tasks',[]):
+        if task.get('recovery'):st.warning('Treino atrasado desde '+ '/'.join(reversed(task['missed_date'].split('-')))+' · recuperado nesta data.')
         st.info(task['institution']+' · '+task['area']+f" · treino de {task['questions']} questões dentro da meta diária. Registre o resultado em Simulados → Treinos por área.")
     override=plan.get('routine_override',{})
+    if override.get('recovery_reserved'):
+        st.info(f"{override['recovery_reserved']} revisões de questões na Osler · apenas quantidade · já reservadas dentro do total de {override['recovery_limit']} questões.")
     if override.get('mode')=='mock_day': st.success(f"Dia feito por simulado · {override['mock_questions']} questões, separadas dos blocos.")
     elif override.get('mode')=='mock_reserved':
         recorded=selected in service.recorded_mock_days()
@@ -209,7 +234,7 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         if moved:
             import pandas as pd
             st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Nova data prevista':r['after_date'] or 'Sem vaga no horizonte da prévia'} for r in moved]),hide_index=True,width='stretch')
-            st.caption('Fotografia da prévia aplicada. As datas atuais dos próximos blocos acompanham seus resultados e ajustes de rotina.')
+            explain('Fotografia da prévia aplicada. As datas atuais dos próximos blocos acompanham seus resultados e ajustes de rotina.')
         return
     elif override.get('mode')=='final_rest': st.info('Véspera da prova · descanso reservado.')
     elif override.get('mode')=='final_review': st.caption('Programação temporária de revisão final.')
@@ -223,7 +248,7 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         for row in plan.get('delayed_topics',[]): st.warning(row['path'][-1]+f" · {row['days_late']} dias de atraso · abra Reorganizar acima para mudar a data.")
         return
     if selected>today.isoformat() and plan.get('forecast_mode')=='next_contact':
-        st.caption('Datas e quantidades previstas para o próximo bloco de cada tema. Os encontros seguintes dependem do resultado; não são compromissos repetidos automaticamente.')
+        explain('Datas e quantidades previstas para o próximo bloco de cada tema. Os encontros seguintes dependem do resultado; não são compromissos repetidos automaticamente.')
         st.caption(f"Meta deste dia: {plan['target_questions']} questões. A previsão parcial não reduz sua meta; o plano será recalculado após os próximos resultados.")
     if selected>today.isoformat() and plan.get('backlog_items'):
         import pandas as pd
@@ -273,14 +298,6 @@ def _render_selected_day(service,go_record,go_review,today,start_date,selected,p
         render_completions(service,current_view)
     if not plan['items']:
         st.info('Descanso programado.' if plan['kind']=='descanso' else 'Os blocos deste dia serão recalculados após os próximos resultados. A ausência de uma previsão não significa que o dia esteja livre.' if plan.get('forecast_mode')=='next_contact' and selected>today.isoformat() else 'Dia sem blocos previstos. Pode ser descanso ou intervalo entre revisões.')
-    snapshot=st.session_state.setdefault('calendar_snapshot_'+selected,service.store.day(selected,service.store.profile()['profile']['max_questions']))
     with st.expander('Programar quantidade ou descanso deste dia'):
-        with st.form('calendar_day_'+selected):
-            q=st.number_input('Meta de questões',1,1000,snapshot['settings']['questions'],key='calendar_goal_'+selected)
-            rest=st.checkbox('Descanso',value=snapshot['settings']['kind']=='descanso',key='calendar_rest_'+selected)
-            save=st.form_submit_button('Salvar programação')
-        if save:
-            service.configure_day(selected,int(q),'descanso' if rest else 'normal',snapshot['revision'])
-            st.session_state.pop('calendar_snapshot_'+selected,None)
-            st.success('Programação salva. O calendário será recalculado.')
-            st.rerun()
+        from .day_goal_ui import render_day_goal
+        render_day_goal(service,{**current_view,'plan':plan},selected,prefix='calendar')

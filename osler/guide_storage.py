@@ -37,10 +37,17 @@ class GuideStore:
                 raise ValueError("Seu plano foi atualizado em outra tela. Reabra para salvar.")
             return db.execute("INSERT INTO guide_settings(payload,created_at) VALUES(?,?)", (json.dumps(settings.to_dict(), ensure_ascii=False), utc_now())).lastrowid
 
-    def _append(self, table, payload):
+    def _append(self, table, payload, expected_token=None):
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, allow_nan=False)
         digest = hashlib.sha256(encoded.encode()).hexdigest()
         with self.repository._connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT id FROM incidence_datasets WHERE digest=?', (digest,)).fetchone()
+            if existing: return existing[0]
+            if expected_token is not None:
+                from .study_agenda import planning_token
+                if planning_token(db) != expected_token:
+                    raise ValueError('O plano mudou. Atualize a prévia antes de importar.')
             db.execute("INSERT OR IGNORE INTO incidence_datasets(payload,digest,created_at) VALUES(?,?,?)", (encoded, digest, utc_now()))
             return db.execute(f"SELECT id FROM {table} WHERE digest=?", (digest,)).fetchone()[0]
 
@@ -55,8 +62,8 @@ class GuideStore:
             digest = hashlib.sha256(f"{previous['id'] if previous else 0}:{encoded}".encode()).hexdigest()
             return db.execute("INSERT INTO guide_days(day,payload,digest,created_at) VALUES(?,?,?,?)", (payload["day"], encoded, digest, utc_now())).lastrowid
 
-    def save_dataset(self, payload):
-        return self._append("incidence_datasets", payload)
+    def save_dataset(self, payload, *, expected_token=None):
+        return self._append("incidence_datasets", payload, expected_token)
 
     def datasets(self):
         with self.repository._connection() as db:

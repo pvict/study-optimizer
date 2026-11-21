@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from test_assessments import setup_assessment
@@ -27,9 +28,10 @@ def test_calendar_global_summary_activation_and_fixed_mode_control(tmp_path,samp
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=90).run()
     open_view(app,adaptive='Calendário')
+    app.session_state['calendar_management_open']=True;app.run()
     assert not app.exception
     assert any('Equilíbrio dos próximos' in e.value for e in app.subheader)
-    app.button(key='activate_capacity').click().run()
+    confirm_action(app.button(key='activate_capacity').click().run())
     assert not app.exception
     assert AdaptiveService(repo).store.profile()['profile']['workload_mode']=='adaptive'
     assert any('Ajuste automático ativo' in e.value for e in app.caption)

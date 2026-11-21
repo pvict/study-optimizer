@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from datetime import date, datetime
 
 import pytest
@@ -50,7 +51,7 @@ _register(st.session_state.service)
     assert service.overview(clock.today_local().isoformat())['plan']['done_questions']==5
     app.number_input(key='study_n').set_value(5)
     app.number_input(key='study_correct').set_value(4)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     assert service.overview('2026-10-15')['plan']['done_questions']==10
     freeze_time(monkeypatch,'2026-10-16T04:00:00-03:00')

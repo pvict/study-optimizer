@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from datetime import date
 from streamlit.testing.v1 import AppTest
@@ -18,10 +19,10 @@ def test_open_orange_day_compare_apply_and_undo_prevention(tmp_path,monkeypatch,
     app.button(key='compare_prevention').click().run()
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert any('Após redistribuir' in str(f.value.columns) for f in app.dataframe)
-    app.button(key='apply_prevention').click().run()
+    confirm_action(app.button(key='apply_prevention').click().run())
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert service.replanning()['policies']
-    app.button(key='undo_prevention').click().run()
+    confirm_action(app.button(key='undo_prevention').click().run())
     assert not app.exception and not app.error,[e.value for e in app.error]
     assert not service.replanning()['policies']
     assert len(service.store.active('2026-10-15'))==1
@@ -33,6 +34,7 @@ def test_preventive_panel_handles_no_forecast_risk(tmp_path,monkeypatch,project_
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     open_view(app,adaptive='Calendário')
+    app.session_state['calendar_management_open']=True;app.run()
     app.toggle(key='prevention_enabled').set_value(True).run()
     assert not app.exception
     assert any('nenhuma pendência prevista' in i.value.lower() for i in app.info)

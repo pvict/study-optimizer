@@ -5,36 +5,56 @@ from datetime import timedelta
 from .models import normalize_path
 from .planning import _date
 from .planner_snapshot import planner_supply
+from .study_allocation import explicit_recovery,fits_recovery_bank,has_small_bank,recovery_uses_total_capacity
 
 MODES={'balanced':'Distribuir na carga atual','reviews':'Priorizar revisões por alguns dias',
        'extra':'Acrescentar questões temporariamente','custom':'Escolher datas por tema'}
 
 
-def collect_backlog(states,sessions,saved,as_of,start_date=None):
+def collect_backlog(states,sessions,saved,as_of,start_date=None,completions=()):
     if start_date and as_of<=start_date: return []
     latest={}
+    latest_ids={}
     for r in saved:
-        if r['plan']['date']<as_of and (not start_date or r['plan']['date']>=start_date): latest[r['plan']['date']]=r['plan']
+        if r['plan']['date']<as_of and (not start_date or r['plan']['date']>=start_date):
+            latest[r['plan']['date']]=r['plan'];latest_ids[r['plan']['date']]=r.get('id',0)
     done=defaultdict(int)
+    first_contacts={}
     for s in sessions:
         e=s['entry']
-        if e['kind']=='bloco': done[(e['day'],tuple(normalize_path(e['path'])))]+=e['questions']
+        key=tuple(normalize_path(e['path']))
+        if e['kind']=='bloco': done[(e['day'],key)]+=e['questions']
+        if e['kind']!='acumulado':
+            first_contacts[key]=min(first_contacts.get(key,e['day']),e['day'])
+        if e.get('last_contact'):
+            first_contacts[key]=min(first_contacts.get(key,e['last_contact']),e['last_contact'])
     missed=defaultdict(list)
     covered_days=defaultdict(list)
     by_path={tuple(normalize_path(t['path'])):t for t in states}
+    for key,state in by_path.items():
+        contact=state.get('first_contact') or state.get('last_contact')
+        if contact:
+            first_contacts[key]=min(first_contacts.get(key,contact),contact)
     for day,plan in latest.items():
         for t in plan['items']:
             key=tuple(normalize_path(t['path']))
+            state=by_path.get(key)
+            if state is None or has_small_bank(state) or key not in first_contacts or first_contacts[key]>day:
+                continue
             captured=t.get('planner_supply')
-            supply=captured or planner_supply(by_path.get(key,{}),t['questions'],done[(day,key)],day)
+            supply=captured or planner_supply(state,t['questions'],done[(day,key)],day)
             # O complemento externo segue recomendado; indisponibilidade não é atraso do aluno.
             left=max(0,min(t['questions'],supply['planner_total'])-done[(day,key)]) if supply else max(0,t['questions']-done[(day,key)])
             if captured and captured['external_part'] and not left: covered_days[key].append(day)
             if left: missed[key].append((day,left))
     result=[]
     for state in states:
+        if has_small_bank(state): continue
         key=tuple(normalize_path(state['path']))
         failures=missed[key]
+        closure=max((r for r in completions if r.get('manual_partial') and tuple(normalize_path(r['path']))==key),key=lambda r:(r['day'],r['id']),default=None)
+        closed=closure['day'] if closure else None
+        if closed:failures=[(d,n) for d,n in failures if d>closed or d==closed and latest_ids.get(d,0)>closure['id']]
         # Um encontro útil posterior recupera planos anteriores; não acumular dívida de repetições.
         recovered=max(state.get('spacing',{}).get('block_days',[])+covered_days[key],default=None)
         required=max(state['recommended_questions'],max((n for day,n in failures),default=0))
@@ -47,6 +67,8 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None):
         due=due if due and due<as_of else None
         if failures: due=min([d for d,n in failures]+([due] if due else []))
         if not due: continue
+        if state.get('return_not_before'): due=max(due,state['return_not_before'])
+        if closed and due<=closed and not failures:due=(_date(closed)+timedelta(days=1)).isoformat()
         if start_date: due=max(due,start_date)
         if due>=as_of: continue
         late=(_date(as_of)-_date(due)).days
@@ -60,17 +82,32 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None):
     return sorted(result,key=lambda r:(-r['risk'],-r['importance'],r['original_due'],r['path']))
 
 
+def recovery_theme_capacity(config,override):
+    if 'recovery_limit' not in override or config.get('effective_goal'):
+        return None
+    return max(0,min(config['questions'],override['recovery_limit'])
+               -override.get('recovery_reserved',0)-override.get('area_reserved',0))
+
+
 def effective_routine(profile,config,override):
     from .final_review import special_config
     config=special_config(config,override)
     q=config['questions']
+    if config.get('effective_goal'):
+        q=max(0,q-sum(e['questions'] for e in config.get('extra_topics',[])))
+    if 'recovery_limit' in override:
+        q=max(0,(q if config.get('effective_goal') else min(q,override['recovery_limit']))-override.get('recovery_reserved',0))
+        if not config.get('effective_goal'):
+            q=max(0,q-sum(e['questions'] for e in config.get('extra_topics',[])))
+    if override.get('mode')=='external_day': return profile,0
     if override.get('mode')=='extra':
-        total=min(1000,q+override['extra_questions'])
+        total=q if 'recovery_limit' in override or config.get('effective_goal') else min(1000,q+override['extra_questions'])
+        if not total:return profile,0
         return replace(profile,new_share=q*profile.new_share/total),max(0,total-override.get('area_reserved',0))
     return (replace(profile,new_share=0) if override.get('mode') in {'reviews','final_review'} else profile),max(0,q-override.get('area_reserved',0))
 
 
-def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None):
+def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_questions=20,dates=None,usage=None,previous_overrides=None,blocked_topics=None):
     if mode not in MODES or type(days) is not int or not 1<=days<=90: raise ValueError('Escolha opção e período de1 a90dias.')
     if type(extra_questions) is not int or not 0<=extra_questions<=300: raise ValueError('Adicional deve estar entre0 e300questões.')
     if start>profile.exam_date: raise ValueError('O início deve ser anterior à prova.')
@@ -83,28 +120,34 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         if day>profile.exam_date: break
         config=settings.get(day,{'questions':profile.max_questions,'kind':'normal','extra_topics':[]})
         prior=(previous_overrides or {}).get(day,{})
-        protected=prior.get('mode') in {'final_review','final_rest','mock_day','mock_reserved'}
-        over=prior if protected else {'mode':mode,'extra_questions':extra_questions} if mode in {'reviews','extra'} else prior
-        if not protected and config['kind']!='descanso' and mode in {'reviews','extra'}: overrides[day]=over
+        protected=prior.get('mode') in {'final_review','final_rest','mock_day','mock_reserved','external_day'}
+        change={'mode':mode,'extra_questions':extra_questions}
+        over=prior if protected or mode not in {'reviews','extra'} else {**prior,**change}
+        # Reservas derivadas afetam a capacidade, mas não devem ser congeladas
+        # no evento: o saldo externo/treinos será recalculado a cada consulta.
+        if not protected and config['kind']!='descanso' and mode in {'reviews','extra'}: overrides[day]=change
         p,q=effective_routine(profile,config,over)
         done=(usage or {}).get(day,{})
         capacity[day]={'new':max(0,round(q*p.new_share)-done.get('new',0)),
                        'reviews':max(0,q-round(q*p.new_share)-done.get('reviews',0)),
                        'total':max(0,q-done.get('total',0)), 'slots':max(0,p.max_topics-done.get('slots',0)),'rest':config['kind']=='descanso' or protected}
     for row in sorted(existing,key=lambda r:r['date']):
+        if not fits_recovery_bank(row,row,profile.min_block): continue
         left=row['remaining']
         group='new' if row.get('new_topic') else 'reviews'
         for day,c in capacity.items():
-            if day<row['date'] or c['rest'] or c['slots']<=0: continue
-            q=min(left,c[group],c['total'])
-            if q:
-                c[group]-=q; c['total']-=q; c['slots']-=1; left-=q
+            if day<row['date'] or c['rest'] or c['slots']<=0 or row['topic_id'] in (blocked_topics or {}).get(day,()): continue
+            available=c['total'] if recovery_uses_total_capacity(row,profile,group) else c[group]
+            q=min(left,available,c['total'])
+            if q and (explicit_recovery(row) or q>=min(profile.min_block,c['total'])):
+                c[group]=max(0,c[group]-q); c['total']-=q; c['slots']-=1; left-=q
             if not left: break
     for row in backlog:
+        if has_small_bank(row,profile.min_block): continue
         group='new' if row.get('is_new_for_day') else 'reviews'
         q=row['questions']
         candidates=[dates.get(row['topic_id'])] if mode=='custom' and dates else list(capacity)
-        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q),None)
+        chosen=next((d for d in candidates if d in capacity and not capacity[d]['rest'] and row['topic_id'] not in (blocked_topics or {}).get(d,()) and capacity[d]['slots']>0 and capacity[d][group]>=q and capacity[d]['total']>=q>=min(profile.min_block,capacity[d]['total']) and q>0),None)
         if not chosen:
             unassigned.append({'topic_id':row['topic_id'],'path':row['path'],'questions':q,'reason':'Sem vaga com a cota, datas, descanso e limites escolhidos.'})
             continue
@@ -112,6 +155,22 @@ def preview_replan(backlog,profile,start,days,mode,settings,existing,extra_quest
         output.append({'topic_id':row['topic_id'],'path':row['path'],'date':chosen,'original_due':row['original_due'],
                        'questions':q,'new_topic':group=='new','days_late':row['days_late']})
     return {'rows':output,'unassigned':unassigned,'overrides':overrides,'start':start,'days':days,'mode':mode,'extra_questions':extra_questions,'dates':dates or {}}
+
+
+def backlog_schedule(backlog,bookings,as_of):
+    """Datas reais por tema; atraso de estudo e reserva são estados distintos."""
+    dates=defaultdict(set)
+    for row in bookings:
+        if row.get('remaining',0)>0 and row.get('date'):
+            dates[row['topic_id']].add(row['date'])
+    output=[]
+    for row in backlog:
+        known=dates[row['topic_id']]
+        current=sorted(d for d in known if d>=as_of)
+        chosen=current[0] if current else max(known,default=None)
+        status=('Hoje' if chosen==as_of else 'Agendado') if current else ('Data vencida' if chosen else 'Sem nova data')
+        output.append({**row,'recovery_date':chosen,'recovery_current':bool(current),'recovery_status':status})
+    return output
 
 
 def past_calendar(states,sessions,saved,start,as_of,backlog):

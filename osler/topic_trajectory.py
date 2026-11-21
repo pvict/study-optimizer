@@ -6,6 +6,10 @@ from math import ceil
 from .planning import _date
 
 
+MAX_BANK_CYCLES=3
+BANK_CYCLES_NOTE='Banco pequeno: repetir o mesmo conjunto não mede aprendizado novo.'
+
+
 def question_dose(state,profile,entries=(),as_of=None):
     """Política inicial explícita: necessidade + incerteza + relevância, não dose clínica validada."""
     if profile.review_strategy=='balanced_v2':
@@ -67,7 +71,8 @@ def question_dose(state,profile,entries=(),as_of=None):
     h=state.get('incidence_strength',0)
     desired=max(profile.min_block,ceil(profile.min_block+params.gap_dose*gap+params.uncertainty_dose*uncertainty+params.incidence_dose*h))
     reliable_initial=bool(initial and snapshot and snapshot['unique_questions']>=params.sufficient_sample and rate>=target)
-    if not state['spacing']['block_days'] and not reliable_initial: desired=max(desired,params.diagnostic_dose,profile.min_block)
+    if not state['spacing']['block_days'] and not reliable_initial and not state.get('theme_continuation'):
+        desired=max(desired,params.diagnostic_dose,profile.min_block)
     stale=bool(as_of and latest_day and (_date(as_of)-_date(latest_day)).days>evidence_window)
     adverse=bool(state.get('manual_adverse') or state.get('registered_error') or state.get('alert_signal') or
                  latest_rate is not None and latest_rate<target or p['exact_n']>=5 and rate<target)
@@ -89,6 +94,8 @@ def next_stage(state,as_of=None):
     days=state['spacing']['block_days']
     if as_of: days=[d for d in days if d<as_of]
     if days: return len(days),'Revisão '+str(len(days))
+    if state.get('theme_continuation'):
+        return 0,'Continuação do tema'
     return 0,'Primeiro contato' if state['status']=='sem_registro' else 'Diagnóstico'
 
 
@@ -98,14 +105,16 @@ def topic_trajectory(state,profile,start):
     number,label=next_stage(state,first)
     horizon_end=min(_date(profile.exam_date),_date(start)+timedelta(days=547))
     q=state.get('theme_recommended_questions',state['recommended_questions'])
+    limited=state['total']<2*profile.min_block
+    per_encounter=min(q,state['total']) if limited else q
     steps=[]
-    if _date(first)<=horizon_end:
+    if per_encounter and _date(first)<=horizon_end:
         steps.append({'stage':label,'review_number':number,'date':_date(first).isoformat(),
-                      'questions':q,'cumulative_questions':q,
+                      'questions':per_encounter,'cumulative_questions':per_encounter,
                       'available_questions':min(q,state['total']),
                       'complement_questions':max(0,q-state['total'])})
         if _date(first)<horizon_end:
-            for offset in range(1,5):
+            for offset in range(1,MAX_BANK_CYCLES if limited else 5):
                 steps.append({'stage':'Revisão '+str(number+offset),'review_number':number+offset,
                               'date':None,'questions':None,'cumulative_questions':None,
                               'available_questions':None,'complement_questions':None})
@@ -113,16 +122,31 @@ def topic_trajectory(state,profile,start):
             'recorded_attempts':state['recorded_attempts'],'pdf_answered':state['answered_pdf'],
             'available_per_block':min(q,state['total']),
             'complement_per_block':max(0,q-state['total']),
-            'assumption':'Próximo bloco com base nos registros atuais. Depois dele, quantidade e intervalo serão recalculados.'}
+            'bank_cycles_limited':limited,
+            'assumption':BANK_CYCLES_NOTE if limited else 'Próximo bloco com base nos registros atuais. Depois dele, quantidade e intervalo serão recalculados.'}
 
 
 def trajectory_summary(states,profile,start,calendar):
     booked=defaultdict(lambda:{'questions':0,'contacts':0,'first':None})
+    caps={t['topic_id']:MAX_BANK_CYCLES*t['total'] for t in states if t['total']<2*profile.min_block}
+    spend=defaultdict(int)
     for day in calendar:
         if day['date']>profile.exam_date: continue
         for item in day['items']:
-            row=booked[item['topic_id']]
-            row['questions']+=item['questions']
+            topic_id=item['topic_id']
+            questions=item['questions']
+            if topic_id in caps:
+                extra=item.get('extra_pending',questions if item.get('added_by_user') else 0)
+                routine=questions-extra
+                reserved=any(item.get(k) for k in ('rescheduled','day_swap_id','daily_proposal_preserved')) or item.get('review_kind') in {'lot_only','combined'}
+                if not reserved:
+                    routine=min(routine,max(0,caps[topic_id]-spend[topic_id]))
+                spend[topic_id]+=routine
+                questions=routine+extra
+            if not questions:
+                continue
+            row=booked[topic_id]
+            row['questions']+=questions
             row['contacts']+=1
             if row['first'] is None: row['first']=day['date']
     rows=[]

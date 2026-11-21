@@ -1,5 +1,6 @@
 from copy import deepcopy
 from datetime import date
+from html import escape
 import sqlite3
 
 import pytest
@@ -52,6 +53,45 @@ def test_html_reads_only_table_and_preserves_breadcrumb():
 def test_html_preserves_incidence_labels_in_accessible_icons():
     html = '<table><tr><th>Tema</th><th>Questões</th><th>Incidência</th></tr><tr><td>Outro</td><td>3</td><td><div role="img" aria-label="Incidência alta" title="Incidência alta"><svg aria-hidden="true"></svg></div></td></tr></table>'
     assert parse_html_table(html)["rows"][0][2] == "Incidência alta"
+
+
+@pytest.mark.parametrize('html_kind', ['rows', 'body', 'table'])
+def test_osler_counts_use_institution_cell_and_its_accessible_label(tmp_path, sample_pdf, html_kind):
+    repo, _, matching, _ = setup_assessment(tmp_path, sample_pdf)
+    report = repo.get_report(matching.qbank_report_id)
+    cases = list(zip(report.records[:3], (36, 4, 0),
+                     ('Incidência altíssima', 'Incidência média', 'Sem incidência')))
+    rows = []
+    for record, count, label in cases:
+        rows.append(f'''<tr><td><input type="checkbox"></td>
+            <td><span class="ThemeTitle-x">{escape(record.name)}</span>
+                <span class="ThemePath-x">{escape(" › ".join(record.path[:-1]))}</span></td>
+            <td aria-label="Incidência baixa">2 de 10 feitas</td>
+            <td><div aria-label="{label}"><svg></svg></div>{count}questões</td><td>Abrir</td></tr>''')
+    html = ''.join(rows)
+    if html_kind != 'rows':
+        html = '<tbody>' + html + '</tbody>'
+    if html_kind == 'table':
+        html = ('<table><thead><tr><th>Seleção</th><th>Tema</th><th>Incidência geral</th>'
+                '<th>Incidência instituições</th><th>Ações</th></tr></thead>' + html + '</table>')
+    guide = GuideService(repo)
+    with pytest.raises(ValueError, match='coluna Incidência das instituições'):
+        guide.import_incidence(html, 'questoes', ['A'], '2026-10-15', value_column=2)
+    guide.import_incidence(html, 'questoes', ['A'], '2026-10-15')
+    data = guide.datasets()[-1]
+    assert data['value_column'] == 'Incidência das instituições'
+    assert [(r['path'], r['value'], r['native_incidence']) for r in data['rows']] == [
+        (record.path, count, label) for record, count, label in cases
+    ]
+
+
+def test_html_incidence_percent_remains_available_for_legacy_sources(tmp_path, sample_pdf):
+    repo, _, _, _ = setup_assessment(tmp_path, sample_pdf)
+    html = '''<table><tr><th>Tema</th><th>Incidência instituições</th><th>Percentual geral</th></tr>
+        <tr><td>Outro</td><td>12%</td><td>50%</td></tr></table>'''
+    guide = GuideService(repo)
+    guide.import_incidence(html, 'percentual', ['A'], '2026-10-15')
+    assert guide.datasets()[-1]['rows'][0]['value'] == 12
 
 
 def test_incidence_maps_exact_unique_names_and_keeps_ambiguity(tmp_path, sample_pdf):

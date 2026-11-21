@@ -3,6 +3,19 @@ from .models import normalize_path
 from .planner_snapshot import planner_supply
 
 
+def study_signal_labels(state,day):
+    """Prazo de revisão, acerto e segurança têm indicadores distintos."""
+    labels=[]
+    due=state.get('theme_review_due')
+    if due and due<day and state.get('review_committed',True) and not state.get('small_bank'):
+        labels.append('Revisão vencida')
+    if state.get('low_objective_accuracy'):labels.append('Acerto baixo')
+    if state.get('low_conviction'):labels.append('Convicção baixa')
+    if state.get('pending_due'):labels.append('Retorno pendente')
+    if state.get('reported_difficulty'):labels.append('Dificuldade relatada')
+    return labels
+
+
 def day_activity(view):
     events=sorted((s for s in view['sessions'] if s['entry']['day']==view['date'] and
                    s['entry']['kind']!='acumulado'),key=lambda s:s.get('id',0),reverse=True)
@@ -40,6 +53,8 @@ def result_feedback(view,session_id):
         elif accuracy>=target: level,message='success',f'Acerto na meta de {target:g}% neste bloco. O intervalo depende também da amostra e dos encontros espaçados.'
         else: level,message='info',f'Acerto de {accuracy:.1f}% neste bloco, para uma meta de {target:g}%. A amostra e o histórico orientam o próximo contato; insegurança não foi tratada como erro.'
     pending=next(({'questions':q['questions'],'due_date':q['due_date']} for q in view['review_queue'] if q['session_id']==session_id),None)
+    outstanding=[q for q in view['review_queue'] if q['session_id']!=session_id and q['due_date']<=view['date']
+                 and normalize_path(q['path'])==normalize_path(e['path'])]
     next_contact=next_questions=dose_kind=next_kind=theme_questions=theme_contact=None
     coordinated=False
     next_action='Confira as explicações das respostas erradas e sem convicção antes do próximo contato.'
@@ -52,7 +67,11 @@ def result_feedback(view,session_id):
             from .study_capacity import practice_state
             from .study_models import AdaptiveProfile
             p=AdaptiveProfile(**view['profile'])
-            theme_questions=next_questions;theme_contact=next_contact
+            theme_questions=next_questions
+            # Reserva vencida de um lote anterior não é a próxima revisão geral.
+            theme_due=state.get('theme_review_due') or due
+            reservation=state.get('reschedule_date') if state.get('review_kind')!='lot_only' else None
+            theme_contact=max(reservation if reservation and reservation>view['date'] else theme_due or view['date'],view['date'],p.start_date or view['date'])
             due=min([q['due_date'] for q in state.get('pending_reviews',[])]+([due] if due else []),default=None)
             next_contact=max(due or view['date'],view['date'],p.start_date or view['date'])
             encounter=practice_state(state,next_contact,p)
@@ -63,6 +82,12 @@ def result_feedback(view,session_id):
         if dose_kind=='maintenance': next_action='Faça a manutenção com uma amostra de diferentes partes do tema; use novos exemplos quando possível.'
         elif dose_kind in {'diagnostic','practice'}: next_action='No próximo bloco, explore diferentes partes do tema e informe também a convicção.'
         if next_kind=='lot_only': next_action='Faça o retorno vinculado das respostas indicadas. Esse encontro já faz parte da carga; não exige um bloco completo adicional.'
+        if state.get('small_bank'):
+            reference=state.get('theme_recommended_questions',state['recommended_questions'])
+            noun='questão' if state['total']==1 else 'questões'
+            next_action=f"Falta complemento. O acervo tem {state['total']} {noun} e a referência é {reference}. Busque questões do mesmo tema no banco completo."
+            next_contact=next_questions=next_kind=theme_contact=theme_questions=None
+            coordinated=False
     else:
         next_action='Este registro não tem um tema específico disponível para planejar. Consulte Temas antes de escolher o próximo bloco.'
     return {'event':event,'entry':e,'target':target,'accuracy_pct':accuracy,'conviction_pct':conviction,
@@ -70,7 +95,9 @@ def result_feedback(view,session_id):
             'mistakes':n-e['correct'] if e.get('correct') is not None else None,
             'guesses':e['correct']-e['confident_correct'] if conviction is not None else None,
             'pending':pending,'next_contact':next_contact,'next_questions':next_questions,'coordinated_return':coordinated,
+            'outstanding_returns':outstanding,
             'next_review_kind':next_kind,'theme_questions':theme_questions,'theme_contact':theme_contact,
             'planner_supply':planner_supply(state,next_questions,0,view['date']) if state and next_questions is not None else None,
             'dose_kind':dose_kind,'next_action':next_action,'level':level,'message':message,
+            'small_bank':bool(state and state.get('small_bank')),
             'small_block':e['kind']=='bloco' and n<view['profile']['min_block']}

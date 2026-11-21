@@ -9,6 +9,32 @@ AREAS=('Clínica Médica','Clínica Cirúrgica','Pediatria','Ginecologia e Obste
 EXCLUSIVE={'final_review','final_rest','mock_day','mock_reserved'}
 
 
+def recover_area_occurrences(occurrences,results,anchor,end,profile,settings,overrides,sessions=(),exam_dates=()):
+    """Projeção de recuperação, sem mudar identidade, resultado ou data original."""
+    from copy import deepcopy
+    from .study_replanning import effective_routine
+    rows=deepcopy(occurrences)
+    completed={r['exam'].get('practice_id') for r in results}
+    occupied={r['date'] for r in rows if r.get('date') and (r['date']>=anchor or r['id'] in completed)}
+    for row in sorted(rows,key=lambda r:(r.get('date') or '9999',r['id'])):
+        if not row.get('date') or row['date']>=anchor or row['id'] in completed:continue
+        missed=row['date']; chosen=None
+        for offset in range(max(0,(_date(end)-_date(anchor)).days+1)):
+            day=(_date(anchor)+timedelta(days=offset)).isoformat()
+            cfg=settings.get(day,{'questions':profile.max_questions,'kind':'normal'})
+            override=overrides.get(day,{})
+            if day in occupied or day in exam_dates or cfg['kind']=='descanso' or override.get('mode') in EXCLUSIVE:continue
+            _,budget=effective_routine(profile,cfg,{k:v for k,v in override.items() if k!='area_reserved'})
+            used=sum(s['entry']['questions'] for s in sessions if s['entry']['day']==day and s['entry']['kind']=='bloco')
+            used+=area_extra_volume(results,sessions,day).get(day,0)
+            if row['questions']<=max(0,budget-used):chosen=day;break
+        row.update(missed_date=missed,days_late=(_date(anchor)-_date(missed)).days,
+                   recovery=True,status='recovery' if chosen else 'waiting',
+                   reason='Treino não realizado; recuperação automática.' if chosen else 'Treino atrasado sem capacidade: escolha outra data ou ajuste a meta.')
+        if chosen:row['date']=chosen;occupied.add(chosen)
+    return rows
+
+
 def next_correction_day(exam_day, weekday=2):
     _number(weekday,'Dia da semana',integer=True,maximum=6)
     day=_date(exam_day)+timedelta(days=1)
@@ -50,7 +76,11 @@ def validate_errors(rows,catalog,total_errors):
         if not isinstance(row,dict) or not isinstance(row.get('path'),list) or not row['path'] or any(not isinstance(p,str) or not p.strip() for p in row['path']):
             raise ValueError('Escolha o caminho completo de um tema específico.')
         key=tuple(normalize_path(row['path'])); topic=by_path.get(key)
-        if not topic: raise ValueError('Tema específico não encontrado no catálogo atual.')
+        if not topic:
+            name=' → '.join(row['path'])
+            raise ValueError(f'Não encontrei o tema “{name}” no acervo atual. Os erros anotados continuam salvos. '
+                             'Em “Adicionar um tema errado”, escolha o tema atual, retire a linha antiga e salve novamente a lista. '
+                             'Se o tema não aparecer, atualize o PDF em Arquivos e ferramentas.')
         if any(key[:len(k)]==k or k[:len(key)]==key for k in keys): raise ValueError('Não repita nem sobreponha temas.')
         n=row.get('errors')
         if n is not None: _number(n,'Erros no tema',positive=True,integer=True,maximum=total_errors)
@@ -65,7 +95,11 @@ def correction_doses(errors,states,minimum):
     incidence_scale=max((t.get('importance',0) for t in states),default=0) or 1
     for row in errors:
         state=by_id.get(row['topic_id'])
-        if not state: raise ValueError('Um tema saiu do catálogo; confira os erros antes de planejar.')
+        if not state:
+            name=' → '.join(row['path'])
+            raise ValueError(f'Não consegui calcular a prática de “{name}”: faltam os dados individuais do tema. '
+                             'Os erros anotados continuam salvos. Atualize a prévia. '
+                             'Se continuar, confira esse tema na lista de erros e salve a lista novamente.')
         observed=state.get('performance',{}).get('observed')
         # Prioridade relativa, não probabilidade de erro. Sem denominador,
         # quantidade de erros recebe peso sublinear e não vira taxa de acerto.

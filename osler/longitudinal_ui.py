@@ -1,4 +1,5 @@
 """Comparação entre documentos e histórico de ações declaradas."""
+from .ui_help import explain
 import json
 
 import pandas as pd
@@ -46,7 +47,7 @@ def render_evolution(repo):
         st.dataframe(frame, width="stretch")
         if len(frame) >= 2:
             st.line_chart(frame[["aplicado_manualmente", "reativado"]])
-        st.caption("Datas e ações declaradas pelo usuário. Não mede causalidade nem efeito na agenda. Com uma data, não há curva de evolução.")
+        explain("Datas e ações declaradas pelo usuário. Não mede causalidade nem efeito na agenda. Com uma data, não há curva de evolução.")
     else:
         st.caption("Nenhuma decisão de lote registrada.")
     with st.expander("Medições de carga por fonte"):

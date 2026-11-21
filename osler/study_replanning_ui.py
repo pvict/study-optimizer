@@ -1,22 +1,26 @@
 """Recuperação em quatro escolhas, prévia concreta e desfazer sem perder estudo."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import timedelta,date
 import hashlib,json
 import pandas as pd
 import streamlit as st
 from .planner_service import today_local
-from .study_replanning import MODES
+from .study_replanning import MODES,backlog_schedule
 
 
 def render_replanning(service,context):
-    rows=context['backlog']
+    rows=backlog_schedule(context['backlog'],context['rows'],context['view']['date'])
     with st.expander(f"Resumo de atrasos · {len(rows)} temas",expanded=bool(rows)):
         a,b,c=st.columns(3)
         a.metric('Temas atrasados',len(rows))
-        b.metric('Recuperações agendadas',len(context['rows']))
-        booked={r['topic_id'] for r in context['rows']}
-        c.metric('Atrasados sem nova data',sum(r['topic_id'] not in booked for r in rows))
-        st.caption('Vermelho: atraso confirmado · Azul: recuperação agendada · Laranja: pendência prevista. O atraso permanece até registrar o estudo.')
-    with st.expander('Reorganizar atrasos',expanded=False):
+        b.metric('Temas com data atual',sum(r['recovery_current'] for r in rows))
+        c.metric('Precisam de nova data',sum(not r['recovery_current'] for r in rows))
+        st.caption('Reagendar não conclui o estudo.')
+        if rows:
+            st.dataframe([{'Tema':' › '.join(r['path']),'Recuperação':r['recovery_date'] or '—',
+                           'Situação':r['recovery_status']} for r in rows],hide_index=True,width='stretch')
+    with st.expander('Reorganizar atrasos',expanded=st.session_state.pop('replan_advanced_open',False)):
         if not rows: st.info('Nenhum atraso confirmado. Temas sem data de contato conhecida não são considerados atrasados.')
         else:
             mode=st.radio('Como quer recuperar?',list(MODES),format_func=MODES.get,key='replan_mode')
@@ -57,8 +61,8 @@ def render_replanning(service,context):
                     st.dataframe(pd.DataFrame([{'Tema':r['path'][-1],'Questões':r['questions'],'Motivo':r['reason']} for r in preview['unassigned']]),hide_index=True,width='stretch')
                 stale=preview['token']!=context['token']
                 if stale: st.warning('Os dados mudaram. Monte uma nova prévia antes de aplicar.')
-                if st.button('Aplicar este reagendamento',key='apply_replan_preview',type='primary',disabled=stale or not preview['rows']):
-                    service.apply_replan(preview)
+                if confirm_button('Aplicar este reagendamento',key='apply_replan_preview',type='primary',disabled=stale or not preview['rows'],action_key='study_replanning_ui_60'):
+                    notify_success(service.apply_replan(preview),'Agenda atualizada.')
                     st.session_state.pop('replan_preview',None)
                     st.session_state['adaptive_notice']='Recuperação agendada. Nenhum estudo foi marcado como feito.'
                     st.rerun()
@@ -67,8 +71,8 @@ def render_replanning(service,context):
             last=recoveries[-1]
             st.divider()
             st.caption(f"Última redistribuição: {MODES[last['mode']]} · início {last['start']} · {last['days']}dias. Desfazer preserva todos os resultados registrados.")
-            if st.button('Desfazer última redistribuição',key='undo_last_replan'):
-                service.cancel_replan(last['id'],context['token'])
+            if confirm_button('Desfazer última redistribuição',key='undo_last_replan',action_key='study_replanning_ui_70'):
+                notify_success(service.cancel_replan(last['id'],context['token']),'Agenda atualizada.')
                 st.session_state.pop('replan_preview',None)
                 st.session_state['adaptive_notice']='Redistribuição desfeita. Seus estudos continuam no histórico.'
                 st.rerun()

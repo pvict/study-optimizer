@@ -1,10 +1,14 @@
 """Registro curto de simulados e detalhes opcionais, separado dos blocos de estudo."""
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success,preserve_drafts,preserve_editor_draft,draft_editor
+
 from dataclasses import replace
 from datetime import date, timedelta
 from html import escape
 
 import pandas as pd
 import streamlit as st
+from .cloud_boundary import cloud_boundary
 
 from .exam_goals import ExamGoals
 from .bento import area_slug, bar
@@ -27,7 +31,7 @@ def _summary(exam):
         'date': date.fromisoformat(exam['day']).strftime('%d/%m/%Y'),
         'duration': '—' if exam.get('minutes_used') is None else _display_number(exam['minutes_used'])+' min',
         'score': '—' if score is None or maximum is None else f'{_display_number(score)} / {_display_number(maximum)}',
-        'accuracy': f"{exam['correct']} / {exam['questions']} · {100*exam['correct']/exam['questions']:.1f}% · n={exam['questions']}".replace('.', ','),
+        'accuracy': f"{exam['correct']} / {exam['questions']} · {100*exam['correct']/exam['questions']:.1f}%".replace('.', ','),
     }
 
 
@@ -46,7 +50,7 @@ def _area_results_html(areas):
         percent = 100*correct/total
         low, high = wilson_interval(percent, total)
         name = escape(area['area'])
-        result = f'{correct} / {total} · {percent:.1f}% · n={total}'.replace('.', ',')
+        result = f'{correct} / {total} · {percent:.1f}%'.replace('.', ',')
         interval = f'Faixa Wilson 95%: {low:.1f}–{high:.1f}%'.replace('.', ',')
         rows.append(f'<div class="o-mock-area"><div class="o-mock-area-label"><strong>{name}</strong>'
                     f'<span>{result}</span></div>'+bar(percent/100, area_slug([area['area']]), label=area['area']+': '+result)
@@ -64,14 +68,14 @@ def _render_summary(exam, targets):
         st.subheader('Por área')
         if exam['areas']:
             st.html(_area_results_html(exam['areas']))
-            st.caption('Faixa descritiva de incerteza pelo método Wilson (95%). Questões podem não ser independentes; não é previsão de nota ou aprovação.')
+            explain('Faixa descritiva de incerteza pelo método Wilson (95%). Questões podem não ser independentes; não é previsão de nota ou aprovação.')
         else:
             st.caption('Sem resultado por área informado neste simulado.')
 
 
 def _reset(row=None):
     for key in list(st.session_state):
-        if key.startswith('mock_field_'): st.session_state.pop(key, None)
+        if key.startswith(('mock_field_','_action_editor_mock_field_')): st.session_state.pop(key, None)
     if row: st.session_state['mock_editing'] = row
     else: st.session_state.pop('mock_editing', None)
 
@@ -109,7 +113,7 @@ def _comparison(exam, targets):
         percentage = 100*exam['score']/exam['max_score']
         st.caption(f'Nota informada no simulado: {percentage:.1f}%. Diferença para a referência: {percentage-cutoff:+.1f} pontos percentuais. Escalas e pesos podem diferir.')
     else:
-        st.caption('Sem nota e nota máxima informadas, o acerto das questões não é comparado ao corte ponderado.')
+        explain('Sem nota e nota máxima informadas, o acerto das questões não é comparado ao corte ponderado.')
 
 
 def _history(mocks):
@@ -121,21 +125,55 @@ def _history(mocks):
 
 
 def render_mock_exams(service):
+    # A seleção solicitada por outra aba é consumida antes de criar widgets.
+    selected=st.session_state.pop('mock_selection_pending',None)
+    if selected is not None:
+        st.session_state['mock_selected']=selected
+        st.session_state['correction_exam']=selected
+    tab=st.session_state.pop('mock_tab_pending',None)
+    if tab is not None:st.session_state['mock_sections']=tab
+    active=st.session_state.get('mock_sections','Programação')
+    if active!='Resultados':preserve_drafts('mock_selected',prefixes=('mock_field_',))
+    if active!='Programação':preserve_drafts('mock_schedule_first','mock_schedule_interval','mock_occurrence','mock_occurrence_date')
+    if active!='Treinos por área':
+        preserve_drafts('area_first','area_end','area_frequency','area_questions','area_institutions','area_result_id','area_result_day',
+                        'area_result_questions','area_result_correct','area_result_unseen','area_move_id','area_move_date','area_move_action',
+                        'area_preview_train','area_preview_topic',prefixes=('area_preview_date_','area_preview_topic_date_'))
+    if active!='Correção':
+        preserve_drafts('correction_exam','correction_day_source','correction_day_date','correction_start','correction_budget',
+                        'correction_error_count',prefixes=('correction_draft_','correction_picker_'))
+    for key in ('mock_field_areas','mock_field_topics'):
+        preserve_editor_draft(key,st.session_state.get('mock_sections')=='Resultados')
+    for key in list(st.session_state):
+        if key.startswith('correction_draft_') and key.endswith('_editor'):
+            preserve_editor_draft(key,st.session_state.get('mock_sections')=='Correção')
+    from .mock_workflow_ui import render_mock_workflow
+    with st.container(border=True,key='mock-main-workflow'):
+        render_mock_workflow(service,'sim_mock_flow')
     from .mock_schedule_ui import render_mock_schedule
     from .exam_practice_ui import render_area_practice,render_mock_correction
-    programming,results,practice,correction=st.tabs(['Programação','Resultados','Treinos por área','Correção'])
-    with programming: render_mock_schedule(service)
-    with results: _render_mock_results(service)
-    with practice: render_area_practice(service)
-    with correction: render_mock_correction(service)
+    programming,results,practice,correction=st.tabs(['Programação','Resultados','Treinos por área','Correção'],key='mock_sections',on_change='rerun')
+    if programming.open:
+        with programming: render_mock_schedule(service)
+    if results.open:
+        with results: _render_mock_results(service)
+    if practice.open:
+        with practice: render_area_practice(service)
+    if correction.open:
+        with correction: render_mock_correction(service)
+    if st.session_state.get('mock_error_prompt') and not st.session_state.get('_action_pending'):
+        from .mock_result_followup_ui import render_error_prompt
+        render_error_prompt(service)
 
 
+@st.fragment
+@cloud_boundary
 def _render_mock_results(service):
     mocks = MockExams(service.repository)
     rows = mocks.active()
     targets = ExamGoals(service.repository).active()
     if st.session_state.pop('mock_reset_pending', False): _reset()
-    st.caption('Um simulado não é a prova real; bancas diferem. Os resultados ficam separados dos PDFs e dos blocos registrados. Não representam probabilidade de aprovação.')
+    explain('Um simulado não é a prova real; bancas diferem. Os resultados ficam separados dos PDFs e dos blocos registrados. Não representam probabilidade de aprovação.')
     notice = st.session_state.pop('mock_notice', None)
     if notice: st.success(notice)
     if rows:
@@ -147,7 +185,7 @@ def _render_mock_results(service):
     initial = edit['exam'] if edit else MockExam(today_local().isoformat(), 100, 0).to_dict()
     with st.container(key='bento-mock-form'):
         st.subheader('Corrigir simulado' if edit else 'Registrar simulado')
-        with st.form('mock_form'):
+        with st.container(key='mock_form'):
             name = st.text_input('Nome', value=initial['name'], key='mock_field_name')
             day = st.date_input('Data', value=date.fromisoformat(initial['day']), max_value=today_local(), key='mock_field_day')
             total = st.number_input('Total de questões', min_value=1, max_value=1000000, value=initial['questions'] if edit else None, step=1, key='mock_field_questions')
@@ -170,26 +208,29 @@ def _render_mock_results(service):
                 unseen = st.checkbox('As questões eram inéditas para mim', value=initial['unseen_questions'], key='mock_field_unseen')
                 note = st.text_area('Observação curta (opcional)', value=initial['note'], max_chars=1000, key='mock_field_note')
                 st.caption('Por grande área (opcional). Ajuda a identificar onde revisar; não cria blocos por subtema.')
-                areas = st.data_editor(_table(initial['areas'], 'area', 'Área'), num_rows='dynamic', hide_index=True, width='stretch',
+                areas = draft_editor(_table(initial['areas'], 'area', 'Área'), num_rows='dynamic', hide_index=True, width='stretch',
                                        column_config={'Área': st.column_config.TextColumn(required=True),
                                                       'Questões': st.column_config.NumberColumn(min_value=1, step=1, required=True),
                                                       'Acertos': st.column_config.NumberColumn(min_value=0, step=1, required=True)}, key='mock_field_areas')
                 st.caption('Por tema específico (opcional). Use o caminho completo do relatório, separado por →. Informe apenas o conceito, sem enunciados de questões.')
-                topics = st.data_editor(_table(initial['topics'], 'path', 'Tema completo'), num_rows='dynamic', hide_index=True, width='stretch',
+                topics = draft_editor(_table(initial['topics'], 'path', 'Tema completo'), num_rows='dynamic', hide_index=True, width='stretch',
                                         column_config={'Tema completo': st.column_config.TextColumn(required=True),
                                                        'Questões': st.column_config.NumberColumn(min_value=1, step=1, required=True),
                                                        'Acertos': st.column_config.NumberColumn(min_value=0, step=1, required=True)}, key='mock_field_topics')
-            submitted = st.form_submit_button('Salvar simulado', type='primary', key='mock_save')
+            def checked_exam():
+                if day is None or total is None or correct is None:raise ValueError('Informe a data, o total de questões e os acertos.')
+                return MockExam(day.isoformat(), int(total), int(correct), name=name, kind=kind, institution=institution.strip() or None,
+                                target_id=target_id or None, blank=blank, minutes_used=minutes, minutes_allowed=allowed,
+                                score=score, max_score=max_score, conditions='realista' if realistic else 'nao_realista',
+                                unseen_questions=unseen, note=note, areas=_details(areas, 'area', 'Área'), topics=_details(topics, 'path', 'Tema completo'),practice_id=initial.get('practice_id')).validate()
+            submitted = confirm_button('Salvar simulado', type='primary', key='mock_save',action_key='mock_exams_ui_182',details=f"{name or 'Simulado'} · {institution or 'Instituição não informada'} · {total} questões · {correct} acertos · {day.strftime('%d/%m/%Y') if day else 'não informada'}",validate=checked_exam)
             if submitted:
                 try:
-                    if day is None or total is None or correct is None: raise ValueError('Informe a data, o total de questões e os acertos.')
-                    exam = MockExam(day.isoformat(), int(total), int(correct), name=name, kind=kind, institution=institution.strip() or None,
-                                    target_id=target_id or None, blank=blank, minutes_used=minutes, minutes_allowed=allowed,
-                                    score=score, max_score=max_score, conditions='realista' if realistic else 'nao_realista',
-                                    unseen_questions=unseen, note=note, areas=_details(areas, 'area', 'Área'), topics=_details(topics, 'path', 'Tema completo'),practice_id=initial.get('practice_id'))
-                    saved = mocks.save(exam, exam_key=edit['exam_key'] if edit else None, expected_version=edit['version'] if edit else 0)
-                    st.session_state['mock_selected'] = saved['exam_key']
-                    st.session_state['correction_exam'] = saved['exam_key']
+                    exam = checked_exam()
+                    saved = notify_success(mocks.save(exam, exam_key=edit['exam_key'] if edit else None, expected_version=edit['version'] if edit else 0),'Alterações salvas.')
+                    st.session_state['mock_selection_pending'] = saved['exam_key']
+                    from .mock_result_followup_ui import request_error_topics
+                    request_error_topics(saved)
                     st.session_state['mock_reset_pending'] = True
                     st.session_state['mock_notice'] = 'Simulado salvo. Informe os temas errados na aba Correção agora ou depois; nada foi somado aos blocos automaticamente.'
                     st.rerun()
@@ -213,14 +254,14 @@ def _render_mock_results(service):
         if exam['areas']:
             st.write('Resultado por grande área')
             st.html(_area_results_html(exam['areas']))
-            st.caption('Faixa Wilson 95% descritiva; não representa probabilidade de aprovação.')
+            explain('Faixa Wilson 95% descritiva; não representa probabilidade de aprovação.')
         if exam['topics']:
             with st.expander('Resultados por tema específico'):
                 st.dataframe(_table(exam['topics'], 'path', 'Tema completo'), hide_index=True, width='stretch')
         st.button('Corrigir simulado', key='mock_edit', on_click=_reset, args=(row,))
-        if st.button('Desconsiderar simulado', key='mock_void'):
+        if confirm_button('Desconsiderar simulado', key='mock_void',action_key='mock_exams_ui_221'):
             try:
-                mocks.void(selected, row['version'])
+                notify_success(mocks.void(selected, row['version']),'Alterações salvas.')
                 _reset()
                 st.session_state['mock_notice'] = 'Simulado desconsiderado; histórico preservado.'
                 st.rerun()
@@ -228,14 +269,14 @@ def _render_mock_results(service):
         with st.expander('Adicionar resultados ao estudo ou retirar conversão'):
             st.caption('Só questões inéditas com resultado por tema específico viram blocos novos. A área isolada não permite inferir subtemas. Não registre estas mesmas questões novamente no Registro.')
             if exam['unseen_questions'] and exam['topics']:
-                if st.button('Adicionar como blocos de questões novas', key='mock_convert'):
+                if confirm_button('Adicionar como blocos de questões novas', key='mock_convert',action_key='mock_exams_ui_231'):
                     try:
-                        ids = convert_to_entries(service, selected, row['version'])
+                        ids = notify_success(convert_to_entries(service, selected, row['version']),'Alterações salvas.')
                         st.success(f'{len(ids)} bloco(s) disponível(is) no estudo. Repetir esta ação não duplica blocos.')
                     except ValueError as exc: st.error(str(exc))
                 st.caption('Antes de corrigir ou desconsiderar um simulado convertido, retire os blocos abaixo. O histórico dos blocos será preservado.')
-                if st.button('Retirar blocos desta conversão', key='mock_retract'):
-                    try: st.success(f'{retract_conversion(service, selected, row["version"])} bloco(s) retirado(s). Agora é possível corrigir o simulado.')
+                if confirm_button('Retirar blocos desta conversão', key='mock_retract',action_key='mock_exams_ui_237'):
+                    try: st.success(f'{notify_success(retract_conversion(service, selected, row["version"]))} bloco(s) retirado(s). Agora é possível corrigir o simulado.')
                     except ValueError as exc: st.error(str(exc))
         if not exam.get('practice_id'):
             with st.expander('Considerar este dia como feito'):
@@ -246,15 +287,15 @@ def _render_mock_results(service):
                 preview = st.session_state.get('mock_day_preview_data')
                 if preview and preview['exam_key']==selected and preview['version']==row['version']:
                     st.write(f"Em {preview['day']}: meta normal de {preview['replaced_questions']} questões → dia feito por simulado de {preview['questions']} questões, sem dívida.")
-                    if st.button('Aplicar dia feito por simulado', key='mock_day_apply'):
+                    if confirm_button('Aplicar dia feito por simulado', key='mock_day_apply',action_key='mock_day_apply',details=f"{preview['day']}: a meta normal de {preview['replaced_questions']} questões será substituída por um dia feito pelo simulado de {preview['questions']} questões."):
                         try:
-                            st.session_state['mock_day_undo'] = service.mark_mock_day(selected, row['version'], preview)
+                            st.session_state['mock_day_undo'] = notify_success(service.mark_mock_day(selected, row['version'], preview),'Dia de simulado atualizado.')
                             st.session_state.pop('mock_day_preview_data', None)
                             st.success('Dia considerado feito por simulado.')
                         except ValueError as exc: st.error(str(exc))
-                if st.session_state.get('mock_day_undo') and st.button('Desfazer dia feito por simulado', key='mock_day_undo_button'):
+                if st.session_state.get('mock_day_undo') and confirm_button('Desfazer dia feito por simulado', key='mock_day_undo_button',action_key='mock_day_undo'):
                     try:
-                        service.cancel_replan(st.session_state['mock_day_undo'])
+                        notify_success(service.cancel_replan(st.session_state['mock_day_undo']),'Agenda atualizada.')
                         st.session_state.pop('mock_day_undo', None)
                         st.success('Meta normal do dia restaurada.')
                     except ValueError as exc: st.error(str(exc))
@@ -274,14 +315,14 @@ def _render_mock_results(service):
 
 def render_mock_settings(service):
     st.subheader('Frequência de simulados')
-    st.caption('Intervalo sugerido para novas programações. Reserve ou mova datas em Simulados → Programação ou no Calendário. Alterar este valor não muda uma série já programada; 0 desliga apenas o lembrete.')
+    explain('Intervalo sugerido para novas programações. Reserve ou mova datas em Simulados → Programação ou no Calendário. Alterar este valor não muda uma série já programada; 0 desliga apenas o lembrete.')
     snapshot = st.session_state.setdefault('mock_profile_snapshot', service.store.profile())
     profile = AdaptiveProfile(**snapshot['configured_profile'])
     with st.form('mock_settings'):
         cadence = st.number_input('Sugerir simulado a cada quantos dias?', min_value=0, max_value=365, value=profile.mock_cadence_days, step=1, key='mock_cadence')
-        if st.form_submit_button('Salvar frequência de simulados', key='mock_save_settings'):
+        if confirm_submit('Salvar frequência de simulados', key='mock_save_settings',action_key='mock_exams_ui_282'):
             try:
-                service.store.save_profile(replace(profile, mock_cadence_days=cadence), snapshot['id'])
+                notify_success(service.store.save_profile(replace(profile, mock_cadence_days=cadence), snapshot['id']),'Alterações salvas.')
                 st.session_state.pop('mock_profile_snapshot', None)
                 st.success('Frequência salva.')
             except ValueError as exc: st.error(str(exc))

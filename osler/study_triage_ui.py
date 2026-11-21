@@ -1,4 +1,7 @@
 """Demanda e capacidade visíveis; uma proposta segura pode permanecer vazia."""
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from datetime import date,timedelta
 import pandas as pd
 import streamlit as st
@@ -25,7 +28,7 @@ def render_triage(service):
         summary=propose_triage(view['planning_states'],calendar,start,end,max_gap=p.max_contact_gap)
         balance=f"{summary['deficit_questions']:,} acima da carga" if summary['balance_questions']>=0 else f"{-summary['balance_questions']:,} de folga na carga"
         st.write(f"Demanda condicional: {summary['demand_questions']:,} questões · capacidade: {summary['capacity_questions']:,} · diferença: {balance}.")
-        st.caption('Revisões já iniciadas e retornos conhecidos, repetindo doses e intervalos atuais. Temas na fila inicial não viram revisões recorrentes. A capacidade é a carga total; parte dela também atende temas novos. Este cenário não é uma quantidade comprovadamente necessária.')
+        explain('Revisões já iniciadas e retornos conhecidos, repetindo doses e intervalos atuais. Temas na fila inicial não viram revisões recorrentes. A capacidade é a carga total; parte dela também atende temas novos. Este cenário não é uma quantidade comprovadamente necessária.')
     with st.container(key='bento-triage-controls'):
         with st.expander('Como montar a proposta'):
             factor=st.number_input('Multiplicar o intervalo futuro por',1.,3.,1.5,.25,key='triage_factor')
@@ -46,9 +49,9 @@ def render_triage(service):
             with st.expander(f'Temas mantidos e motivos ({len(kept)})'):
                 st.dataframe(pd.DataFrame(kept),hide_index=True,width='stretch',height=280)
             if not changed: st.info('Não há redução segura com os dados e limites atuais. A diferença de capacidade permanece; considere ajustar carga ou horizonte.')
-            if st.button('Aplicar esta política de corte',key='triage_apply',disabled=not changed,type='primary'):
-                service.apply_triage(preview); st.session_state.pop('triage_preview_data',None); st.success('Política aplicada. Você pode desfazer abaixo.'); st.rerun()
+            if confirm_button('Aplicar esta política de corte',key='triage_apply',disabled=not changed,type='primary',action_key='study_triage_ui_49'):
+                notify_success(service.apply_triage(preview),'Agenda atualizada.'); st.session_state.pop('triage_preview_data',None); st.success('Política aplicada. Você pode desfazer abaixo.'); st.rerun()
     active=service.agenda.active(view['sessions'],view['date'])['active']
     for r in active:
-        if r.get('scope')=='triage' and st.button('Desfazer plano de corte',key='triage_undo_'+str(r['id'])):
-            service.cancel_replan(r['id']); st.success('Frequência anterior restaurada; estudo preservado.'); st.rerun()
+        if r.get('scope')=='triage' and confirm_button('Desfazer plano de corte',key='triage_undo_'+str(r['id']),action_key='triage_undo'):
+            notify_success(service.cancel_replan(r['id']),'Agenda atualizada.'); st.success('Frequência anterior restaurada; estudo preservado.'); st.rerun()

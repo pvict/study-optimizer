@@ -6,6 +6,8 @@
 
 ## Modelos e funcionalidades existentes
 
+- [Planejamento de bancos pequenos, temas novos e atrasos — v0.30](research/planejamento-bancos-pequenos-v0.15.md)
+
 - [Redução atual e integração dos cards criados nos blocos — v0.27](research/reducao-atual-e-novos-cards.md)
 
 - [Decks inteiros e complemento de Psiquiatria — v0.26.1](research/decks-inteiros-psiquiatria.md)

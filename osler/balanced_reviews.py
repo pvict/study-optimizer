@@ -8,16 +8,19 @@ STRATEGIES={'legacy_v1':'Anterior · convicção como critério central','balanc
 COORDINATION_DAYS=2
 
 
-def daily_evidence(entries,as_of):
+def daily_evidence(entries,as_of,minimum=10):
     groups=defaultdict(list)
     for e in entries:
         if e['kind']=='bloco' and not e.get('review_of') and (not as_of or e['day']<=as_of): groups[e['day']].append(e)
     result=[]
     for day,blocks in sorted(groups.items()):
-        selected=[]
+        selected=[]; fallback=None
         for mode in ('novas','mistas','repetidas'):
             selected=[e for e in blocks if e['mode']==mode and (e.get('correct') is not None or e.get('percent') is not None)]
-            if selected: break
+            if selected and fallback is None: fallback=(mode,selected)
+            if sum(e['questions'] for e in selected)>=minimum: break
+        else:
+            if fallback: mode,selected=fallback
         if not selected: continue
         n=sum(e['questions'] for e in selected)
         correct=sum(e['correct'] if e.get('correct') is not None else e['questions']*e['percent']/100 for e in selected)
@@ -30,40 +33,51 @@ def confirmed_deficit(stats,target,minimum=10):
     return bool(stats['exact_n']>=minimum and stats['interval'] and stats['interval'][1]<target)
 
 
-def unresolved_linked_failure(entries,pending):
+def unresolved_linked_failure(entries,pending,profile=None):
     by_id={e.get('_session_id'):e for e in entries if e.get('_session_id')}
     unresolved=set()
     for lot in pending:
         key=lot['session_id']; seen=set()
         while key in by_id and key not in seen:
             seen.add(key); unresolved.add(key); key=by_id[key].get('review_of')
-    return any(key in unresolved and e.get('review_of') and e.get('correct') is not None and e['correct']<e['questions'] for key,e in by_id.items())
+    failures=[e for key,e in by_id.items() if key in unresolved and e.get('review_of') and e.get('correct') is not None and e['correct']<e['questions']]
+    if failures and profile and profile.return_mode=='theme':
+        # Nova evidência pode superar o alerta; não encerra nem reatribui o lote.
+        last=max(e['day'] for e in failures)
+        recovered=any(e['kind']=='bloco' and not e.get('review_of') and e.get('mode') in {'novas','mistas'} and
+                      e.get('correct') is not None and e['questions']>=profile.parameters.sufficient_sample and
+                      (_date(e['day'])-_date(last)).days>=profile.parameters.spaced_min_days and
+                      e['correct']/e['questions']>=profile.target_accuracy/100 for e in entries)
+        if recovered:return False
+    return bool(failures)
 
 
 def balanced_spacing(entries,profile,as_of,incidence_strength=0):
     from .adaptive_planning import posterior
-    p=profile.parameters; interval=p.first_interval; streak=0; last=None; days=[]
-    for e in daily_evidence(entries,as_of):
+    p=profile.parameters; interval=p.first_interval; streak=0; last=None; spaced_last=None; days=[]
+    for e in daily_evidence(entries,as_of,profile.min_block):
         if e['n']<profile.min_block: continue
         days.append(e['day'])
-        elapsed=(_date(e['day'])-_date(last)).days if last else None
+        elapsed=(_date(e['day'])-_date(spaced_last)).days if spaced_last else None
         spaced=elapsed is None or elapsed>=max(p.spaced_min_days,interval)
         if e['rate']<p.failure_threshold:
-            streak=0; interval=p.failure_interval
+            streak=0; interval=p.failure_interval; spaced_last=e['day']
         elif e['rate']>=p.intermediate_threshold and e['exact']:
             if not last or not streak or elapsed>max(profile.recent_days,2*interval):
-                streak=1; interval=p.first_interval
+                streak=1; interval=p.first_interval; spaced_last=e['day']
             elif spaced:
                 stats=posterior(int(e['correct']),e['n'])
                 quality=max(0,min(1,(stats['mean']-p.failure_threshold)/max(.01,profile.target_accuracy/100-p.failure_threshold)))
                 streak+=1; interval=ceil(interval*(1+quality))
                 if streak==2: interval=min(interval,p.second_interval)
+                spaced_last=e['day']
         else:
-            streak=0; interval=p.first_interval
+            streak=0; interval=p.first_interval; spaced_last=e['day']
         interval=min(profile.max_contact_gap,interval)
         last=e['day']
     return {'interval':interval,'next_due':(_date(last)+timedelta(days=interval)).isoformat() if last else None,
             'base_interval':interval,'ease':p.default_ease,'streak':streak,'last_evidence_day':last,
+            'last_spaced_evidence_day':spaced_last,
             'block_days':days,'incidence_strength':incidence_strength,
             'method':'Acertos objetivos e encontros espaçados; política por tema não calibrada'}
 
@@ -74,7 +88,7 @@ def balanced_dose(state,profile,entries,as_of):
     repeated=_series([e for e in entries if e['kind']=='bloco' and e['mode']=='repetidas' and not e.get('review_of') and
         (not as_of or 0<=(_date(as_of)-_date(e['day'])).days<=profile.recent_days)])
     stats=state['performance'] if state['performance']['reported_n'] else repeated
-    daily=[e for e in daily_evidence(entries,as_of) if e['n']>=profile.min_block]
+    daily=[e for e in daily_evidence(entries,as_of,profile.min_block) if e['n']>=profile.min_block]
     latest=daily[-1] if daily else None
     if not stats['reported_n'] and latest:
         stats=posterior(int(latest['correct']),latest['n']) if latest['exact'] else {
@@ -97,7 +111,8 @@ def balanced_dose(state,profile,entries,as_of):
     maintenance=bool(state['spacing']['streak']>=2 and measured and stats['exact_n']>=p.sufficient_sample and
                      not(critical or weak or stale or state.get('pending_due')))
     kind='diagnostic' if not measured or stale else 'reinforcement' if critical or weak else 'maintenance' if maintenance else 'practice'
-    if kind=='diagnostic' or critical: desired=max(desired,p.diagnostic_dose)
+    if critical or kind=='diagnostic' and (stale or not state.get('theme_continuation')):
+        desired=max(desired,p.diagnostic_dose)
     if maintenance: desired=profile.min_block+ceil(p.gap_dose*gap+p.maintenance_incidence_dose*strength)
     desired=max(profile.min_block,desired); available=min(state['total'],desired)
     reasons={'diagnostic':'Medir o tema com questões representativas; o histórico disponível não comprova retenção atual.',

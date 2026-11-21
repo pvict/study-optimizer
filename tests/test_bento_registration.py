@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from dataclasses import replace
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -36,15 +37,18 @@ def test_registration_visible_kind_inline_error_and_next_action_are_idempotent(t
     monkeypatch.setenv('OSLER_DATA_DIR',str(tmp_path))
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     next(b for b in app.button if b.label=='Registrar este bloco').click().run()
-    assert any(g.key=='study_kind' for g in app.get('button_group'))
+    alternatives=next(e for e in app.expander if e.label=='Outras formas de registrar')
+    assert not alternatives.proto.expanded
+    assert any(g.key=='study_kind' for g in alternatives.get('button_group'))
     app.number_input(key='study_n').set_value(20)
     app.number_input(key='study_correct').set_value(21)
     next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    assert not any(b.key=='action_confirm' for b in app.button)
     assert not app.exception and any('Acertos não podem passar de 20' in e.value for e in app.error)
     assert app.number_input(key='study_correct').value==21
     assert not AdaptiveService(repo).store.events()
     app.number_input(key='study_correct').set_value(17)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception and any('Salvo. Hoje: 20 de 60.' in h.value for h in app.get('html'))
     app.run();assert len(AdaptiveService(repo).store.events())==1
     view=AdaptiveService(repo).overview('2026-10-15')

@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 from streamlit.testing.v1 import AppTest
 from osler.adaptive_service import AdaptiveService
@@ -12,7 +13,9 @@ def test_new_topic_sections_keep_navigation_and_show_capacity_and_uncertainty(tm
     open_view(app,adaptive='Temas e estatísticas')
     assert not app.exception
     assert {'Plano de corte','Minha meta'}<={tab.label for tab in app.tabs}
+    app.session_state['topics_tabs']='Plano de corte';app.run()
     assert any('Demanda condicional' in e.value for e in app.markdown)
+    app.session_state['topics_tabs']='Minha meta';app.run()
     assert any('Não é uma previsão de aprovação.' in e.value for e in app.info)
     open_view(app,adaptive='Ajustes')
     assert not app.exception
@@ -30,7 +33,7 @@ from osler.weekly_review_ui import render_weekly_review
 render_weekly_review(AdaptiveService(Repository(os.environ['WEEKLY_TEST_ROOT'])))
 ''').run()
     app.text_input(key='weekly_blocked_2026-10-12').set_value('Plantão')
-    next(b for b in app.button if b.label=='Salvar revisão da semana').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar revisão da semana').click().run())
     from osler.weekly_review import WeeklyReviewStore
     assert not app.exception
     assert len(WeeklyReviewStore(Repository(tmp_path)).events())==1

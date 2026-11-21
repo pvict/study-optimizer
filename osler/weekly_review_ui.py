@@ -1,4 +1,6 @@
 """Conversa semanal curta, sem ajustes automáticos ou cobrança de faltas."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import pandas as pd
 import streamlit as st
 from .planner_service import today_local
@@ -39,9 +41,9 @@ def render_weekly_review(service,as_of=None):
             blocked=st.text_input('O que travou sua semana?',value=values.get('blocked',''),max_chars=1000,key='weekly_blocked_'+key)
             change=st.text_input('O que gostaria de mudar na carga?',value=values.get('load_change',''),max_chars=1000,key='weekly_load_'+key)
             rest=st.checkbox('Preciso reservar descanso',value=values.get('needs_rest',False),key='weekly_rest_'+key)
-            save=st.form_submit_button('Salvar revisão da semana' if not old else 'Salvar nova versão da revisão')
+            save=confirm_submit('Salvar revisão da semana' if not old else 'Salvar nova versão da revisão',action_key='weekly_review_ui_42')
         if save:
-            store.save(key,{'blocked':blocked,'load_change':change,'needs_rest':rest},expected_version=old['version'] if old else 0,summary=report)
+            notify_success(store.save(key,{'blocked':blocked,'load_change':change,'needs_rest':rest},expected_version=old['version'] if old else 0,summary=report),'Alterações salvas.')
             st.session_state.pop(snapshot_key,None)
             st.success('Revisão salva. Sua rotina não foi alterada.')
         history=store.events()

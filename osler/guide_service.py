@@ -7,7 +7,7 @@ from .assessment_service import AssessmentService
 from .files import write_immutable
 from .guide import GuideSettings, daily_blocks, rank_topics, roadmap
 from .guide_storage import GuideStore
-from .incidence import parse_html_table, parse_incidence, table_as_text
+from .incidence import apply_html_incidence_labels, parse_html_table, parse_incidence, suggested_value_column, table_as_text
 from .matching_service import load_matching
 from .models import normalize_path
 from .planner_service import today_local
@@ -43,33 +43,31 @@ class GuideService:
         qbank = self._report("qbank", today_local().isoformat())
         if qbank is None:
             raise ValueError("Importe um PDF de questões para reconhecer os caminhos dos temas.")
-        source_text, table = text, None
-        if text.lstrip().startswith("<"):
+        source_text, table, column_label = text, None, None
+        if text.lstrip("\ufeff \r\n\t").startswith("<"):
             table = parse_html_table(text)
+            institutional = table["institution_count_column"]
+            if institutional is not None and (unit != "questoes" or value_column not in (None, institutional)):
+                raise ValueError("Use a contagem da coluna Incidência das instituições nessa tabela do Planner.")
             if value_column is None:
-                # Preferir a contagem explicitamente identificada das instituições.
-                columns = [i for i, label in enumerate(table["headers"]) if i and "institu" in normalize_path([label])[0] and ("quest" in normalize_path([label])[0] if unit == "questoes" else "incid" in normalize_path([label])[0])]
-                if len(columns) != 1:
-                    columns = [i for i, label in enumerate(table["headers"]) if i and ("quest" in normalize_path([label])[0] if unit == "questoes" else "percent" in normalize_path([label])[0])]
-                if len(columns) != 1:
+                value_column = suggested_value_column(table, unit)
+                if value_column is None:
                     raise ValueError("Escolha qual coluna da tabela deseja usar.")
-                value_column = columns[0]
             text = table_as_text(table, value_column)
+            column_label = "Incidência das instituições" if value_column == institutional else table["headers"][value_column]
         rows = parse_incidence(text, qbank, unit)
-        if table and value_column+1 < len(table["headers"]) and "incid" in normalize_path([table["headers"][value_column+1]])[0]:
-            labels = {"incidencia altissima": "alta", "incidencia alta": "alta", "incidencia media": "media", "incidencia baixa": "baixa", "sem incidencia": "baixa"}
-            for parsed, raw in zip(rows, table["rows"]):
-                native = raw[value_column+1]
-                parsed["native_incidence"] = native
-                parsed["band"] = labels.get(normalize_path([native])[0], parsed["band"])
+        if table:
+            apply_html_incidence_labels(rows, table, value_column)
         source = source_text.encode("utf-8")
         digest = hashlib.sha256(source).hexdigest()
         folder = self.repository.exports/"incidencia"/digest
         folder.mkdir(parents=True, exist_ok=True)
         write_immutable(folder/("origem.html" if table else "origem.txt"), source)
         payload = {"institutions": [i.strip() for i in institutions], "observed_date": observed_date, "unit": unit, "rows": rows,
-                   "qbank_report_id": qbank.file_sha256, "source_sha256": digest, "source_path": str(folder.relative_to(self.repository.root)),
+                   "qbank_report_id": qbank.file_sha256, "source_sha256": digest, "source_path": folder.relative_to(self.repository.root).as_posix(),
                    "received_rows": len(rows), "matched_rows": sum(r["path"] is not None for r in rows)}
+        if column_label:
+            payload["value_column"] = column_label
         return self.store.save_dataset(payload)
 
     def save_day(self, day, status, path, feedback="nao_registrei"):

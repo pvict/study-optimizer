@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from copy import deepcopy
 import pytest
 from osler.adaptive_planning import topic_states,allocate_day
@@ -9,18 +10,20 @@ from test_adaptive_planning import topic,session
 @pytest.mark.parametrize('strategy',['legacy_v1','balanced_v2'])
 @pytest.mark.parametrize('mode',['fixed','adaptive'])
 @pytest.mark.parametrize('total',[1,9])
-def test_small_positive_bank_receives_real_slot_without_inventing_questions(total,strategy,mode):
+def test_small_positive_bank_remains_visible_without_an_automatic_slot(total,strategy,mode):
     p=AdaptiveProfile(max_questions=120,max_topics=6,new_share=.5,review_strategy=strategy,workload_mode=mode)
     states=topic_states([topic('small',total=total)],[],[],{},'2026-10-15',p)
     plan=allocate_day(states,p,None,'normal',[],'2026-10-15',question_target=120)
-    assert [(i['topic_id'],i['questions']) for i in plan['items']]==[('small',total)]
+    assert states[0]['total']==total
+    assert states[0]['small_bank'] and states[0]['recommended_questions']>=p.min_block
+    assert not plan['items']
     assert plan['done_questions']==0
     calendar=forecast_calendar(states,p,'2026-10-15',30,[],{},next_contact_only=True)
-    assert [i['questions'] for d in calendar for i in d['items']]==[total]
+    assert not any(d['items'] for d in calendar)
     assert states[0]['performance']['exact_n']==0
 
 
-def test_short_bank_still_obeys_priority_rest_and_normal_bank_minimum():
+def test_high_incidence_small_bank_does_not_override_rest_or_take_regular_slot():
     p=AdaptiveProfile(max_questions=40,max_topics=1,new_share=1,workload_mode='adaptive',review_strategy='balanced_v2')
     topics=[topic('low',total=1),topic('high',total=9),topic('normal',total=100)]
     data=[{'id':1,'institutions':['X'],'unit':'questoes','observed_date':'2026-10-15',
@@ -29,18 +32,17 @@ def test_short_bank_still_obeys_priority_rest_and_normal_bank_minimum():
     days=forecast_calendar(states,p,'2026-10-15',30,[],{'2026-10-15':{'questions':40,'kind':'descanso','extra_topics':[]}},next_contact_only=True)
     assert not days[0]['items']
     contacts=[i for d in days for i in d['items']]
-    assert contacts[0]['topic_id']=='high'
-    assert {i['topic_id'] for i in contacts}=={'low','high','normal'}
+    assert [i['topic_id'] for i in contacts]==['normal']
     assert next(i for i in contacts if i['topic_id']=='normal')['questions']>=p.min_block
 
 
-def test_all_mixed_size_topics_have_actual_dates_when_calendar_has_capacity():
+def test_all_eligible_mixed_size_topics_have_dates_when_calendar_has_capacity():
     p=AdaptiveProfile(max_questions=120,max_topics=6,new_share=.5,workload_mode='adaptive',review_strategy='balanced_v2')
     topics=[topic('T'+str(i),total=1+i%70) for i in range(1480)]
     states=topic_states(topics,[],[],{},'2026-10-15',p);before=deepcopy(states)
     days=forecast_calendar(states,p,'2026-10-15',412,[],{},next_contact_only=True)
     contacts={i['topic_id'] for d in days for i in d['items']}
-    assert len(contacts)==len(topics)
+    assert contacts=={t['topic_id'] for t in topics if t['total']>=p.min_block}
     assert all(d['questions']<=120 and len(d['items'])<=6 for d in days)
     assert states==before
 
@@ -88,7 +90,7 @@ _register(st.session_state.service)
     app.number_input(key='study_correct').set_value(18)
     app.number_input(key='study_confident').set_value(16)
     app.number_input(key='study_cards_created').set_value(2)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     view=s.overview('2026-10-15')
     parent=next(t for t in view['states'] if t['topic_id']==records[2].topic_id)

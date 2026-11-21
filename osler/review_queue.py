@@ -4,7 +4,7 @@ from .planning import _date
 from .models import normalize_path
 
 
-def review_queue(sessions):
+def review_queue(sessions,not_before=None):
     by_id={s['session_id']:s['entry'] for s in sessions}
     used={sid:0 for sid in by_id}
     for sid,e in by_id.items():
@@ -31,6 +31,11 @@ def review_queue(sessions):
         if remaining<0: raise ValueError('A alteração excede a pendência disponível para revisões vinculadas. Corrija as revisões dependentes primeiro.')
         if remaining:
             queue.append({'session_id':sid,'path':e['path'],'questions':remaining,'due_date':(_date(e['day'])+timedelta(days=7)).isoformat(),'source_date':e['day']})
+    for lot in queue:
+        available=(not_before or {}).get(lot['session_id'])
+        if available and available>lot['due_date']:
+            lot['original_due_date']=lot['due_date']
+            lot['due_date']=available
     return sorted(queue,key=lambda q:(q['due_date'],q['path'],q['session_id']))
 
 

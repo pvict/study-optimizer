@@ -2,12 +2,14 @@
 
 Aplicativo local para organizar a preparação para residência médica: plano diário por quantidade de questões, acompanhamento de desempenho e revisões espaçadas por tema específico.
 
+Também pode ser hospedado para acesso privado pelo celular com o PC desligado. A versão online usa armazenamento persistente no Supabase; a cópia local continua independente. [Configuração, backups e limites dos planos gratuitos](cloud/README.md).
+
 O **dia de estudo vira às 04h, no horário de Brasília**: 22/10 inclui o período
 de 22/10 às 04h até antes de 23/10 às 04h. Plano, registro padrão, calendário,
 estatísticas e trocas usam esse mesmo dia. Datas já declaradas/importadas e horários
 de auditoria permanecem intactos.
 
-**Versão 0.29.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
+**Versão 0.30.0.** Interface em português, construída com Streamlit. Os resultados são informados pelo usuário ou importados de arquivos exportados manualmente; o aplicativo não acessa nem automatiza a plataforma Osler ou a FluidMed.
 
 Em **Simulados → Treinos por área**, programe um ou dois treinos semanais por instituição, mova datas e registre resultados. As questões reservadas fazem parte da meta diária. O rodízio percorre as cinco grandes áreas e as instituições escolhidas; alterar frequência ou carga preserva os treinos já realizados.
 
@@ -18,6 +20,8 @@ Em **Simulados → Correção**, informe os temas errados agora ou depois de reg
 A interface Bento usa um menu lateral único, cards claros, ações visíveis e detalhes recolhidos. Hoje reúne o próximo bloco e o que já foi feito; Calendário distingue estudo registrado, hoje e previsão; Evolução abre pelo histórico real e mantém projeções em Cenários. Flashcards mostra decks e recomendações antes dos ajustes; Arquivos abre pela biblioteca e conserva as ferramentas técnicas em Avançado. Ajustes reúne Meta e rotina, Minhas provas e Instituições e incidências. O nome opcional é usado somente na sessão atual. [Entrega da fase 5, capturas e limites](docs/design/bento-fase5-entrega.md) · [Sistema de design](DESIGN.md).
 
 ## O que o aplicativo oferece
+
+- **Bancos pequenos e temas novos:** fragmentos abaixo do mínimo pedem complemento ou entram num bloco conjunto de subtemas do mesmo tema quando há acervo suficiente. O plano reserva vagas para blocos úteis, usa a incidência das instituições para ordenar novos e separa a continuação de um tema de um primeiro contato. [Critérios e limites](docs/research/planejamento-bancos-pequenos-v0.15.md).
 
 - **Cards criados nos blocos:** informe a quantidade ao registrar suas questões; a fila do tema acompanha edições e lançamentos desconsiderados, sem duplicar os cards já abrangidos por um novo HTML. Criar não conta como estudar e não muda sua carga diária. **Redução com dados atuais:** até três sugestões seletivas, com fontes datadas, temas protegidos e reavaliação em sete dias. [Funcionamento, critérios e limites](docs/research/reducao-atual-e-novos-cards.md).
 
@@ -54,12 +58,18 @@ O plano usa sempre temas específicos. PDFs são contexto documental: sua data n
 
 Requer Python3.11 ou superior; o ambiente de validação usa Python3.13.
 
+Com os atalhos instalados, **Osler** fica na Área de Trabalho e no menu Iniciar. O servidor é preparado automaticamente ao entrar no Windows, sem abrir o navegador ou mostrar um terminal. Abra o ícone Osler quando quiser estudar. **Encerrar Osler**, no menu Iniciar, encerra as sessões iniciadas pelo lançador. Os arquivos `.bat` continuam como alternativa.
+
+Para instalar esses atalhos em outra cópia, execute uma vez `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install_local_shortcuts.ps1`. O script instala somente para o usuário atual e preserva atalhos existentes que apontem para outro aplicativo. Para desativar a partida automática, retire o atalho Osler da pasta que abre com `Win+R` → `shell:startup`.
+
 1. Clone ou baixe este repositório.
 2. Execute **instalar.bat** para criar o ambiente e instalar as dependências.
-3. Execute **iniciar.bat** e mantenha a janela em execução enquanto usa o app.
+3. Execute **iniciar.bat**. O navegador abre quando o servidor estiver pronto e a janela do lançador fecha. Se o app já estiver aberto, o mesmo servidor é reutilizado.
 4. Abra [http://127.0.0.1:8501](http://127.0.0.1:8501).
 
-Para encerrar o servidor, use Ctrl+C na janela em que ele foi iniciado.
+O servidor fica em segundo plano e atende somente neste computador. Para encerrá-lo, execute **encerrar.bat**. Esse atalho encerra apenas o processo iniciado pelo lançador desta pasta, verificando sua identidade; servidores iniciados manualmente devem ser encerrados com Ctrl+C no terminal original. Fechar a aba do navegador mantém o servidor disponível para a próxima abertura.
+
+Se houver erro na abertura, a janela mostra o motivo. O log fica em `.osler-runtime/server.log`; esses arquivos locais não são enviados ao GitHub. Não é necessário reinstalar as dependências para abrir novamente o app.
 
 ### Instalação manual
 
@@ -72,6 +82,21 @@ python -m venv .venv
 Em Linux/macOS, use `.venv/bin/python` no lugar de `.venv\Scripts\python.exe`. `requirements-lock.txt` registra as versões do ambiente validado; `requirements.txt` define os intervalos de instalação.
 
 ## Primeiro uso
+
+### Atualizar Planner e flashcards de erros
+
+Abra **Atualizar dados** na barra lateral. Há duas abas independentes:
+
+- **Planner de questões:** envie o HTML/TXT da tabela ou cole o HTML, informe o dia da captura e clique em **Conferir atualização**. Veja questões distintas, convicção, contato e pendências antes de clicar em **Atualizar Planner** e confirmar. Capturas parciais mantêm os dados dos temas ausentes. O acumulado não vira novos blocos nem é somado às tentativas registradas no app.
+- **Flashcards de erros:** envie a árvore HTML, informe o dia e diga se o arquivo contém somente pendentes, todo o inventário ou uma nova passagem. Confira o saldo antes/depois e confirme **Atualizar cards de erros**. Pais e filhos não entram duas vezes; estudos anteriores permanecem no histórico. Criações registradas depois da captura continuam na fila e aparecem separadas na prévia.
+
+A data segue o dia de estudo da Osler: antes das04h ainda pertence ao dia anterior. Ela permite interpretar “Hoje” e “dias sem contato”; sem esse campo, não se inventa um último contato.
+
+As incidências atuais são mantidas por padrão. Para atualizá-las junto do progresso, marque a opção correspondente e informe as instituições daquela consulta. Uma tabela parcial não pode substituir silenciosamente uma incidência mais completa já cadastrada; nesse caso, atualize só o progresso ou envie a consulta completa.
+
+**Como copiar o HTML da Osler** fica recolhido nas duas abas, com os passos de exportação manual. O app lê apenas o arquivo recebido, sem acessar sua conta. Arquivos originais, capturas anteriores e registros são preservados. Reenviar a mesma atualização não repete as contagens. [Funcionamento e validações](docs/research/atualizacao-guiada-de-dados.md).
+
+### Configuração inicial
 
 1. Em **Arquivos e ferramentas → Dados e classificação → Importar relatórios**, importe os PDFs exportados manualmente.
 2. Em **Meu estudo → Ajustes → Meta e rotina**, escolha a quantidade diária, a divisão novos/revisões e a meta de acerto nos temas. Metas por grande área são opcionais; áreas sem ajuste usam a global.

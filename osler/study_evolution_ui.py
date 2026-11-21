@@ -1,11 +1,12 @@
 """Evolução: escolher horizonte, enxergar cenário, reconhecer fatos e agir."""
+from .ui_help import explain
 from datetime import timedelta,date
 import altair as alt
 import pandas as pd
 import streamlit as st
 from .planner_service import today_local
 from .planning import _date
-from .study_evolution import evolution_attention
+from .study_evolution import evolution_attention,SNAPSHOT_VERSION
 from .evolution_performance import performance_outlook
 from .evolution_components import journey_html,achievement_html,point_at,number,date_label
 from .evolution_spacing import SCENARIOS,SCENARIO_VERSION
@@ -23,7 +24,7 @@ def progress_chart(context,selected,coverage=False):
     if coverage:
         rows=[{'Data':p['date'],'Valor':p['coverage_pct'],'Série':p['kind']} for p in s['points'] if p['date']<=selected]
         rows[0]['Série']='Realizado'
-        title='Temas com questões (%)'; domain=[0,100]
+        title='Subtemas com questões individuais (%)'; domain=[0,100]
     else:
         rows=[{'Data':p['date'],'Valor':p['attempts'],'Série':'Realizado'} for p in s['history']]
         rows += [{'Data':p['date'],'Valor':p['attempts'],'Série':'Previsto'} for p in s['points'] if p['date']<=selected]
@@ -32,7 +33,7 @@ def progress_chart(context,selected,coverage=False):
     chart=alt.Chart(frame).mark_line(strokeWidth=3).encode(
         x=alt.X('Data:T',title=None,axis=alt.Axis(format='%d/%m',labelAngle=0,tickCount=5)),
         y=alt.Y('Valor:Q',title=title,scale=alt.Scale(domain=domain,zero=True)),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Realizado','Previsto'],range=['#172b4d','#2563eb']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Realizado','Previsto'],range=['#1D1D1F','#0066CC']),legend=alt.Legend(orient='bottom',title=None)),
         strokeDash=alt.StrokeDash('Série:N',scale=alt.Scale(domain=['Realizado','Previsto'],range=[[],[6,4]]),legend=None),
         tooltip=[alt.Tooltip('Data:T',format='%d/%m/%Y'),alt.Tooltip('Valor:Q',format='.1f' if coverage else ',.0f',title=title),'Série:N'])
     observed=chart.mark_point(filled=True,size=35).transform_filter(alt.datum['Série']=='Realizado')
@@ -44,10 +45,10 @@ def _performance(context,selected):
     safety=context['snapshot'].get('imported_safety',{})
     if safety.get('weighted_pct') is not None:
         st.write(f"Ponto de partida nos arquivos: **{safety['weighted_pct']:.1f}% de segurança acumulada média por tema**, em {safety['topics']} temas com medição.")
-        st.caption('Média ponderada pelas contagens por tema, incluindo recuperações nas revisões. Fica separada do acerto em questões novas e não é uma previsão de nota na prova.')
+        explain('Média ponderada pelas contagens por tema, incluindo recuperações nas revisões. Fica separada do acerto em questões novas e não é uma previsão de nota na prova.')
     if not model['weekly']:
         st.info('Sua curva de rendimento começa com os blocos de questões novas registrados no app. A segurança acumulada da Osler continua em Temas; ela não substitui essa série.')
-        st.caption('Acompanhar acertos e convicção em novas permite distinguir aprender de reconhecer uma questão repetida.')
+        explain('Acompanhar acertos e convicção em novas permite distinguir aprender de reconhecer uma questão repetida.')
         return
     rows=[]
     for w in model['weekly']:
@@ -60,7 +61,7 @@ def _performance(context,selected):
     chart=alt.Chart(pd.DataFrame(rows)).mark_line(point=True,strokeWidth=2).encode(
         x=alt.X('Data:T',title=None,axis=alt.Axis(format='%d/%m',tickCount=5)),
         y=alt.Y('Percentual:Q',title='Acerto e convicção (%)',scale=alt.Scale(domain=[0,100])),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Convicção em novas','Cenário condicional'],range=['#172b4d','#166534','#2563eb']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Convicção em novas','Cenário condicional'],range=['#1D1D1F','#166534','#0066CC']),legend=alt.Legend(orient='bottom',title=None)),
         strokeDash=alt.StrokeDash('Série:N',scale=alt.Scale(domain=['Acerto em novas','Convicção em novas','Cenário condicional'],range=[[],[],[6,4]]),legend=None),
         tooltip=[alt.Tooltip('Data:T',format='%d/%m/%Y'),alt.Tooltip('Percentual:Q',format='.1f'),'Série:N','Questões:Q']).properties(height=280)
     st.altair_chart(chart.configure_view(stroke=None),width='stretch')
@@ -97,7 +98,7 @@ def _render_scenario(service):
         simulate=st.checkbox('Comparar com outra meta de questões',key='evolution_simulate')
         if simulate: scenario=int(st.number_input('Questões por dia neste cenário',1,1000,profile['max_questions'],key='evolution_questions'))
         st.caption('A simulação preserva seus ajustes. Descansos e adicionais já programados continuam valendo; ao simular outra carga, ela substitui as metas-base dos dias.')
-    key=[SCENARIO_VERSION,service.agenda.token(),today.isoformat(),scenario,spacing_scenario]
+    key=[SCENARIO_VERSION,SNAPSHOT_VERSION,service.agenda.token(),today.isoformat(),scenario,spacing_scenario]
     cache=st.session_state.get('evolution_context_cache',{})
     if cache.get('key')!=key:
         with st.spinner('Projetando sua jornada com a rotina atual…'):
@@ -106,31 +107,34 @@ def _render_scenario(service):
     context=cache['context']; snapshot=context['snapshot']; point=point_at(snapshot,selected)
     if profile['exam_date']<today.isoformat(): st.info('A data de referência da preparação já passou. Seu histórico continua disponível; ajuste a prova para projetar os próximos meses.')
     if not context['exam_in_horizon']: st.caption('A prova está além do horizonte de18meses disponível. A jornada vai até '+date_label(end)+'.')
-    if not snapshot['total_topics']: st.info('Importe seu relatório de questões para construir a jornada por temas. Nenhuma conquista ou evolução foi criada como exemplo.')
-    st.subheader('Seu caminho até '+date_label(selected))
+    if not snapshot['total_topics']: st.info('Importe o relatório de questões para iniciar o acompanhamento.')
+    st.subheader('Projeção até '+date_label(selected))
     if spacing_scenario=='progressive':
-        st.caption(f"Previsto se os próximos blocos atingirem sua meta com convicção: intervalos avançam até {profile['max_contact_gap']} dias, com ajuste por incidência. É uma hipótese de planejamento, sem ganho de acerto ou domínio registrado.")
-    else: st.caption('Previsto mantendo os intervalos atuais e executando os blocos. Realizado corresponde aos registros e ao histórico documentado.')
+        explain(f"Previsto se os próximos blocos atingirem sua meta com convicção: intervalos avançam até {profile['max_contact_gap']} dias, com ajuste por incidência. É uma hipótese de planejamento, sem ganho de acerto ou domínio registrado.")
+    else: explain('Previsto mantendo os intervalos atuais e executando os blocos. Realizado corresponde aos registros e ao histórico documentado.')
     st.html(journey_html(context,selected))
     with st.container(key='evolution_summary'):
-        a,b,c=st.columns(3)
+        a,b,c,d=st.columns(4)
         a.metric('Respostas previstas',number(point['future_attempts']))
-        b.metric('Temas com prática',f"{point['covered']}/{snapshot['total_topics']}")
-        c.metric('Cobertura',f"{point['coverage_pct']:.1f}%" if snapshot['total_topics'] else 'Sem catálogo')
-    st.caption('Respostas incluem repetições. O histórico importado conta para a cobertura; não é somado aos blocos do app. Cobertura não comprova domínio.')
+        b.metric('Prática individual',f"{point['covered']}/{snapshot['total_topics']}")
+        c.metric('Cobertura individual',f"{point['coverage_pct']:.1f}%" if snapshot['total_topics'] else 'Sem catálogo')
+        d.metric('Só em bloco conjunto',str(point.get('joint_only',0)))
+    explain('Respostas incluem repetições. O histórico importado por subtema conta para a cobertura individual; não é somado aos blocos do app. Cobertura não comprova domínio.')
+    if point.get('included_jointly'):
+        explain(f"{point['included_jointly']} subtemas incluídos em blocos conjuntos, com {number(point['joint_attempts'])} respostas no total desses blocos até esta data. A quantidade por subtema é desconhecida; inclusão conjunta não aumenta a cobertura individual nem comprova rendimento individual.")
     additional=point['covered']-snapshot['covered_now']
-    st.caption(f"Base documentada hoje: {snapshot['covered_now']} temas · mais {additional} temas com prática prevista até a data escolhida.")
+    st.caption(f"{snapshot['covered_now']} temas hoje · +{additional} previstos")
     month_before=max(context['as_of'],(_date(selected)-timedelta(days=30)).isoformat())
     if selected>context['as_of'] and point['covered']<snapshot['total_topics'] and point['covered']==point_at(snapshot,month_before)['covered']:
-        st.caption('Sem primeiros contatos adicionais neste trecho com os limites atuais. Mais tempo pode continuar ocupado pelas revisões; a divisão entre novos e revisões, as doses e o limite de temas por dia restringem a cobertura.')
+        explain('Sem novos contatos individuais neste trecho. Blocos conjuntos aparecem separadamente; sem distribuição por subtema, eles não aumentam a cobertura individual. Revisões, doses e limites de carga também podem restringir novos contatos.')
     chart=st.radio('Acompanhar',['Questões respondidas','Cobertura dos temas','Rendimento'],horizontal=True,key='evolution_chart')
     if chart=='Rendimento': _performance(context,selected)
     else: st.altair_chart(progress_chart(context,selected,chart=='Cobertura dos temas'),width='stretch')
-    st.subheader('Marcos que contam sua história')
+    st.subheader('Marcos do estudo')
     st.html(achievement_html(snapshot['achievements']))
     attention=evolution_attention(snapshot,selected)
-    st.subheader('Onde vale colocar atenção')
-    st.caption('Possíveis pontos fracos neste cenário, ordenados por prioridade relativa. O último rendimento conhecido permanece até uma nova medição real; esta lista não é dívida de estudo.')
+    st.subheader('Temas prioritários')
+    explain('Possíveis pontos fracos neste cenário, ordenados por prioridade relativa. O último rendimento conhecido permanece até uma nova medição real; esta lista não é dívida de estudo.')
     for item in attention[:3]:
         left,right=st.columns([3,1])
         left.markdown('**'+item['path'][-1]+'** · '+item['kind'])
@@ -151,4 +155,4 @@ def _render_scenario(service):
             st.caption(f"Nesta data do cenário: {point.get('reviews_waiting',0)} temas com revisão prevista aguardariam vaga e {point.get('pending_responses',0)} respostas de lotes conhecidos aguardariam revisão. São limites previstos, sem criar pendências reais.")
         st.caption('Totais acumulados informados reconhecem cobertura, mas não são somados aos blocos realizados no app nem desbloqueiam conquistas de registros de blocos.')
         st.caption('Estimativas de rendimento usam apenas questões novas com acertos exatos; histórico insuficiente ou horizonte longo não gera percentual inventado. Não é probabilidade de aprovação.')
-        st.dataframe(pd.DataFrame(snapshot['points']).query('date <= @selected')[['date','attempts','future_attempts','covered','coverage_pct','kind']].rename(columns={'date':'Data','attempts':'Respostas no app','future_attempts':'Respostas previstas adicionais','covered':'Temas cobertos','coverage_pct':'Cobertura (%)','kind':'Estado'}),hide_index=True,width='stretch')
+        st.dataframe(pd.DataFrame(snapshot['points']).query('date <= @selected')[['date','attempts','future_attempts','covered','coverage_pct','included_jointly','joint_only','kind']].rename(columns={'date':'Data','attempts':'Respostas no app','future_attempts':'Respostas previstas adicionais','covered':'Subtemas com prática individual','coverage_pct':'Cobertura individual (%)','included_jointly':'Incluídos em blocos conjuntos','joint_only':'Somente inclusão conjunta','kind':'Estado'}),hide_index=True,width='stretch')

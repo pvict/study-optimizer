@@ -2,7 +2,7 @@
 .stApp { background: var(--study-bg); color: var(--study-ink); }
 .stApp ::selection { background: #dbeafe; color: var(--study-ink); }
 .stApp input, .stApp textarea { caret-color: var(--study-primary); }
-.block-container { max-width: 1240px; padding: 4rem 2rem 4rem; container: study / inline-size; }
+.block-container { max-width: 1240px; padding: 76px 2rem 4rem; container: study / inline-size; }
 .stApp h1 { padding-bottom: .3rem; }
 .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label { overflow-wrap: anywhere; }
 .stApp [data-testid="stCaptionContainer"] { color: var(--study-muted); }

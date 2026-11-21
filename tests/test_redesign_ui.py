@@ -1,3 +1,4 @@
+from ui_actions import confirm_action
 from conftest import open_view
 """Contratos de tarefa do redesign: filtros e registro, sem dados reais."""
 from streamlit.testing.v1 import AppTest
@@ -33,6 +34,7 @@ def test_invalid_contextual_result_keeps_values_and_does_not_save(tmp_path,monke
     assert app.number_input(key='study_confident').value is None
     app.number_input(key='study_correct').set_value(count+1)
     next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    assert not any(b.key=='action_confirm' for b in app.button)
     assert not app.exception and app.error
     assert app.session_state['adaptive_topic']==selected
     assert app.number_input(key='study_n').value==count
@@ -45,7 +47,7 @@ def test_success_offers_return_and_does_not_resubmit_on_rerun(tmp_path,monkeypat
     next(b for b in app.button if b.label=='Registrar este bloco').click().run()
     app.number_input(key='study_n').set_value(10)
     app.number_input(key='study_correct').set_value(8)
-    next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run()
+    confirm_action(next(b for b in app.button if b.label=='Salvar resultado e atualizar meu plano').click().run())
     assert not app.exception
     assert any(b.label=='Voltar ao plano' for b in app.button)
     assert not any(b.label=='Salvar resultado e atualizar meu plano' for b in app.button)

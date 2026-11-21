@@ -11,7 +11,7 @@ def test_summary_keeps_missing_duration_and_score_unknown():
     assert summary['date'] == '14/10/2026'
     assert summary['duration'] == '—'
     assert summary['score'] == '—'
-    assert summary['accuracy'] == '60 / 80 · 75,0% · n=80'
+    assert summary['accuracy'] == '60 / 80 · 75,0%'
 
 
 def test_summary_preserves_informed_score_scale_and_zero():
@@ -20,7 +20,7 @@ def test_summary_preserves_informed_score_scale_and_zero():
     summary = _summary(exam)
     assert summary['duration'] == '135,5 min'
     assert summary['score'] == '0 / 20'
-    assert summary['accuracy'] == '60 / 80 · 75,0% · n=80'
+    assert summary['accuracy'] == '60 / 80 · 75,0%'
 
 
 def test_summary_html_and_area_bars_escape_external_text_and_show_wilson():
@@ -32,11 +32,13 @@ def test_summary_html_and_area_bars_escape_external_text_and_show_wilson():
     assert '<img' not in html and '<script>' not in html
     assert '&lt;img src=x&gt;' in html and '&lt;script&gt;área&lt;/script&gt;' in html
     assert 'o-bar-fill--clinica' in html and 'o-bar-fill--neutral' in html
-    assert 'n=10' in html and '39,7–89,2%' in html
+    assert '7 / 10 · 70,0%' in html and 'Faixa Wilson 95%: 39,7–89,2%' in html
 
 
 APP = '''
 import os
+import streamlit as st
+st.session_state.setdefault('mock_sections','Resultados')
 from osler.storage import Repository
 from osler.adaptive_service import AdaptiveService
 from osler.mock_exams_ui import render_mock_exams
@@ -74,6 +76,9 @@ def test_latest_summary_does_not_compare_accuracy_with_cutoff(tmp_path, monkeypa
     app = AppTest.from_string(APP, default_timeout=30).run()
     assert not app.exception
     assert any('Corte informado: 60.0%' in item.value for item in app.info)
+    assert not any('o acerto das questões não é comparado' in item.value for item in app.caption)
+    app.session_state['show_explanations']=True
+    app.run()
     assert any('o acerto das questões não é comparado' in item.value for item in app.caption)
     assert not any('Diferença para a referência' in item.value for item in app.caption)
 
@@ -100,6 +105,7 @@ def test_schedule_preview_is_separate_from_apply_and_keeps_study_unchanged(tmp_p
     monkeypatch.setenv('BENTO_MOCK_ROOT', str(tmp_path))
     service = AdaptiveService(Repository(tmp_path))
     app = AppTest.from_string(APP, default_timeout=30).run()
+    app.session_state['mock_sections']='Programação';app.run()
     assert not app.exception
     app.date_input(key='mock_schedule_first').set_value(date(2026, 10, 18))
     app.button(key='mock_schedule_preview').click().run()

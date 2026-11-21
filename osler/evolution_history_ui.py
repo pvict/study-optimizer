@@ -1,4 +1,5 @@
 """Histórico observado e sua apresentação; não projeta aprendizagem ou altera planos."""
+from .ui_help import explain
 from collections import defaultdict
 from datetime import timedelta
 from html import escape
@@ -79,7 +80,7 @@ def _accuracy_chart(model):
     chart=alt.Chart(pd.DataFrame(rows)).mark_line(point=alt.OverlayMarkDef(filled=True,size=45),strokeWidth=2).encode(
         x=alt.X('Semana:T',title=None,axis=alt.Axis(format='%d/%m',tickCount=4,labelAngle=0)),
         y=alt.Y('Percentual:Q',title='Acertos (%)',scale=alt.Scale(domain=[0,100])),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Acerto com convicção'],range=['#111827','#4F46E5']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Acerto em novas','Acerto com convicção'],range=['#111827','#0066CC']),legend=alt.Legend(orient='bottom',title=None)),
         strokeDash=alt.StrokeDash('Série:N',scale=alt.Scale(domain=['Acerto em novas','Acerto com convicção'],range=[[],[5,3]]),legend=None),
         tooltip=[alt.Tooltip('Semana:T',format='%d/%m/%Y'),alt.Tooltip('Percentual:Q',format='.1f'),'Amostra:Q','Série:N'])
     st.altair_chart(_chart_style(chart),width='stretch')
@@ -91,7 +92,7 @@ def _volume_chart(model):
     chart=alt.Chart(pd.DataFrame(rows)).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
         x=alt.X('Semana:T',title=None,axis=alt.Axis(format='%d/%m',tickCount=4,labelAngle=0)),
         xOffset='Série:N',y=alt.Y('Questões:Q',title='Questões'),
-        color=alt.Color('Série:N',scale=alt.Scale(domain=['Registradas','Referência atual'],range=['#4F46E5','#D1D5DB']),legend=alt.Legend(orient='bottom',title=None)),
+        color=alt.Color('Série:N',scale=alt.Scale(domain=['Registradas','Referência atual'],range=['#0066CC','#D1D5DB']),legend=alt.Legend(orient='bottom',title=None)),
         tooltip=[alt.Tooltip('Semana:T',format='%d/%m/%Y'),'Questões:Q','Série:N'])
     st.altair_chart(_chart_style(chart),width='stretch')
 
@@ -102,7 +103,7 @@ def render_history(service):
     profile=AdaptiveProfile(**service.store.profile()['profile'])
     with st.container(key='bento-evolution-controls'):
         period=st.radio('Histórico de',['4 semanas','8 semanas','Todo o período'],index=1,horizontal=True,key='evolution_history_period')
-        st.caption('Somente registros realizados. Treinos por área entram no volume uma vez; seus acertos ficam em Simulados. Arquivos importados têm bases próprias.')
+        explain('Somente registros realizados. Treinos por área entram no volume uma vez; seus acertos ficam em Simulados. Arquivos importados têm bases próprias.')
     agenda=service.agenda.active(sessions,today)
     model=observed_history(sessions,today,profile,service.store.days(),agenda['overrides'],
                            weeks={'4 semanas':4,'8 semanas':8,'Todo o período':None}[period],area_results=agenda.get('area_results',[]))
@@ -122,14 +123,14 @@ def render_history(service):
             st.subheader('Seu rendimento por semana')
             if model['new_n']:_accuracy_chart(model)
             else:st.info('Registre questões novas com acertos exatos para visualizar o rendimento. Repetidas e acertos acumulados não completam essa curva.')
-            st.caption('Acerto e convicção têm amostras identificadas em cada ponto. Sem registro, a curva tem uma lacuna; não vira 0%.')
+            explain('Acerto e convicção têm amostras identificadas em cada ponto. Sem registro, a curva tem uma lacuna; não vira 0%.')
         with right,st.container(key='bento-evolution-volume'):
             st.subheader('Seu ritmo de questões')
             _volume_chart(model)
-            st.caption('Referência: rotina atual nos dias já decorridos, respeitando início, descanso e simulados programados. Metas históricas podem ter sido diferentes.')
+            explain('Referência: rotina atual nos dias já decorridos, respeitando início, descanso e simulados programados. Metas históricas podem ter sido diferentes.')
     with st.container(key='bento-evolution-areas'):
         st.subheader('Acerto por área')
-        st.caption('Questões novas com acertos exatos. As faixas Wilson de 95% mostram a incerteza da amostra; não são previsão de nota.')
+        explain('Questões novas com acertos exatos. As faixas Wilson de 95% mostram a incerteza da amostra; não são previsão de nota.')
         if not model['areas']:st.caption('Ainda não há amostra de questões novas neste período.')
         for row in model['areas']:
             slug=area_slug([row['area']]);label=f"{row['rate']:.1f}% · n = {row['n']}"

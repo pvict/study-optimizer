@@ -90,6 +90,7 @@ def test_today_and_calendar_explain_external_complement_without_late_label(tmp_p
     s.save_entry(StudyEntry(topics[0]['path'],'2026-10-15',10,7),'actual')
     app=AppTest.from_file(str(project_root/'app.py'),default_timeout=60).run()
     assert not app.exception
+    app.toggle(key='show_explanations').set_value(True).run()
     text=' '.join(c.value for c in app.caption)
     assert 'Revisão recomendada: 20' in text and 'Planner: 10' in text
     assert any('banco completo' in c.value and '10' in c.value for c in app.info)

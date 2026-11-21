@@ -1,4 +1,6 @@
 """Tela de cruzamento, com sugestões e decisões explícitas por par de fontes."""
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 import json
 import sqlite3
 
@@ -37,9 +39,9 @@ def _review(repo, result):
             st.write(f"Qbank: {' → '.join(q.path)} · página {q.page} · {q.studied} respondidas · acerto PDF {q.acerto_pdf.raw}")
             st.write(f"Flashcards: {' → '.join(f.path)} · página {f.page} · {f.studied} estudados · cobertura revisada {f.percentual_revisado.raw}")
         note = st.text_area("Justificativa da associação", key=f"manual_note_{pair}", placeholder="Explique como conferiu que os dois caminhos representam o mesmo assunto.")
-        if st.button("Aprovar associação", type="primary", disabled=qi is None or fi is None, key=f"approve_manual_{pair}"):
+        if confirm_button("Aprovar associação", type="primary", disabled=qi is None or fi is None, key=f"approve_manual_{pair}",action_key='matching_ui_40'):
             try:
-                approve_match(repo, result.qbank_report_id, result.flashcards_report_id, qi, fi, note)
+                notify_success(approve_match(repo, result.qbank_report_id, result.flashcards_report_id, qi, fi, note),'Alterações salvas.')
                 st.session_state["cross_notice"] = "Associação aprovada e registrada no histórico local."
                 st.rerun()
             except (ValueError, sqlite3.Error) as exc:
@@ -54,9 +56,9 @@ def _review(repo, result):
         selected = st.selectbox("Associação manual registrada", list(by_id), key=f"remove_selection_{pair}",
                                 format_func=lambda i: f"{' → '.join(q_report.records[by_id[i]['qbank_ordinal']].path)} ↔ {' → '.join(f_report.records[by_id[i]['flashcards_ordinal']].path)}")
         st.caption(by_id[selected]["note"])
-        if st.button("Remover associação selecionada", key=f"remove_manual_{pair}"):
+        if confirm_button("Remover associação selecionada", key=f"remove_manual_{pair}",action_key='matching_ui_57'):
             try:
-                revoke_match(repo, selected)
+                notify_success(revoke_match(repo, selected),'Alterações salvas.')
                 st.session_state["cross_notice"] = "Associação removida. Histórico e fontes preservados."
                 st.rerun()
             except (ValueError, sqlite3.Error) as exc:

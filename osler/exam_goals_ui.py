@@ -1,4 +1,7 @@
 """Minhas provas: referência documentada, versões preservadas e principal explícita."""
+from .ui_help import explain
+from .action_feedback import confirm_button,confirm_submit,notify_success
+
 from dataclasses import replace
 from datetime import date
 import pandas as pd
@@ -17,7 +20,7 @@ def _reset_exam(row=None):
 
 def _void_exam(goals,row):
     try:
-        goals.void(row['target_id'],row['version'])
+        notify_success(goals.void(row['target_id'],row['version']),'Alterações salvas.')
         _reset_exam()
         st.session_state.pop('adaptive_profile_snapshot',None)
         st.session_state.pop('exam_primary_snapshot',None)
@@ -36,7 +39,7 @@ def render_exam_goals(service):
     rows=goals.active()
     if st.session_state.pop('exam_reset_pending',False): _reset_exam()
     st.subheader('Minhas provas')
-    st.caption('Cadastre datas e cortes com fonte. O percentual do corte é apenas referência; não prevê sua nota nem sua aprovação.')
+    explain('Cadastre datas e cortes com fonte. O percentual do corte é apenas referência; não prevê sua nota nem sua aprovação.')
     st.button('Recarregar provas',on_click=_reload_exams,key='reload_exams')
     current=service.store.profile()
     if rows:
@@ -60,9 +63,9 @@ def render_exam_goals(service):
             selected=st.selectbox('Prova principal',options,index=options.index(configured.primary_exam_id) if configured.primary_exam_id in by_id else 0,
                                   format_func=label,key='exam_primary')
             st.caption('A principal define a data do plano. No automático, usamos a futura mais próxima; se todas passaram, a mais recente.')
-            save=st.form_submit_button('Usar esta prova principal',key='save_exam_primary')
+            save=confirm_submit('Usar esta prova principal',key='save_exam_primary',action_key='exam_goals_ui_63')
         if save:
-            service.store.save_profile(replace(configured,primary_exam_id=None if selected=='automatic' else selected),record['id'])
+            notify_success(service.store.save_profile(replace(configured,primary_exam_id=None if selected=='automatic' else selected),record['id']),'Alterações salvas.')
             st.session_state.pop('exam_primary_snapshot',None)
             st.session_state.pop('adaptive_profile_snapshot',None)
             st.session_state['adaptive_notice']='Prova principal atualizada. O calendário foi recalculado.'
@@ -70,7 +73,7 @@ def render_exam_goals(service):
         selected=st.selectbox('Prova para consultar ou editar',list(by_id),format_func=label,key='exam_selected')
         left,right=st.columns(2)
         left.button('Editar prova',key='edit_exam',on_click=_reset_exam,args=(by_id[selected],),width='stretch')
-        right.button('Desconsiderar prova',key='void_exam',on_click=_void_exam,args=(goals,by_id[selected]),width='stretch')
+        confirm_button('Desconsiderar prova',key='void_exam',on_click=_void_exam,args=(goals,by_id[selected]),width='stretch',action_key='exam_goals_ui_73',container=right)
     else:
         st.info('Nenhuma prova cadastrada. A data já configurada no plano continua valendo.')
     editing=st.session_state.get('exam_edit')
@@ -93,11 +96,11 @@ def render_exam_goals(service):
             choices=['informado','conferido','estimado']
             confidence=st.selectbox('Como este corte foi conferido?',choices,index=choices.index(data.get('cutoff_confidence','informado')),key='exam_field_confidence')
             notes=st.text_area('Observações',value=data.get('notes',''),key='exam_field_notes')
-        save=st.form_submit_button('Salvar prova',type='primary',key='save_exam')
+        save=confirm_submit('Salvar prova',type='primary',key='save_exam',action_key='exam_goals_ui_96')
     if save:
         if day is None: raise ValueError('Informe a data da prova antes de salvar.')
         target=ExamTarget(institution,day.isoformat(),cutoff,maximum,source,year,deadline.isoformat() if deadline else None,confidence,notes,score_basis)
-        goals.save(target,target_id=editing['target_id'] if editing else None,expected_version=editing['version'] if editing else 0)
+        notify_success(goals.save(target,target_id=editing['target_id'] if editing else None,expected_version=editing['version'] if editing else 0),'Alterações salvas.')
         st.session_state['exam_reset_pending']=True
         st.session_state.pop('adaptive_profile_snapshot',None)
         st.session_state['adaptive_notice']='Prova salva. Datas atualizadas; nenhum estudo foi criado.'
