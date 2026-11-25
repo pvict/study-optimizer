@@ -229,6 +229,7 @@ def _render_full_mocks_today(service,expanded):
 
 
 def render_today(service,go_record,go_review,go_edit=None):
+    from .error_cards_ui import render_cards_summary
     from .study_day_ui import _extra_controls
     study_today=today_local();day=study_today.isoformat()
     with st.container(key='bento_header'):
@@ -265,7 +266,6 @@ def render_today(service,go_record,go_review,go_edit=None):
                 record=next(r for r in view['agenda']['active'] if r.get('scope')=='external_day' and r['created_day']==day)
                 notify_success(service.cancel_replan(record['id'],view['planning_token']),'Plano de hoje retomado.')
                 st.rerun()
-        from .error_cards_ui import render_cards_summary
         render_cards_summary(service.repository,view)
         render_today_replanning(service,view)
         render_approach(service)
@@ -275,6 +275,7 @@ def render_today(service,go_record,go_review,go_edit=None):
         if state=='study':_block(service,view,plan['items'][0],day,go_record,go_review,True)
         else:_hero_empty(state,plan)
         _today_progress(plan)
+    render_cards_summary(service.repository,view)
     if scheduled:
         _render_full_mocks_today(service,expanded=mock_open)
     from .new_floor_ui import render_new_floor_notice
@@ -336,8 +337,6 @@ def render_today(service,go_record,go_review,go_edit=None):
     with st.expander('Detalhes do dia e do plano'):
         render_absence_notice(service,day)
         st.caption(f"Dia de estudo até {study_today+timedelta(days=1):%d/%m} às 04h · Brasília.")
-        from .error_cards_ui import render_cards_summary
-        render_cards_summary(service.repository,view)
         render_swap_history(service,view)
         from .return_deferral_ui import render_return_deferral_history
         render_return_deferral_history(service,view)

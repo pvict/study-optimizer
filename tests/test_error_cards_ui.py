@@ -4,6 +4,22 @@ from osler.models import stable_topic_id
 from test_error_cards_service import setup
 
 
+def test_home_shows_todays_decks_and_opens_their_queue(tmp_path, monkeypatch, project_root):
+    service, day, html = setup(tmp_path)
+    service.import_html(html, 'cards.html', day, 'pending', service.token())
+    monkeypatch.setenv('OSLER_DATA_DIR', str(tmp_path))
+    app = AppTest.from_file(str(project_root / 'app.py'), default_timeout=60).run()
+    assert not app.exception
+    assert any(h.value == 'Flashcards de hoje' for h in app.subheader)
+    assert any('200 cards para fazer' in m.value for m in app.markdown)
+    assert any('A · 100 cards' in item.proto.body and 'B · 100 cards' in item.proto.body for item in app.get('html'))
+    app.session_state['ec_tabs'] = 'Temas'
+    app.button(key='ec_open_' + day).click().run()
+    assert not app.exception
+    assert app.session_state['ec_tabs'] == 'Hoje'
+    assert any(b.label == 'Registrar cards deste tema' for b in app.button)
+
+
 def test_flashcard_ui_shows_real_lot_and_records_without_question_sessions(tmp_path,monkeypatch):
     s,day,html=setup(tmp_path);s.import_html(html,'cards.html',day,'pending',s.token())
     monkeypatch.setenv('ERROR_CARDS_TEST_ROOT',str(tmp_path))

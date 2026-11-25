@@ -50,9 +50,14 @@ class RecoveryTests(unittest.TestCase):
     def test_missed_deck_carries_without_increasing_daily_target(self):
         from osler.recovery import project_decks
         topics=[{'topic_id':str(n),'path':['Area',str(n)],'count':n} for n in [20,30,65]]
-        rows=project_decks(topics,{'20':20},'2026-11-20','2027-01-01',{}, {},50,70)
+        original=project_decks(topics,{},'2026-11-18','2027-01-01',{}, {},50,70)
+        self.assertEqual(original[0]['cards'],50)
+        rows=project_decks(topics,{'20':20},'2026-11-20','2027-01-01',
+                           {'2026-11-20':{'kind':'descanso'}},{'2026-11-21':{'mode':'mock_reserved'}},50,70)
         self.assertEqual(sum(r['cards'] for r in rows),95)
-        self.assertEqual(rows[0]['date'],'2026-11-20')
+        self.assertEqual(rows[0]['date'],'2026-11-22')
+        self.assertEqual([t['topic_id'] for t in rows[0]['decks']],['30'])
+        self.assertEqual(rows[1]['decks'][0]['topic_id'],'65')
         self.assertTrue(all(r['cards']<=70 for r in rows))
 
     def test_finishing_daily_cards_does_not_offer_another_deck_today(self):

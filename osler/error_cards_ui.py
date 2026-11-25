@@ -3,6 +3,7 @@ from .ui_help import explain
 from .action_feedback import confirm_button,confirm_submit,notify_success,preserve_drafts
 
 from datetime import date
+from html import escape
 import math
 import uuid
 import pandas as pd
@@ -21,7 +22,18 @@ def _load_label(view):return f"referência {view['budget']}/dia" if view['budget
 
 
 def open_error_cards():
-    st.session_state['main_view']='Diminuir revisões';st.session_state['ec_mode']='Erros acumulados'
+    st.session_state['main_view']='Diminuir revisões'
+    st.session_state['ec_mode']='Erros acumulados'
+    st.session_state['ec_tabs']='Hoje'
+
+
+def _deck_list(items):
+    rows = [
+        f"<li>{escape(item['path'][-1])} · {_n(item['planned'])} "
+        f"{'card' if item['planned']==1 else 'cards'}</li>"
+        for item in items
+    ]
+    st.html('<ul>'+''.join(rows)+'</ul>')
 
 
 def render_cards_summary(repo,question_view,day=None):
@@ -31,8 +43,19 @@ def render_cards_summary(repo,question_view,day=None):
     if not view['snapshot'] and not view['has_queue'] and not view['history']:return
     with st.container(border=True):
         if day==today:
-            st.markdown(f"**Cards de erros · {view['done_today']} respostas hoje · {_load_label(view)}**")
-            st.caption(f"{sum(t['planned'] for t in view['items'])} cards na próxima passagem · separados das questões.")
+            st.subheader('Flashcards de hoje')
+            items=view['items']
+            if items:
+                total=sum(item['planned'] for item in items)
+                st.markdown(f"**{_n(total)} {'card' if total==1 else 'cards'} para fazer**")
+                _deck_list(items[:4])
+                if len(items)>4:
+                    with st.expander('Ver mais decks'):
+                        _deck_list(items[4:])
+            else:
+                st.write('Nenhum deck previsto para hoje.')
+            if view['done_today']:
+                st.caption(f"{_n(view['done_today'])} {'resposta registrada' if view['done_today']==1 else 'respostas registradas'} hoje")
         elif day<today:
             done=sum(r['covered']+r['repeats'] for r in view['history'] if r['day']==day)
             st.markdown(f'**Cards de erros · {done} respostas registradas em {_date(day)}**')
@@ -44,7 +67,7 @@ def render_cards_summary(repo,question_view,day=None):
                 st.markdown(f"**Cards de erros · {row['cards']} previstos em {_date(day)}**")
                 st.caption('Cenário de primeira passagem: '+(' · '.join(t['path'][-1] for t in row['items'][:4]) or row['reason']))
             else:st.caption('Cards de erros: sem nova primeira passagem prevista neste cenário.')
-        st.button('Abrir meu plano de cards',key='ec_open_'+day,on_click=open_error_cards)
+        st.button('Abrir flashcards',key='ec_open_'+day,on_click=open_error_cards)
 
 
 def render_flashcards(repo):
