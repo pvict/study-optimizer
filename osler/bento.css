@@ -54,6 +54,7 @@
 [data-testid="stApp"] ::selection { color:var(--o-ink); background:var(--o-primary-tint); }
 [data-testid="stApp"] input,[data-testid="stApp"] textarea { caret-color:var(--o-primary-strong); }
 /* Native controls retain labels, keyboard behavior and Streamlit state. */
+[data-testid="InputInstructions"] { display:none !important; }
 [data-testid="stApp"] { font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
 [data-testid="stApp"] button { touch-action:manipulation; transition:background-color 120ms ease-out,box-shadow 120ms ease-out,transform 100ms ease-out; }
 [data-testid="stApp"] button:active:not(:disabled) { transform:scale(.985); }
