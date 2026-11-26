@@ -121,6 +121,8 @@ def _block(service,view,item,day,go_record,go_review,hero=False):
         elif item.get('correction'):notices.append('Reforço dos erros do simulado · data reservada '+date_label(item['reschedule_date']))
         elif item.get('rescheduled'):notices.append('Recuperação agendada · atraso original desde '+item['original_due'])
         if item['added_by_user']:notices.append(f"{item['extra_pending']} questões extras para hoje")
+        if item.get('manual_pending') and item['questions']>item['total']:
+            notices.append(f"Acervo conhecido: {item['total']}. Complete com o banco completo ou questões repetidas.")
         if notices:st.caption(' · '.join(notices))
         _block_controls(service,view,item,day,go_record,go_review,hero)
 
@@ -144,10 +146,10 @@ def _hero_empty(state,plan):
             st.info('Seu cronograma começa em '+ '/'.join(reversed(plan['start_date'].split('-')))+'. Até lá, não há meta diária nem faltas no aplicativo.')
         elif state=='complete':
             st.subheader('Meta registrada')
-            st.button('Adiantar revisões',key='bento_advance',on_click=_advance)
+            st.button('Adicionar tema ao dia',key='bento_advance',on_click=_advance)
         else:
             st.subheader('Sem blocos previstos')
-            st.write('Consulte o Calendário ou acrescente um tema em Adiantar revisões.')
+            st.write('Consulte o Calendário ou use Adicionar tema ao dia.')
 
 
 def _today_progress(plan):
@@ -163,6 +165,8 @@ def _today_progress(plan):
         text=f"{dist['planned_new']} em temas novos · {dist['planned_reviews']} em revisões e diagnósticos."
         area_pending=sum(t['questions'] for t in plan.get('area_tasks',[]) if not t['completed'])
         if area_pending:text+=f' {area_pending} em treino por área.'
+        manual_pending=sum(t.get('manual_pending',0) for t in plan.get('items',[]))
+        if manual_pending:text+=f' {manual_pending} extras livres.'
         st.caption(text)
 
 
@@ -315,7 +319,7 @@ def render_today(service,go_record,go_review,go_edit=None):
                 if not items:st.caption('O próximo bloco está destacado acima.' if state=='study' else 'Nenhum outro bloco para hoje.')
                 freed=sum(r['skipped_questions'] for r in plan.get('planner_completions',[]))
                 if plan['kind']!='descanso' and view['states'] and plan['questions']<max(0,plan['target_questions']-plan['done_questions']-freed):
-                    st.info('Parte da meta não pôde ser distribuída com os temas e limites atuais. Adicione outro tema ou ajuste o número de temas em Ajustes.')
+                    st.info('Parte da meta não pôde ser distribuída com os temas e limites atuais. Adicione outro tema ao dia ou ajuste o número de temas em Ajustes.')
             from .planner_completion_ui import render_completions
             render_completions(service,view)
         with st.container(key='bento-tools'):
@@ -358,7 +362,7 @@ def render_today(service,go_record,go_review,go_edit=None):
         if capacity.get('mode')=='adaptive' and capacity['effective_share']<capacity['reference_share']:st.caption('Hoje, mais espaço para revisões. Sua divisão de referência continua salva; o ajuste é recalculado a cada dia.')
         if capacity.get('intake_future_pressure'):st.caption('Retomadas antigas ganharam espaço na carga de hoje. A previsão de capacidade futura está apertada; os próximos blocos serão recalculados com seus resultados.')
         if capacity.get('initial_capacity_shortfall'):st.caption(f"A carga atual não comporta retomar todo o histórico em {view['profile']['max_contact_gap']} dias. O app prioriza os contatos por evidência, incidência e tempo sem contato; esse prazo não está garantido para todos os temas.")
-        if capacity.get('unused_questions'):st.caption(f"{capacity['unused_questions']} questões da meta ficaram livres: respeitamos a dose dos blocos e a capacidade de repetir. Você pode usar Adiantar revisões.")
+        if capacity.get('unused_questions'):st.caption(f"{capacity['unused_questions']} questões da meta ficaram livres. Você pode usar Adicionar tema ao dia.")
         override=plan.get('routine_override',{})
         if override.get('mode')=='reviews':st.info('Novos temas pausados hoje pelo plano temporário. Gerencie em Calendário → Reorganizar atrasos.')
         elif override.get('mode')=='extra':st.info(f"Plano temporário: até {override['extra_questions']} questões adicionais de revisão hoje. Seu padrão está preservado.")

@@ -12,4 +12,4 @@ def render_review_parts(item,day,go_record,go_review,prefix,primary=False):
             on_click=go_review,args=(lot,),width='stretch',type='primary' if primary and index==0 else 'secondary')
     if parts['complement']:
         st.button(f"Registrar complemento de {parts['complement']} questões",key=prefix+'_complement_'+item['topic_id'],
-            on_click=go_record,args=(item['topic_id'],parts['complement'],'mistas'),width='stretch',type='primary' if primary and not parts['lots'] else 'secondary')
+            on_click=go_record,args=(item['topic_id'],min(1000000,parts['complement']),'mistas'),width='stretch',type='primary' if primary and not parts['lots'] else 'secondary')

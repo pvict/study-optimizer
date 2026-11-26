@@ -15,7 +15,7 @@ def test_today_puts_action_before_settings_and_labels_current_screen(tmp_path,mo
     repo,app=open_app(tmp_path,monkeypatch,project_root,sample_pdf)
     assert not app.exception
     assert app.title[0].value=='Olá'
-    assert any(e.label=='Adiantar revisões' and not e.proto.expanded for e in app.expander)
+    assert any(e.label=='Adicionar tema ao dia' and not e.proto.expanded for e in app.expander)
     assert any(e.label=='Ajustar meu dia' for e in app.expander)
     assert any(b.key and b.key.startswith('study_') for b in app.button)
     actions=list(app.button)

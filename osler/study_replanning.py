@@ -41,10 +41,12 @@ def collect_backlog(states,sessions,saved,as_of,start_date=None,completions=()):
             state=by_path.get(key)
             if state is None or has_small_bank(state) or key not in first_contacts or first_contacts[key]>day:
                 continue
+            scheduled=max(0,t['questions']-t.get('manual_pending',0))
+            if not scheduled:continue
             captured=t.get('planner_supply')
-            supply=captured or planner_supply(state,t['questions'],done[(day,key)],day)
+            supply=captured or planner_supply(state,scheduled,done[(day,key)],day)
             # O complemento externo segue recomendado; indisponibilidade não é atraso do aluno.
-            left=max(0,min(t['questions'],supply['planner_total'])-done[(day,key)]) if supply else max(0,t['questions']-done[(day,key)])
+            left=max(0,min(scheduled,supply['planner_total'])-done[(day,key)]) if supply else max(0,scheduled-done[(day,key)])
             if captured and captured['external_part'] and not left: covered_days[key].append(day)
             if left: missed[key].append((day,left))
     result=[]
@@ -93,12 +95,13 @@ def effective_routine(profile,config,override):
     from .final_review import special_config
     config=special_config(config,override)
     q=config['questions']
+    capped=sum(e['questions'] for e in config.get('extra_topics',[]) if not e.get('over_limit'))
     if config.get('effective_goal'):
-        q=max(0,q-sum(e['questions'] for e in config.get('extra_topics',[])))
+        q=max(0,q-capped)
     if 'recovery_limit' in override:
         q=max(0,(q if config.get('effective_goal') else min(q,override['recovery_limit']))-override.get('recovery_reserved',0))
         if not config.get('effective_goal'):
-            q=max(0,q-sum(e['questions'] for e in config.get('extra_topics',[])))
+            q=max(0,q-capped)
     if override.get('mode')=='external_day': return profile,0
     if override.get('mode')=='extra':
         total=q if 'recovery_limit' in override or config.get('effective_goal') else min(1000,q+override['extra_questions'])

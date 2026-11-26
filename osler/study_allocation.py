@@ -2,7 +2,7 @@
 from .models import normalize_path
 
 
-def extra_credits(batches,sessions,day,swaps=()):
+def extra_credits(batches,sessions,day,swaps=(),manual_by_session=None):
     """Mesmo crédito por evento para alocação, prévia e reserva externa."""
     credits={b['extra_id']:0 for b in batches}
     dated=[s for s in sessions if s['entry']['day']==day and s['entry']['kind']=='bloco']
@@ -15,16 +15,26 @@ def extra_credits(batches,sessions,day,swaps=()):
             if not direct and not exchanged:continue
             used=min(left,batch['requested']-credits[batch['extra_id']],left if direct else exchanged)
             credits[batch['extra_id']]+=used;left-=used
+            if manual_by_session is not None and batch.get('over_limit') and used:
+                sid=event['session_id']
+                manual_by_session[sid]=manual_by_session.get(sid,0)+used
     return credits
 
 
-def pending_extra_questions(settings,states,sessions,day,swaps=()):
+def configured_extra_batches(settings,states):
     by_id={t['topic_id']:t for t in states}
-    batches=[{**e,'path':by_id[e['topic_id']]['path'],'requested':e['questions']}
-             for e in settings.get('extra_topics',[]) if e['topic_id'] in by_id]
+    return [{**e,'path':e.get('path') or by_id[e['topic_id']]['path'],'requested':e['questions']}
+            for e in settings.get('extra_topics',[]) if e.get('path') or e['topic_id'] in by_id]
+
+
+def pending_extra_questions(settings,states,sessions,day,swaps=(),include_over_limit=True):
+    batches=configured_extra_batches(settings,states)
     credits=extra_credits(batches,sessions,day,swaps)
-    return (sum(b['requested']-credits[b['extra_id']] for b in batches)+
-            sum(e['questions'] for e in settings.get('extra_topics',[]) if e['topic_id'] not in by_id))
+    known={b['extra_id'] for b in batches}
+    return (sum(b['requested']-credits[b['extra_id']] for b in batches
+                if include_over_limit or not b.get('over_limit'))+
+            sum(e['questions'] for e in settings.get('extra_topics',[]) if e['extra_id'] not in known
+                and (include_over_limit or not e.get('over_limit'))))
 
 
 def topic_is_new(t):

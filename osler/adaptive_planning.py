@@ -362,7 +362,10 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     if not_started: kind='descanso'; extra_topics=None; reservations=None
     swaps=[] if not_started else swaps
     unavailable_ids=set(unavailable_ids)
-    if extra_topics: extra_topics=[e for e in extra_topics if e['topic_id'] not in unavailable_ids]
+    credit_batches=[e for e in extra_topics or [] if
+                    (kind!='descanso' if e.get('over_limit') else e['topic_id'] not in unavailable_ids)]
+    manual_batches=[e for e in credit_batches if e.get('over_limit')]
+    extra_topics=[e for e in credit_batches if not e.get('over_limit')]
     excluded={topic_id for row in swaps for topic_id in row['excluded_ids']}|unavailable_ids
     swapped_ids={row['topic_id'] for row in swaps}
     from .study_agenda import flexible_reservation
@@ -383,7 +386,13 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     if kind not in {'normal','plantao','descanso'}: raise ValueError('Tipo de dia inválido.')
     today=[s['entry'] for s in sessions if s['entry']['day']==as_of and s['entry']['kind']!='acumulado']
     from .study_swaps import quota_entries
-    allocation_sessions=[{**s,'entry':{**s['entry'],'questions':allocation_credits.get(s.get('session_id'),s['entry']['questions'])}} for s in sessions] if allocation_credits else sessions
+    from .study_allocation import extra_credits
+    manual_by_session={}
+    credits=extra_credits(credit_batches,sessions,as_of,swaps,manual_by_session)
+    manual_done=sum(manual_by_session.values())
+    allocation_sessions=[{**s,'entry':{**s['entry'],'questions':max(0,
+        (allocation_credits or {}).get(s.get('session_id'),s['entry']['questions'])-manual_by_session.get(s.get('session_id'),0))}}
+        for s in sessions] if allocation_credits or manual_by_session else sessions
     allocation_today,quota_adjustments=quota_entries(allocation_sessions,swaps,as_of)
     done=sum(e['questions'] for e in today)
     credited_done=sum(e['questions'] for e in allocation_today)
@@ -400,8 +409,6 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     else:
         reserves=0
         batches=extra_topics or []
-        from .study_allocation import extra_credits
-        credits=extra_credits(batches,sessions,as_of,swaps)
         grouped={}
         for t in batches:
             if t['topic_id'] not in grouped: grouped[t['topic_id']]={**t,'remaining':0}
@@ -412,7 +419,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         if question_ceiling is not None:
             target=min(target,question_ceiling)
             extra_target=min(extra_target,max(0,question_ceiling-question_target))
-            budget=min(budget,max(0,target-done))
+            budget=min(budget,max(0,target-done+manual_done))
         for t in grouped.values():
             if t['topic_id'] in excluded|swapped_ids: continue
             q=min(t['remaining'],t['total'],budget-sum(e['questions'] for e in extras))
@@ -541,17 +548,39 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
         else:
             extra['extra_pending']=extra['questions']
             items.append(extra)
+            combined[extra['topic_id']]=extra
+    # A quantidade livre é somada depois da alocação automática: não ocupa
+    # vagas de outros temas, nem a recuperação ou o acervo conhecido.
+    manual_target=sum(b['requested'] for b in manual_batches)
+    for batch in manual_batches:
+        q=batch['requested']-credits[batch['extra_id']]
+        if not q:continue
+        item=combined.get(batch['topic_id'])
+        if item is None:
+            item={**batch,'questions':0,'review_kind':'theme',
+                  'reason':'Questões extras adicionadas manualmente'}
+            combined[batch['topic_id']]=item
+            items.append(item)
+        item['questions']+=q
+        item['manual_pending']=item.get('manual_pending',0)+q
+        item['extra_pending']=item.get('extra_pending',0)+q
+        item['added_by_user']=True
+        item['new_questions']=min(item['questions'],item['available_new'])
+        item['repeat_questions']=item['questions']-item['new_questions']
+    target+=manual_target
+    extra_target+=manual_target
+    credited_done+=manual_done
     total=sum(i['questions'] for i in items)
     from .planner_snapshot import planner_supply
     bookings={r['topic_id']:r for r in reservations or []}
     for item in items:
-        if topic_is_new(item) and item['questions']>item['total']:
+        if topic_is_new(item) and item['questions']>item['total'] and not item.get('manual_pending'):
             item['external_bank_questions']=item['questions']-item['new_questions']
             item['repeat_questions']=0
         row=bookings.get(item['topic_id']) if item.get('rescheduled') or item.get('daily_proposal_preserved') else None
         completed=sum(e['questions'] for e in today if e['kind']=='bloco' and normalize_path(e['path'])==normalize_path(item['path']))
         required=item['questions']+completed
-        if row and 'questions' in row:
+        if row and 'questions' in row and not item.get('manual_pending'):
             required=row['questions'];completed=max(0,required-row['remaining'])
         item['planner_supply']=planner_supply(item,required,completed,as_of)
     order={'urgente':0,'alta':1,'normal':2}
@@ -563,6 +592,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
             'not_started':not_started,'start_date':profile.start_date,
             'target_questions':0 if kind=='descanso' else target,'base_questions':question_target if question_target is not None else target,
             'extra_questions':extra_target,
+            'manual_extra_questions':manual_target,'manual_extra_done':manual_done,
             'overrun_questions':max(0,target-(question_target or target)-extra_target),
             'excess_done_questions':max(0,done-credited_done),'credited_done_questions':credited_done,
             'allocation_credits':dict(allocation_credits or {}),
@@ -577,7 +607,7 @@ def allocate_day(states,profile,minutes,kind,sessions,as_of,question_target=None
     if diagnose_new_floor and capacity['new_floor_shortfall']:
         def evaluate(trial):
             limits=[(q,trial.max_topics if slots else 0) for q,slots in capacity_limits] if capacity_limits else None
-            return allocate_day(states,trial,minutes,kind,sessions,as_of,question_target,extra_topics,reservations,
+            return allocate_day(states,trial,minutes,kind,sessions,as_of,question_target,credit_batches,reservations,
                                 limits,capacity_states,swaps,allocation_credits,unavailable_ids,finalize_plan=finalize_plan,question_ceiling=question_ceiling)
         eligible_new=[t for t in states if
             topic_is_new(t) and not has_small_bank(t,profile.min_block) and t['topic_id'] not in excluded|swapped_ids|short_recoveries and

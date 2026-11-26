@@ -171,15 +171,23 @@ class StudyDay:
         if not isinstance(self.extra_topics,list): raise ValueError('Revisões adicionais inválidas.')
         seen=set()
         for extra in self.extra_topics:
-            if not isinstance(extra,dict) or set(extra)!={'extra_id','topic_id','questions','after_event_id'}:
+            if not isinstance(extra,dict) or set(extra) not in (
+                {'extra_id','topic_id','questions','after_event_id'},
+                {'extra_id','topic_id','questions','after_event_id','over_limit','path'}
+            ):
                 raise ValueError('Revisão adicional inválida.')
+            if 'over_limit' in extra and (extra['over_limit'] is not True or
+                not isinstance(extra['path'],list) or not extra['path'] or
+                any(not isinstance(p,str) or not p.strip() for p in extra['path'])):
+                raise ValueError('Tema adicional inválido.')
             key=extra['extra_id']
             if not isinstance(key,str) or not key or key in seen: raise ValueError('Revisão adicional repetida ou inválida.')
             if not isinstance(extra['topic_id'],str) or not extra['topic_id']: raise ValueError('Tema adicional inválido.')
             seen.add(key)
-            _number(extra['questions'],'Questões adicionais',integer=True,positive=True,maximum=1000)
+            _number(extra['questions'],'Questões adicionais',integer=True,positive=True,
+                    maximum=1000000 if extra.get('over_limit') else 1000)
             _number(extra['after_event_id'],'Corte do histórico',integer=True,maximum=1000000000)
-        if sum(e['questions'] for e in self.extra_topics)>1000: raise ValueError('Limite de 1.000 questões adicionais por dia.')
+        if sum(e['questions'] for e in self.extra_topics if not e.get('over_limit'))>1000: raise ValueError('Limite de 1.000 questões adicionais por dia.')
         return self
 
     def to_dict(self):

@@ -43,6 +43,8 @@ def _describe(topic):
 
 
 def render_swap_controls(service,day,item,scope='today',button_container=None):
+    if item.get('manual_pending'):
+        return
     (button_container or st).button('Trocar tema',key=f'swap_open_{scope}_{item["topic_id"]}',on_click=_open,args=(day,item['topic_id']))
     if st.session_state.get('open_swap')!=(day,item['topic_id']): return
     key=(day,item['topic_id'],service.agenda.token())

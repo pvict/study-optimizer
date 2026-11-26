@@ -36,6 +36,21 @@ def test_today_uses_question_goal_without_time_widget_and_persists_extra(tmp_pat
     assert any('questões extras para hoje' in c.value for c in app.caption)
 
 
+def test_today_accepts_more_than_the_known_bank(tmp_path,monkeypatch,project_root,sample_pdf):
+    repo,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
+    service=AdaptiveService(repo)
+    topic=next(t for t in service.catalog('2026-10-15')[0] if t['total']>0)
+    app.text_input(key='extra_search').set_value(topic['path'][-1]).run()
+    app.checkbox(key='extra_over_limit').check().run()
+    assert app.checkbox(key='extra_over_limit').value
+    field=next(n for n in app.number_input if n.key.startswith('extra_count_'))
+    field.set_value(topic['total']+120).run()
+    confirm_action(next(b for b in app.button if b.label=='Adicionar ao meu dia').click().run())
+    assert not app.exception
+    plan=service.overview('2026-10-15')['plan']
+    assert next(i['manual_pending'] for i in plan['items'] if i['topic_id']==topic['topic_id'])==topic['total']+120
+
+
 def test_topic_table_has_real_period_controls_and_export(tmp_path,monkeypatch,project_root,sample_pdf):
     _,app=start(tmp_path,monkeypatch,project_root,sample_pdf)
     open_view(app,adaptive='Temas e estatísticas')

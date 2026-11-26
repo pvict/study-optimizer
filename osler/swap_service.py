@@ -19,6 +19,7 @@ class DailySwapServiceMixin:
         view=self.overview(day)
         item=next((t for t in view['plan']['items'] if t['topic_id']==topic_id),None)
         if item is None: raise ValueError('Esse bloco não está mais no plano. Atualize a página.')
+        if item.get('manual_pending'): raise ValueError('Retire as questões livres antes de adiar o retorno vinculado.')
         lots=[q for q in item.get('pending_reviews',[]) if q['due_date']<=day]
         if not lots: raise ValueError('Este bloco não tem retornos previstos para hoje.')
         tomorrow=(_date(day)+timedelta(days=1)).isoformat()
@@ -93,6 +94,7 @@ class DailySwapServiceMixin:
         view=self.overview(day)
         original=next((t for t in view['plan']['items'] if t['topic_id']==topic_id),None)
         if original is None: raise ValueError('Esse bloco não está mais no plano. Atualize a página.')
+        if original.get('manual_pending'): raise ValueError('Retire as questões livres antes de trocar este bloco.')
         excluded={t['topic_id'] for t in view['plan']['items']}
         done={tuple(normalize_path(s['entry']['path'])) for s in view['sessions'] if s['entry']['day']==day and s['entry']['kind']=='bloco'}
         excluded.update(t['topic_id'] for t in view['planning_states'] if tuple(normalize_path(t['path'])) in done)

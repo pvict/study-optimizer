@@ -179,11 +179,13 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         settings=replace(StudyDay(**current['settings']),questions=questions,kind=kind)
         return self.store.save_day(day,settings,expected_revision)
 
-    def add_topic(self,day,topic_id,questions,expected_revision):
+    def add_topic(self,day,topic_id,questions,expected_revision,*,over_limit=False):
         valid_date(day,past=True)
         token=self.agenda.token()
         topics,_=self.catalog(day)
         topic=next((t for t in topics if t['topic_id']==topic_id),None)
+        if not topic and over_limit:
+            topic=next((t for t in self.overview(day)['planning_states'] if t['topic_id']==topic_id),None)
         if not topic: raise ValueError('Escolha um tema específico, não um grupo ou grande área.')
         profile=self.store.profile()['profile']
         current=self.store.day(day,profile['max_questions'])
@@ -192,14 +194,14 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         if profile.get('start_date') and day<profile['start_date']:
             raise ValueError('O cronograma ainda não começou. Confira a data de início em Ajustes.')
         paths={t['topic_id']:tuple(normalize_path(t['path'])) for t in topics}
-        chosen_path=paths[topic_id]
+        chosen_path=tuple(normalize_path(topic['path']))
         for extra in settings.extra_topics:
-            existing_path=paths.get(extra['topic_id'])
-            if existing_path and existing_path!=chosen_path and (existing_path[:len(chosen_path)]==chosen_path or chosen_path[:len(existing_path)]==existing_path):
+            existing_path=tuple(normalize_path(extra['path'])) if extra.get('path') else paths.get(extra['topic_id'])
+            if not over_limit and existing_path and existing_path!=chosen_path and (existing_path[:len(chosen_path)]==chosen_path or chosen_path[:len(existing_path)]==existing_path):
                 raise ValueError('Essa revisão se sobrepõe a um grupo ou subtema já adicionado. Acrescente questões ao mesmo bloco ou retire o anterior.')
         extras=[dict(e) for e in settings.extra_topics]
         if type(questions) is not int or questions<=0: raise ValueError('Informe uma quantidade inteira positiva.')
-        if sum(e['questions'] for e in extras if e['topic_id']==topic_id)+questions>topic['total']:
+        if not over_limit and sum(e['questions'] for e in extras if e['topic_id']==topic_id and not e.get('over_limit'))+questions>topic['total']:
             raise ValueError('Quantidade adicional maior que o banco conhecido deste tema.')
         sessions=self.store.active(day)
         agenda=self.agenda.active(sessions,day)
@@ -209,17 +211,20 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         from .study_swaps import swap_rows
         if override.get('mode') in EXCLUSIVE:
             raise ValueError('Hoje tem uma programação reservada. Ajuste-a antes de adiantar uma revisão.')
-        if topic_id in unavailable_return_ids(agenda,day):
+        if not over_limit and topic_id in unavailable_return_ids(agenda,day):
             raise ValueError('O retorno deste tema foi adiado. Desfaça o adiamento antes de adicioná-lo hoje.')
         swaps=swap_rows(agenda.get('swaps',[]),sessions,day)
-        if any(topic_id==row['topic_id'] or topic_id in row['excluded_ids'] for row in swaps):
+        if not over_limit and any(topic_id==row['topic_id'] or topic_id in row['excluded_ids'] for row in swaps):
             raise ValueError('Este tema está em uma troca no plano de hoje. Desfaça a troca antes de adicionar uma revisão extra.')
-        if 'recovery_limit' in override and not settings.effective_goal:
+        if not over_limit and 'recovery_limit' in override and not settings.effective_goal:
             from .exam_practice import practice_context
-            from .study_allocation import pending_extra_questions
+            from .study_allocation import pending_extra_questions,configured_extra_batches,extra_credits
             ordinary=practice_context(agenda,day,sessions)['ordinary_sessions']
             done=sum(s['entry']['questions'] for s in ordinary if s['entry']['day']==day and s['entry']['kind']=='bloco')
-            pending=pending_extra_questions(current['settings'],topics,ordinary,day,swaps)
+            manual_credits={}
+            extra_credits(configured_extra_batches(current['settings'],topics),ordinary,day,swaps,manual_credits)
+            done=max(0,done-sum(manual_credits.values()))
+            pending=pending_extra_questions(current['settings'],topics,ordinary,day,swaps,include_over_limit=False)
             recovery=agenda['quantity_recovery']
             reserved={**override,'recovery_reserved':recovery['done_today'] if recovery['anchor']==day else 0}
             room=max(0,recovery_theme_capacity(current['settings'],reserved)-done-pending)
@@ -227,16 +232,30 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
                 raise ValueError(f'Cabem {room} questões extras na carga de hoje. Reduza a quantidade ou ajuste a meta em Ajustar meu dia.')
         cutoff=max((e['id'] for e in self.store.events()),default=0)
         extras.append({'extra_id':uuid.uuid4().hex,'topic_id':topic_id,'questions':questions,'after_event_id':cutoff})
+        if over_limit:extras[-1].update(over_limit=True,path=topic['path'])
         return self.store.save_day(day,replace(settings,extra_topics=extras,
-            questions=settings.questions+questions if settings.effective_goal else settings.questions),expected_revision,expected_planning_token=token)
+            questions=settings.questions+questions if settings.effective_goal and not over_limit else settings.questions),expected_revision,expected_planning_token=token)
 
     def remove_added_topic(self,day,topic_id,expected_revision):
         valid_date(day,past=True)
+        token=self.agenda.token()
         current=self.store.day(day,self.store.profile()['profile']['max_questions'])
         settings=StudyDay(**current['settings'])
-        removed=sum(e['questions'] for e in settings.extra_topics if e['topic_id']==topic_id)
-        return self.store.save_day(day,replace(settings,extra_topics=[e for e in settings.extra_topics if e['topic_id']!=topic_id],
-            questions=max(1,settings.questions-removed) if settings.effective_goal else settings.questions),expected_revision)
+        removed=sum(e['questions'] for e in settings.extra_topics if e['topic_id']==topic_id and not e.get('over_limit'))
+        extras=[e for e in settings.extra_topics if e['topic_id']!=topic_id]
+        if any(e.get('over_limit') and e['topic_id']==topic_id for e in settings.extra_topics):
+            from .study_allocation import configured_extra_batches,extra_credits
+            from .exam_practice import practice_context
+            from .study_swaps import swap_rows
+            topics,_=self.catalog(day)
+            sessions=self.store.active(day)
+            agenda=self.agenda.active(sessions,day)
+            credits=extra_credits(configured_extra_batches(current['settings'],topics),
+                practice_context(agenda,day,sessions)['ordinary_sessions'],day,swap_rows(agenda.get('swaps',[]),sessions,day))
+            extras=[{**e,'questions':credits[e['extra_id']]} if e['topic_id']==topic_id else e for e in settings.extra_topics
+                    if e['topic_id']!=topic_id or e.get('over_limit') and credits[e['extra_id']]>0]
+        return self.store.save_day(day,replace(settings,extra_topics=extras,
+            questions=max(1,settings.questions-removed) if settings.effective_goal else settings.questions),expected_revision,expected_planning_token=token)
 
     def overview(self,as_of,minutes=None,kind=None,questions=None,_agenda_override=None,_profile_override=None,diagnose_new_floor=False):
         valid_date(as_of)
@@ -287,7 +306,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         from .topic_grouping import grouping_candidates,grouped_frontier,protect_group_evidence
         blocked={r['topic_id'] for r in agenda['rows']}
         blocked.update(t['topic_id'] for t in states if t.get('pending_reviews'))
-        blocked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]))
+        blocked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]) if not e.get('over_limit'))
         for swap in agenda.get('swaps',[]):
             blocked.update(swap.get('excluded_ids',[])); blocked.add(swap.get('to_topic_id',swap.get('topic_id','')))
         for cfg in agenda['overrides'].values():
@@ -322,7 +341,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         protect_group_evidence(planning_states,states)
         opened=ErrorStore(self.repository).active(as_of)
         booked={r['topic_id'] for r in agenda['rows']}
-        booked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]))
+        booked.update(e['topic_id'] for date,cfg in self.store.days().items() if date>=as_of for e in cfg.get('extra_topics',[]) if not e.get('over_limit'))
         for swap in agenda.get('swaps',[]):
             booked.add(swap.get('to_topic_id',swap.get('topic_id','')))
         for cfg in agenda['overrides'].values():
@@ -347,13 +366,14 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         incidence=incidence_weights(topics,datasets,effective.institution_weights,as_of,effective.parameters)
         extras=[]
         by_id={t['topic_id']:t for t in planning_states}
-        missing={e['topic_id'] for e in day_settings.extra_topics}-set(by_id)
+        manual_by_id={t['topic_id']:t for t in states+planning_states}
         for extra in day_settings.extra_topics:
-            if extra['topic_id'] in by_id: extras.append({**by_id[extra['topic_id']],'extra_id':extra['extra_id'],'requested':extra['questions'],'after_event_id':extra['after_event_id']})
+            source=manual_by_id if extra.get('over_limit') else by_id
+            if extra['topic_id'] in source: extras.append({**source[extra['topic_id']],'extra_id':extra['extra_id'],'requested':extra['questions'],'after_event_id':extra['after_event_id'],'over_limit':extra.get('over_limit',False)})
         question_target=questions if questions is not None else routine_questions if minutes is None else None
         if 'recovery_limit' in override:
             question_target=min(routine_questions,question_target) if question_target is not None else routine_questions
-        extra_paths=[tuple(normalize_path(e['path'])) for e in extras]
+        extra_paths=[tuple(normalize_path(e['path'])) for e in extras if not e.get('over_limit')]
         disjoint=[t for t in planning_states if not any(tuple(normalize_path(t['path']))!=p and (tuple(normalize_path(t['path']))[:len(p)]==p or p[:len(t['path'])]==tuple(normalize_path(t['path']))) for p in extra_paths)]
         from .study_capacity import capacity_limits
         from .study_swaps import swap_rows
@@ -364,7 +384,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
             allowed={r['topic_id'] for r in reservations}
             disjoint=[t for t in disjoint if t['topic_id'] in allowed]
             extras=[]; swaps=[]
-        elif override.get('mode') in {'final_rest','mock_day','mock_reserved'}: extras=[]; swaps=[]
+        elif override.get('mode') in {'final_rest','mock_day','mock_reserved','external_day'}: extras=[]; swaps=[]
         completion=None
         from .exam_practice import practice_context,decorate_practice_plan
         allocation_sessions=practice_context(agenda,as_of,sessions)['ordinary_sessions'] if override.get('area_reserved') else sessions
@@ -496,7 +516,7 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         dist=context['view']['plan']['distribution']
         plan=context['view']['plan']
         covered_area=sum(min(t['questions'],t['done']) for t in plan.get('area_tasks',[]) if t['completed'])
-        ordinary_done=max(0,plan['done_questions']-covered_area)
+        ordinary_done=max(0,plan['done_questions']-covered_area-plan.get('manual_extra_done',0))
         usage={current:{'new':dist['done_new'],'reviews':dist['done_reviews'],'total':ordinary_done}}
         # Trocas manuais têm precedência na alocação real. Reservar seu saldo
         # antes da prévia evita anunciar uma vaga que o substituto já ocupa.

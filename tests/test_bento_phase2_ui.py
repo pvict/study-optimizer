@@ -63,7 +63,7 @@ def test_today_states_do_not_change_study_records(tmp_path,monkeypatch,project_r
         assert any('questões registradas' in c.value for c in app.caption)
     if state=='complete':
         app.button(key='bento_advance').click().run()
-        assert next(e for e in app.expander if e.label=='Adiantar revisões').proto.expanded
+        assert next(e for e in app.expander if e.label=='Adicionar tema ao dia').proto.expanded
     if state=='rest':assert not any(b.key and b.key.startswith('study_') for b in app.button)
 
 

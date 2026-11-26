@@ -158,6 +158,13 @@ class RecoveryService:
             from .study_swaps import active_swaps
             extra_states=AdaptiveService(self.repo).catalog(anchor,include_parents=True)[0]
             extra_swaps=active_swaps(StudyAgenda(self.repo).records(),anchor)
+        if settings.get(anchor,{}).get('extra_topics'):
+            from .study_allocation import configured_extra_batches,extra_credits
+            from .study_swaps import swap_rows
+            manual_credits={}
+            extra_batches=configured_extra_batches(settings[anchor],extra_states)
+            extra_credits(extra_batches,extra_sessions,anchor,swap_rows(extra_swaps,sessions,anchor),manual_credits)
+            explicit_ordinary=max(0,explicit_ordinary-sum(manual_credits.values()))
         questions={};left=remaining;current=date.fromisoformat(anchor)
         while left and current<=date.fromisoformat(end):
             day=current.isoformat()
@@ -170,7 +177,7 @@ class RecoveryService:
                 if daily.get('extra_topics'):
                     from .study_allocation import pending_extra_questions
                     from .study_swaps import swap_rows
-                    room=max(0,room-pending_extra_questions(daily,extra_states,extra_sessions,day,swap_rows(extra_swaps,sessions,day)))
+                    room=max(0,room-pending_extra_questions(daily,extra_states,extra_sessions,day,swap_rows(extra_swaps,sessions,day),include_over_limit=False))
                 eligible=sum(r['count'] for r in batches if r['due']<=day)-(remaining-left)
                 n=min(left,max(0,eligible),max(0,config['daily']-(done if day==anchor else 0)),max(0,room-(done if day==anchor else 0)))
                 if n:questions[day]=n;left-=n

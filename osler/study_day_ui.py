@@ -11,11 +11,11 @@ from .study_errors_ui import render_error_context
 from .review_parts_ui import render_review_parts
 
 
-def _change_extra(service,day,topic_id,questions,revision,remove=False,topic_name=None):
+def _change_extra(service,day,topic_id,questions,revision,remove=False,topic_name=None,over_limit=False):
     try:
         if remove: notify_success(service.remove_added_topic(day,topic_id,revision),'Alterações salvas.')
         else:
-            notify_success(service.add_topic(day,topic_id,questions,revision),'Revisão adicionada ao plano de hoje.')
+            notify_success(service.add_topic(day,topic_id,questions,revision,over_limit=over_limit),'Tema adicionado ao plano de hoje.')
             st.session_state['show_pending_today_blocks']=True
         st.session_state.pop('day_form_snapshot',None)
         st.session_state['adaptive_notice']='Revisão retirada do plano. Seus resultados continuam no histórico.' if remove else f'{topic_name} foi adicionado aos blocos de hoje.'
@@ -54,7 +54,7 @@ def _day_settings(service,view,day):
 
 
 def _block_controls(service,view,item,day,go_record,go_review,hero=False):
-    mode='mistas' if item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
+    mode='mistas' if item.get('manual_pending') or item['new_questions'] and item['repeat_questions'] else 'repetidas' if item['repeat_questions'] else 'novas'
     if view['profile'].get('review_strategy')=='balanced_v2' and item.get('review_kind') in {'lot_only','combined'}:
         render_review_parts(item,day,go_record,go_review,'study',primary=hero)
     elif item.get('review_kind')=='lot_only':
@@ -69,11 +69,12 @@ def _block_controls(service,view,item,day,go_record,go_review,hero=False):
                       args=(item['topic_id'],complement,'mistas'),width='stretch',type='primary' if hero and not lots else 'secondary')
     else:
         st.button('Registrar complemento' if (item.get('planner_supply') or {}).get('external_only') else 'Registrar este bloco',key=f"study_{item['topic_id']}",type='primary' if hero else 'secondary',
-                  on_click=go_record,args=(item['topic_id'],item['questions'],mode))
+                  on_click=go_record,args=(item['topic_id'],min(1000000,item['questions']),mode))
     with st.container(key=f"today-options-{item['topic_id']}"), st.expander('Opções do bloco'):
-        render_swap_controls(service,day,item)
-        from .return_deferral_ui import render_return_deferral
-        render_return_deferral(service,view,item)
+        if not item.get('manual_pending'):
+            render_swap_controls(service,day,item)
+            from .return_deferral_ui import render_return_deferral
+            render_return_deferral(service,view,item)
         from .planner_completion_ui import render_completion_choice
         render_completion_choice(service,view,item)
         if item['added_by_user']:
@@ -90,22 +91,29 @@ def _extra_controls(service,view,day,advance=False):
     _day_settings(service,view,day)
     plan=view['plan']
     if view['states'] and plan['kind']!='descanso':
-        with st.expander('Adiantar revisões',expanded=advance or bool(st.session_state.get('extra_topic'))):
+        with st.expander('Adicionar tema ao dia',expanded=advance or bool(st.session_state.get('extra_topic'))):
             catalog,_=service.catalog(day)
+            catalog=list({t['topic_id']:t for t in [*catalog,*[t for t in view['planning_states'] if t.get('group_members')]]}.values())
             chosen=pick_topic(catalog,'extra',st.session_state.get('extra_topic'))
             if chosen:
                 selected=chosen['topic_id']
-                already=sum(e['questions'] for e in view['day']['settings']['extra_topics'] if e['topic_id']==selected)
-                maximum=min(1000,chosen['total']-already)
+                over_limit=st.checkbox('Acrescentar além dos limites do plano',value=False,key='extra_over_limit')
+                already=sum(e['questions'] for e in view['day']['settings']['extra_topics'] if e['topic_id']==selected and not e.get('over_limit'))
+                maximum=1000000 if over_limit else min(1000,chosen['total']-already)
                 if maximum>0:
                     q=st.number_input('Questões extras',min_value=1,max_value=maximum,value=min(10,maximum),key=f'extra_count_{selected}_{maximum}')
                     override=plan['routine_override']
                     capped='recovery_limit' in override and not view['day']['settings'].get('effective_goal')
                     details=f"Adicionar {q} questões de {chosen['path'][-1]} aos blocos de hoje."
-                    if capped:
+                    if over_limit:
+                        details+=' São adicionais à meta e às atividades já previstas.'
+                        total=plan['target_questions']+override.get('recovery_reserved',0)+q
+                        st.caption(f"Total do dia com retornos externos: {total} questões.")
+                        if q>chosen['total']:st.caption(f"Acervo conhecido: {chosen['total']} questões. Use o banco completo ou questões repetidas para complementar.")
+                    elif capped:
                         details+=' Elas entram na carga da retomada e podem reduzir as revisões externas previstas para hoje.'
                     confirm_button('Adicionar ao meu dia',on_click=_change_extra,
-                                   args=(service,day,selected,int(q),view['day']['revision']),kwargs={'topic_name':chosen['path'][-1]},
+                                   args=(service,day,selected,int(q),view['day']['revision']),kwargs={'topic_name':chosen['path'][-1],'over_limit':over_limit},
                                    details=details,width='stretch',action_key='study_day_ui_104')
                 else: st.caption('A quantidade conhecida desse banco já foi adicionada hoje.')
             st.caption('Só entra no progresso depois que você registrar o resultado.')

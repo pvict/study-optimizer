@@ -138,6 +138,34 @@ def test_recovery_refuses_extra_that_would_exceed_room_after_recorded_work(tmp_p
     assert plan['target_questions']+plan['routine_override']['recovery_reserved']==80
 
 
+def test_free_extra_preserves_recovery_capacity_and_automatic_blocks(tmp_path,monkeypatch):
+    s=configured(tmp_path,monkeypatch,area=20)
+    before=s.overview(DAY)['plan']
+    before_items={i['topic_id']:i['questions'] for i in before['items']}
+    s.add_topic(DAY,'F',150,0,over_limit=True)
+    added=s.overview(DAY)['plan']
+    after_items={i['topic_id']:i['questions'] for i in added['items']}
+    assert after_items=={**before_items,'F':before_items.get('F',0)+150}
+    assert added['target_questions']==before['target_questions']+150
+    assert added['routine_override']==before['routine_override']
+    assert added['area_tasks']==before['area_tasks']
+    assert added['manual_extra_questions']==150
+    assert s.store.events()==[]
+    assert s.preview_day_goal(DAY,230)['after']['total']==230
+
+    s.save_entry(StudyEntry(['Área','F'],DAY,145,110,mode='mistas'),'extra-real')
+    plan=s.overview(DAY)['plan']
+    assert plan['manual_extra_done']==145 and plan['done_questions']==145
+    assert next(i['manual_pending'] for i in plan['items'] if i['topic_id']=='F')==5
+    assert plan['routine_override']['recovery_reserved']==30
+    assert plan['base_questions']==before['base_questions']
+    s.remove_added_topic(DAY,'F',1)
+    assert s.store.active(DAY)[0]['entry']['questions']==145
+    plan=s.overview(DAY)['plan']
+    assert plan['manual_extra_done']==145 and plan['manual_extra_questions']==145
+    assert plan['routine_override']['recovery_reserved']==30
+
+
 def test_rest_preview_has_zero_capacity_in_every_category(tmp_path,monkeypatch):
     s=configured(tmp_path,monkeypatch)
     after=s.preview_day_goal(DAY,80,kind='descanso')['after']

@@ -17,7 +17,8 @@ def render_day_goal(service,view,day,prefix='today'):
         st.session_state[rkey]=record['settings']['kind']=='descanso'
         st.session_state[init]=tag
     with st.form('day_goal' if prefix=='today' else 'calendar_day_'+day):
-        q=st.number_input('Meta total de questões',min_value=1,max_value=1000,key=qkey,
+        manual=view['plan'].get('manual_extra_questions',0)
+        q=st.number_input('Meta total de questões',min_value=1,max_value=1000+manual,key=qkey,
                           help='Inclui questões dos temas, treino por área e revisões externas reservadas.')
         rest=st.checkbox('Hoje é dia de descanso' if prefix=='today' else 'Descanso',key=rkey)
         submit=st.form_submit_button('Ver prévia da meta',key=prefix+'_goal_preview')

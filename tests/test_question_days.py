@@ -89,6 +89,23 @@ def test_adding_to_only_available_topic_keeps_the_base_plan(tmp_path,sample_pdf)
     assert view['plan']['items'][0]['extra_pending']==10
 
 
+def test_free_addition_to_same_topic_does_not_replace_its_base_block(tmp_path,sample_pdf):
+    repo,*_=setup_assessment(tmp_path,sample_pdf)
+    service=AdaptiveService(repo)
+    day='2026-10-15'
+    t=max(service.overview(day)['states'],key=lambda t:t['total'])
+    service.catalog=lambda day,include_parents=False:([t],{})
+    service.configure_day(day,20,'normal',0)
+    before=service.overview(day)['plan']['questions']
+    service.add_topic(day,t['topic_id'],t['total']+50,1,over_limit=True)
+    service.add_topic(day,t['topic_id'],7,2,over_limit=True)
+    plan=service.overview(day)['plan']
+    assert len(plan['items'])==1
+    assert plan['items'][0]['manual_pending']==t['total']+57
+    assert plan['questions']==before+t['total']+57
+    assert service.overview('2026-10-16')['plan']['manual_extra_questions']==0
+
+
 def test_extra_after_over_target_and_second_addition_require_new_work(tmp_path,sample_pdf):
     repo,*_=setup_assessment(tmp_path,sample_pdf)
     service=AdaptiveService(repo)

@@ -41,7 +41,8 @@ def goal_summary(view):
 class DayGoalServiceMixin:
     def preview_day_goal(self,day,questions,kind='normal'):
         valid_date(day)
-        StudyDay(questions=questions,kind=kind,effective_goal=True).validate()
+        if type(questions) is not int or questions<=0:
+            raise ValueError('Informe uma meta positiva de questões.')
         token=self.agenda.token();before=self.overview(day)
         if before['plan'].get('not_started'):
             raise ValueError('Este dia é anterior ao início do cronograma. Ajuste a data de início em Ajustes.')
@@ -54,6 +55,9 @@ class DayGoalServiceMixin:
         external_done=recovery.get('done_today',0) if recovery.get('anchor')==day else 0
         pending_area=sum(max(0,t['questions']-t.get('done',0)) for t in plan.get('area_tasks',[]) if not t['completed'])
         record=self.store.day(day,self.store.profile()['profile']['max_questions'])
+        manual=sum(e['questions'] for e in record['settings']['extra_topics'] if e.get('over_limit'))
+        base_questions=questions-manual if kind!='descanso' else min(1000,questions)
+        StudyDay(questions=base_questions,kind=kind,effective_goal=True).validate()
         from .study_allocation import pending_extra_questions
         from .study_swaps import swap_rows
         from .exam_practice import practice_context
@@ -68,7 +72,7 @@ class DayGoalServiceMixin:
         if kind!='descanso' and questions<minimum:
             raise ValueError(f'Este dia já tem {minimum} questões realizadas ou reservadas para treino e extras. '
                              f'Use uma meta de pelo menos {minimum} ou remaneje o treino e retire os extras.')
-        settings=replace(StudyDay(**record['settings']),questions=questions,kind=kind,effective_goal=True)
+        settings=replace(StudyDay(**record['settings']),questions=base_questions,kind=kind,effective_goal=True)
         with _simulation(self) as staged:
             staged.store.save_day(day,settings,record['revision'])
             after=staged.overview(day)

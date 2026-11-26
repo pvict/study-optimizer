@@ -26,6 +26,16 @@ def test_missed_plan_is_net_of_actual_work_and_only_latest_day_plan_counts():
     assert len(rows)==1 and rows[0]['path'][-1]=='B' and rows[0]['missed_questions']==12
 
 
+def test_free_extras_do_not_turn_into_extra_backlog_the_next_day():
+    from osler.study_replanning import collect_backlog
+    states=topic_states([topic('B')],[],[],{},'2026-10-15',AdaptiveProfile())
+    events=[session('B',day='2026-10-14',n=8)]
+    saved=[{'id':1,'plan':{'date':'2026-10-14','items':[
+        {'path':['Área','B'],'questions':120,'manual_pending':100}]}}]
+    rows=collect_backlog(states,events,saved,'2026-10-15')
+    assert len(rows)==1 and rows[0]['missed_questions']==12
+
+
 def test_preview_respects_capacity_rest_and_risk_order_without_changing_evidence():
     from osler.study_replanning import collect_backlog,preview_replan
     p=AdaptiveProfile(max_questions=60,max_topics=2,new_share=.5)
