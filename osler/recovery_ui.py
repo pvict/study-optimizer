@@ -76,7 +76,7 @@ def render_recovery(service,view):
                 config={'id':-1,'total':int(total),'daily':int(daily),'limit':int(limit),'card_target':int(target),
                     'card_ceiling':int(ceiling),'start':start.isoformat(),'topics':topics,
                     'snapshot_id':-1 if upload else current['snapshot_id'],'carried_returns':recovery.future_carry(view['date'])}
-                projected=recovery.projection(view['date'],service.store.days(),view['agenda']['overrides'],view['profile']['exam_date'],config)
+                projected=recovery.projection(view['date'],service.store.days(),view['agenda']['overrides'],view['profile']['exam_date'],config,view['agenda']['rows'])
                 if projected['unassigned_questions'] or projected['unassigned_cards']:
                     raise ValueError('A carga não cabe até a prova. Ajuste os limites ou a data antes de aplicar.')
                 st.session_state['quantity_recovery_preview']={'token':service.agenda.token(),'total':int(total),'daily':int(daily),

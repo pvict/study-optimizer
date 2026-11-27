@@ -33,6 +33,18 @@ def test_current_capacity_protects_one_old_contact_despite_hypothetical_future_p
     assert all(not t['review_committed'] for t in states)
 
 
+def test_adaptive_priority_accounts_for_limited_practice_at_equal_incidence():
+    from test_adaptive_planning import topic
+    topics=[topic('Pouco',answered=2),topic('Muito',answered=60)]
+    datasets=[{'id':1,'institutions':['A'],'observed_date':'2026-10-15','unit':'questoes',
+               'rows':[{'path':t['path'],'value':10} for t in topics]}]
+    p=AdaptiveProfile(review_strategy='balanced_v2',workload_mode='adaptive',institution_weights={'A':1})
+    states=topic_states(topics,[],datasets,p.institution_weights,'2026-10-15',p)
+    by_id={t['topic_id']:t for t in states}
+    assert by_id['Pouco']['coverage_gap_priority']>by_id['Muito']['coverage_gap_priority']
+    assert review_order(by_id['Pouco'],'2026-10-15')<review_order(by_id['Muito'],'2026-10-15')
+
+
 def test_protected_intake_never_displaces_full_real_commitment_or_rest():
     p=AdaptiveProfile(max_questions=20,max_topics=1,new_share=.5,workload_mode='adaptive')
     states=topic_states([imported('old',57),imported('real',57)],[],[],{},'2026-10-28',p)

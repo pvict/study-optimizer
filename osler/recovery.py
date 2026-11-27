@@ -2,6 +2,7 @@
 from datetime import date,timedelta
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import replace
 import json
 
 EXCLUSIVE={'mock_day','mock_reserved','final_rest','final_review','external_day'}
@@ -114,32 +115,81 @@ class RecoveryService:
         return StudyAgenda(self.repo).append({'kind':'recovery.quantity.generated','plan_id':config['id'],
             'day':day,'count':count,'sequence':len(self.events())},token)
 
-    def projection(self,as_of,settings,overrides,end,config=None):
+    def _rank_decks(self,topics,progress,day,queue_start,sessions,reservations,context=None):
+        from .adaptive_service import AdaptiveService
+        from .adaptive_planning import incidence_weights,topic_states
+        from .error_cards import plan_error_cards
+        from .models import normalize_path
+        from .study_models import AdaptiveProfile
+
+        if context:
+            from .topic_catalog import is_practice_topic
+            profile=context['profile']
+            catalog=[t for t in context['catalog'] if is_practice_topic(t)]
+            contacts=context['contacts']
+            datasets=context['datasets']
+        else:
+            service=AdaptiveService(self.repo)
+            profile=AdaptiveProfile(**service.store.profile()['profile'])
+            guide=service.guide.settings()['settings']
+            if not profile.institution_weights and guide['institutions']:
+                profile=replace(profile,institution_weights=dict.fromkeys(guide['institutions'],1))
+            catalog=service.catalog(day)[0]
+            contacts=[(r['path'],r['day']) for r in service.guide.days() if r['status']!='descanso' and r['path']]
+            datasets=service.guide.datasets()
+        incidence=incidence_weights(catalog,datasets,profile.institution_weights,day,profile.parameters)
+        deck_paths={tuple(normalize_path(t['path'])) for t in topics}
+        relevant=[t for t in catalog if tuple(normalize_path(t['path'])) in deck_paths]
+        states=topic_states(relevant,sessions,datasets,profile.institution_weights,day,profile,contacts,incidence_context=incidence)
+        horizon=(date.fromisoformat(day)+timedelta(days=7)).isoformat()
+        related={t['topic_id'] for t in states if t['review_committed'] and t['next_review'] and day<=t['next_review']<=horizon}
+        related.update(r['topic_id'] for r in reservations if r.get('remaining',0)>0 and r['date']<=horizon)
+        ranked=plan_error_cards(topics,progress,states,day,0,related,queue_start)
+        order={t['topic_id']:i for i,t in enumerate(ranked)}
+        return sorted(topics,key=lambda t:order.get(t['topic_id'],len(order))),sorted(related)
+
+    def projection(self,as_of,settings,overrides,end,config=None,reservations=(),card_context=None):
         config=config or self.settings()
         if not config:return None
         from .planner_service import today_local
         anchor=max(config['start'],min(as_of,today_local().isoformat()))
+        if card_context and card_context['day']!=anchor:card_context=None
         events=self.events()
         from .recurring_questions import outstanding_batches
         batches=outstanding_batches(config,events,anchor)
         done=sum(e['count'] for e in events if e['kind']=='recovery.quantity.done' and e['day']==anchor)
         remaining=sum(r['count'] for r in batches)
         due_now=sum(r['count'] for r in batches if r['due']<=anchor)
+        from .study_storage import StudyStore
+        sessions=card_context['sessions'] if card_context else StudyStore(self.repo).active(anchor)
         covered=defaultdict(int);cards_done=0;large_studied=set()
-        if config['topics']:
-            from .error_cards_service import ErrorCardsService
-            original_counts={t['topic_id']:t['count'] for t in config['topics']}
-            for row in ErrorCardsService(self.repo).history():
-                if not row['voided'] and row['snapshot_id']==config['snapshot_id'] and row['day']<=anchor:
-                    covered[row['topic_id']]+=row['covered']
-                    if row['day']==anchor:cards_done+=row['covered']+row['repeats']
-                    if original_counts.get(row['topic_id'],0)>config['card_ceiling']:
-                        large_studied.add(row['day'])
-        decks=project_decks(config['topics'],covered,anchor,end,settings,overrides,config['card_target'],config['card_ceiling'],cards_done)
+        progress=defaultdict(lambda:{'covered':0,'last_day':None})
+        related=[]
+        queue_start=anchor
+        # Use o lote vigente e as criações que ainda não foram absorvidas pelo HTML.
+        from .error_cards_service import ErrorCardsService
+        cards=ErrorCardsService(self.repo)
+        card_events,snapshot,queue,_=cards._context(anchor)
+        if config['snapshot_id']>=0 and (queue['has_queue'] or snapshot):
+            config={**config,'topics':queue['topics'],'snapshot_id':queue['snapshot_id']}
+            queue_start=queue['queue_start'] or anchor
+        original_counts={t['topic_id']:t['count'] for t in config['topics']}
+        for row in cards._history(card_events):
+            if row['voided'] or row['day']>anchor:continue
+            if row['day']==anchor:cards_done+=row['covered']+row['repeats']
+            if row['snapshot_id']!=config['snapshot_id']:continue
+            key=row['topic_id']
+            covered[key]+=row['covered']
+            progress[key]['covered']+=row['covered']
+            progress[key]['last_day']=max(progress[key]['last_day'] or '',row['day'])
+            if original_counts.get(key,0)>config['card_ceiling']:large_studied.add(row['day'])
+        if cards_done>config['card_ceiling']:large_studied.add(anchor)
+        topics=config['topics']
+        if topics:
+            topics,related=self._rank_decks(topics,progress,anchor,queue_start,sessions,reservations,card_context)
+        decks=project_decks(topics,covered,anchor,end,settings,overrides,config['card_target'],config['card_ceiling'],cards_done)
         # Capacidade externa depende também de treinos e dos dias de deck grande.
         large={r['date'] for r in decks if r['cards']>config['card_ceiling']}|large_studied
-        from .study_storage import StudyStore
-        sessions=StudyStore(self.repo).active(anchor)
         ordinary=sum(r['entry']['questions'] for r in sessions
                      if r['entry']['day']==anchor and r['entry']['kind']=='bloco')
         extra_sessions=sessions
@@ -184,11 +234,11 @@ class RecoveryService:
             current+=timedelta(days=1)
         # Reservas não mudam de ordem só porque o calendário pediu uma data futura.
         return {'config':config,'remaining':remaining,'done_today':done if as_of==anchor else 0,'questions':questions,'decks':decks,'anchor':anchor,'large_days':sorted(large),
-                'due_now':due_now,'future_returns':[r for r in batches if r['due']>anchor],
+                'due_now':due_now,'future_returns':[r for r in batches if r['due']>anchor],'card_related_topics':related,
                 'unassigned_questions':left,'unassigned_cards':sum(max(0,t['count']-covered[t['topic_id']]) for t in config['topics'])-sum(r['cards'] for r in decks)}
 
-    def decorate(self,as_of,settings,overrides,end):
-        projection=self.projection(as_of,settings,overrides,end)
+    def decorate(self,as_of,settings,overrides,end,reservations=(),card_context=None):
+        projection=self.projection(as_of,settings,overrides,end,reservations=reservations,card_context=card_context)
         if not projection:return overrides,None
         result=deepcopy(overrides);c=projection['config'];start=projection['anchor']
         large=set(projection['large_days'])

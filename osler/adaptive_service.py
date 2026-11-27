@@ -270,11 +270,15 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
             profile=replace(profile,institution_weights={name:1 for name in guide.institutions})
         all_topics,sources=self.catalog(as_of,include_parents=True)
         sessions=self.store.active(as_of)
+        contacts=[(d['path'],d['day']) for d in self.guide.days() if d['status']!='descanso' and d['path']]
+        datasets=self.guide.datasets()
         dated=sorted(sessions,key=lambda s:(s['entry']['day'],s['id']))
         measured=[e['entry']['minutes']/e['entry']['questions'] for e in dated
                   if e['entry']['kind']=='bloco' and e['entry'].get('minutes') and e['entry']['questions']>0][-20:]
         effective=replace(profile,minutes_per_question=max(.25,median(measured))) if measured else profile
-        agenda=self.agenda.active(sessions,as_of) if _agenda_override is None else _agenda_override
+        card_context={'day':as_of,'catalog':all_topics,'sessions':sessions,'profile':profile,
+                      'contacts':contacts,'datasets':datasets}
+        agenda=self.agenda.active(sessions,as_of,card_context=card_context) if _agenda_override is None else _agenda_override
         if profile.start_date:
             agenda=deepcopy(agenda)
             for reservation in agenda['rows']:
@@ -284,8 +288,6 @@ class AdaptiveService(DayGoalServiceMixin,PreventiveServiceMixin,CapacityService
         config=special_config(day_settings.to_dict(),override)
         if override.get('mode') in {'final_rest','mock_day','mock_reserved'}: kind='descanso'
         effective,routine_questions=effective_routine(effective,config,override)
-        contacts=[(d['path'],d['day']) for d in self.guide.days() if d['status']!='descanso' and d['path']]
-        datasets=self.guide.datasets()
         contexts,_,_=active_incidence_sources(datasets,effective.institution_weights,as_of)
         all_topics=classify_theme_context(all_topics,[dataset['_index'] for dataset,_ in contexts],as_of,sessions,contacts)
         topics=[t for t in all_topics if is_practice_topic(t)]

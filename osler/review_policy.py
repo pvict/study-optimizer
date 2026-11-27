@@ -2,7 +2,7 @@
 from math import ceil
 from .planning import _date
 
-POLICY_VERSION='4.9'
+POLICY_VERSION='4.10'
 
 
 def initial_interval(snapshot,profile,incidence_strength):
@@ -43,6 +43,7 @@ def review_order(state,day):
     # Não estima esquecimento: preserva o peso institucional e o intervalo já calculados.
     wait=max(0,(_date(day)-_date(deadline)).days) if stale_initial else 0
     score=state['score']+(state['importance']*(1+wait/max(1,state.get('review_interval_days',7))) if stale_initial else 0)
+    if not committed:score+=state.get('coverage_gap_priority',0)
     recovery_due=state.get('automatic_due')
     if recovery_due and recovery_due<=day:
         delay=(_date(day)-_date(recovery_due)).days

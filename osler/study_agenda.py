@@ -109,7 +109,7 @@ class StudyAgenda:
         payload['previous_daily_id']=previous['id'] if previous else 0
         return self.store.save_plan(payload,expected_planning_token=view.get('planning_token'))
 
-    def active(self,sessions,as_of,excluded_plan_ids=(),*,proposed=None):
+    def active(self,sessions,as_of,excluded_plan_ids=(),*,proposed=None,card_context=None):
         records=self.records()
         if proposed is not None:
             records=[*records,{'id':max((r['id'] for r in records),default=0)+1,**proposed}]
@@ -181,7 +181,7 @@ class StudyAgenda:
         recovery=None
         if recovery_service.settings():
             end=self.store.profile()['profile']['exam_date']
-            overrides,recovery=recovery_service.decorate(as_of,day_settings,overrides,end)
+            overrides,recovery=recovery_service.decorate(as_of,day_settings,overrides,end,rows.values(),card_context)
         return {'rows':[r for r in rows.values() if r['remaining']>0],'overrides':overrides,'active':applies,'policies':policies,'triage_policies':triage_policies,'swaps':swaps,
                 'quantity_recovery':recovery,
                 'return_deferrals':deferrals,'return_dates':return_dates,

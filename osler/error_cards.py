@@ -99,14 +99,17 @@ def plan_error_cards(topics,progress,states,day,budget,question_ids=(),snapshot_
         accuracy=(correct+1)/(n+2) if n else None
         known=bool(state.get('incidence_known')); incidence=max(0,min(1,state.get('incidence_strength',0))) if known else .5
         last=p.get('last_day') or snapshot_day or day; age=max(0,(asof-date.fromisoformat(last)).days)
-        score=(.5+.5*incidence)*(1+(1-accuracy if accuracy is not None else .5))*(1+min(age,28)/28)
+        contact_age=state.get('days_without_contact')
+        wait=max(age,contact_age if contact_age is not None else 0)
+        score=(.5+.5*incidence)*(1+(1-accuracy if accuracy is not None else .5))*(1+min(wait,28)/28)
         sync=t['topic_id'] in question_ids
         if sync: score*=1.15
         reasons=[]
         if known and incidence>=.75:reasons.append('Incidência alta nas suas instituições')
         if n and correct/n<.6:reasons.append('Erros frequentes nas questões')
-        if sync:reasons.append('Combina com as questões de hoje')
+        if sync:reasons.append('Alinhado à agenda de questões')
         if age>=7:reasons.append(f'{age} dias sem registro de cards neste lote')
+        if contact_age is not None and contact_age>max(age,6):reasons.append(f'{contact_age} dias sem contato registrado com o tema')
         ranked.append({**t,'remaining':remaining,'accuracy':accuracy,'sample':n,'incidence_known':known,'score':score,
                        'priority':'Alta' if known and incidence>=.75 or n>=10 and correct/n<.6 else 'Regular',
                        'in_progress_today':p.get('last_day')==day and p.get('covered',0)>0,

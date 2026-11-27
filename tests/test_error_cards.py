@@ -71,6 +71,15 @@ def test_partial_work_is_real_and_the_same_deck_is_finished_first():
     assert all(t['planned'] in (0,t['remaining']) for t in v)
 
 
+def test_known_time_without_theme_contact_breaks_equal_card_wait():
+    topics=[{'topic_id':'a','path':['A'],'count':20},{'topic_id':'b','path':['B'],'count':20}]
+    states=[{'topic_id':'a','days_without_contact':2},
+            {'topic_id':'b','days_without_contact':28}]
+    ranked=plan_error_cards(topics,{},states,'2026-10-24',20,snapshot_day='2026-10-20')
+    assert ranked[0]['topic_id']=='b'
+    assert ranked[0]['planned']==20
+
+
 def test_near_goal_keeps_the_margin_from_the_original_daily_reference():
     v=plan_error_cards([{'topic_id':'a','path':['A'],'count':20}],{},[],'2026-10-24',10,reference_budget=200)
     assert v[0]['planned']==20

@@ -112,11 +112,11 @@ def _series(entries):
     return stats
 
 
-def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None,error_paths=(),return_dates=None):
+def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,contacts=None,error_paths=(),return_dates=None,*,incidence_context=None):
     day=_date(as_of)
     params=profile.parameters
     balanced=profile.review_strategy=='balanced_v2'
-    incidence=incidence_weights(topics,datasets,institution_weights,as_of,params)
+    incidence=incidence_context if incidence_context is not None else incidence_weights(topics,datasets,institution_weights,as_of,params)
     strongest_incidence=max(incidence['weights'].values(),default=0) if incidence['contexts'] else 0
     by_path=defaultdict(list)
     for event in sessions:
@@ -211,7 +211,10 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
             if latest_primary and latest_primary['rate']<params.failure_threshold: interval=min(interval,params.failure_interval)
         if balanced and (manual_adverse or registered_error): interval=min(interval,params.failure_interval)
         if reported_difficulty: interval=min(interval,params.first_interval)
-        if linked_adverse: interval=min(interval,params.first_interval)
+        # Em modo por tema, os lotes históricos continuam sinalizando risco,
+        # mas não anulam progressão já sustentada por novos blocos objetivos.
+        if linked_adverse and (profile.return_mode=='linked' or spacing['interval']<=params.first_interval):
+            interval=min(interval,params.first_interval)
         days_left=max(1,(_date(profile.exam_date)-day).days)
         interval=min(interval,max(1,days_left//4))
         interval=min(interval,profile.max_contact_gap)
@@ -337,6 +340,8 @@ def topic_states(topics,sessions,datasets,institution_weights,as_of,profile,cont
                      manual.get('questoes_distintas') or 0)
         states[-1].update(question_exposure=exposure,
             limited_practice=not states[-1]['is_new_for_day'] and exposure<profile.parameters.sufficient_sample)
+        if balanced and profile.workload_mode=='adaptive' and not committed and states[-1]['incidence_known']:
+            states[-1]['coverage_gap_priority']=importance*max(0,1-exposure/params.sufficient_sample)
         number,stage=next_stage(states[-1],as_of)
         states[-1].update({'review_number':number,'stage':stage})
     # Destaque operacional da fila inicial limitado à capacidade aproximada de uma semana.

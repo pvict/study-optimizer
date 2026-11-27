@@ -55,26 +55,57 @@ def unresolved_linked_failure(entries,pending,profile=None):
 def balanced_spacing(entries,profile,as_of,incidence_strength=0):
     from .adaptive_planning import posterior
     p=profile.parameters; interval=p.first_interval; streak=0; last=None; spaced_last=None; days=[]
+    previous=None; previous_contact=None
     for e in daily_evidence(entries,as_of,profile.min_block):
-        if e['n']<profile.min_block: continue
+        prior_contact=previous_contact
+        previous_contact=e
+        if e['n']<profile.min_block:
+            # Dois blocos curtos, em datas separadas, podem justificar um
+            # pequeno passo no espaçamento; não equivalem a dois blocos cheios.
+            half=ceil(profile.min_block/2)
+            gap=(_date(e['day'])-_date(prior_contact['day'])).days if prior_contact else 0
+            if (prior_contact and interval==p.first_interval and
+                (previous is None or previous['rate']>=p.raw_low_threshold) and
+                max(p.spaced_min_days,ceil(interval/2))<=gap<=profile.recent_days and
+                prior_contact['exact'] and e['exact'] and
+                min(prior_contact['n'],e['n'])>=half and prior_contact['n']+e['n']>=profile.min_block and
+                prior_contact['rate']>=p.raw_low_threshold and e['rate']>=p.intermediate_threshold and
+                prior_contact['mode']!='repetidas' and e['mode']!='repetidas'):
+                stats=posterior(int(prior_contact['correct']+e['correct']),prior_contact['n']+e['n'])
+                quality=max(0,min(.25,(stats['mean']-p.failure_threshold)/max(.01,profile.target_accuracy/100-p.failure_threshold)))
+                interval=min(profile.max_contact_gap,p.second_interval,ceil(interval*(1+quality*min(1,gap/interval))))
+                last=spaced_last=e['day']
+                streak=max(streak,1)
+            continue
         days.append(e['day'])
         elapsed=(_date(e['day'])-_date(spaced_last)).days if spaced_last else None
-        spaced=elapsed is None or elapsed>=max(p.spaced_min_days,interval)
+        spaced=elapsed is not None and elapsed>=max(p.spaced_min_days,ceil(interval/2))
         if e['rate']<p.failure_threshold:
             streak=0; interval=p.failure_interval; spaced_last=e['day']
-        elif e['rate']>=p.intermediate_threshold and e['exact']:
-            if not last or not streak or elapsed>max(profile.recent_days,2*interval):
+        elif e['rate']>=p.raw_low_threshold and e['exact']:
+            improving=bool(previous and previous['exact'] and
+                           p.failure_threshold<=previous['rate']<p.raw_low_threshold and
+                           previous['rate']<e['rate'] and
+                           previous['n']+e['n']>=p.sufficient_sample and
+                           previous['mode']!='repetidas' and e['mode']!='repetidas')
+            if not last or (not streak and not improving) or elapsed>max(profile.recent_days,2*interval):
                 streak=1; interval=p.first_interval; spaced_last=e['day']
             elif spaced:
                 stats=posterior(int(e['correct']),e['n'])
                 quality=max(0,min(1,(stats['mean']-p.failure_threshold)/max(.01,profile.target_accuracy/100-p.failure_threshold)))
-                streak+=1; interval=ceil(interval*(1+quality))
+                evidence=min(1,elapsed/interval)
+                if e['mode']=='repetidas' or improving and not streak: evidence*=.5
+                if e['rate']<p.intermediate_threshold: quality=min(quality,.5)
+                streak+=1; interval=ceil(interval*(1+quality*evidence))
                 if streak==2: interval=min(interval,p.second_interval)
                 spaced_last=e['day']
+            elif not streak:
+                streak=1; interval=p.first_interval; spaced_last=e['day']
         else:
             streak=0; interval=p.first_interval; spaced_last=e['day']
         interval=min(profile.max_contact_gap,interval)
         last=e['day']
+        previous=e
     return {'interval':interval,'next_due':(_date(last)+timedelta(days=interval)).isoformat() if last else None,
             'base_interval':interval,'ease':p.default_ease,'streak':streak,'last_evidence_day':last,
             'last_spaced_evidence_day':spaced_last,

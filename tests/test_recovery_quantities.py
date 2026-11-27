@@ -60,6 +60,42 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(rows[1]['decks'][0]['topic_id'],'65')
         self.assertTrue(all(r['cards']<=70 for r in rows))
 
+    def test_recovery_schedules_incident_deck_before_import_order(self):
+        from osler.adaptive_service import AdaptiveService
+        from osler.error_cards_service import ErrorCardsService
+        from osler.guide_service import GuideService
+        from osler.models import stable_topic_id
+        from osler.planner_service import today_local
+        from osler.recovery import RecoveryService
+        from osler.storage import Repository
+        from osler.study_models import AdaptiveProfile
+        from test_adaptive_planning import topic
+        from test_error_cards import node
+        with tempfile.TemporaryDirectory() as folder:
+            repo=Repository(Path(folder))
+            a=AdaptiveService(repo)
+            day=today_local().isoformat()
+            html=('<div>'+node('Área',40,branch='down')+node('Raro',20,20)+node('Incidente',20,20)+'</div>').encode()
+            cards=ErrorCardsService(repo)
+            cards.import_html(html,'cards.html',day,'pending',cards.token())
+            queue=cards._context(day)[2]
+            catalog=[{**topic(name),'topic_id':stable_topic_id(['Área',name]),'is_leaf':True}
+                     for name in ('Raro','Incidente')]
+            datasets=[{'id':1,'institutions':['USP'],'observed_date':day,'unit':'questoes',
+                       'rows':[{'path':['Área','Raro'],'value':1},{'path':['Área','Incidente'],'value':100}]}]
+            a.store.save_profile(AdaptiveProfile(institution_weights={'USP':1}),0)
+            service=RecoveryService(repo)
+            service.save(0,10,60,20,20,day,a.agenda.token(),queue['topics'],queue['snapshot_id'])
+            with patch.object(AdaptiveService,'catalog',return_value=(catalog,{})),patch.object(GuideService,'datasets',return_value=datasets):
+                projection=service.projection(day,{}, {},a.store.profile()['profile']['exam_date'])
+                self.assertEqual(projection['decks'][0]['decks'][0]['path'][-1],'Incidente')
+                self.assertEqual(sum(r['cards'] for r in projection['decks']),40)
+                from osler.study_models import StudyEntry
+                a.save_entry(StudyEntry(['Área','Incidente'],day,10,7,cards_created=5),'created-after-recovery')
+                refreshed=service.projection(day,{}, {},a.store.profile()['profile']['exam_date'])
+                self.assertEqual(sum(r['cards'] for r in refreshed['decks']),45)
+                self.assertEqual(sum(t['count'] for t in service.settings()['topics']),40)
+
     def test_finishing_daily_cards_does_not_offer_another_deck_today(self):
         from osler.recovery import project_decks
         topics=[{'topic_id':str(n),'path':['Area',str(n)],'count':n} for n in [20,30,65]]

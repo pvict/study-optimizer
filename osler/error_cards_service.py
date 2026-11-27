@@ -252,6 +252,8 @@ class ErrorCardsService:
         if question_view is None:
             from .adaptive_service import AdaptiveService
             question_view=AdaptiveService(self.repo).overview(day)
+        if routine is None and question_view.get('date')==day==today_local().isoformat() and 'profile' in question_view and 'agenda' in question_view:
+            routine={'profile':question_view['profile'],'days':StudyStore(self.repo).days(),'overrides':question_view['agenda']['overrides']}
         routine=routine or self.routine(); budget,reason=self.capacity(day,routine,settings)
         qp=question_view.get('plan',{})
         if day not in settings['days'] and (qp.get('kind')=='descanso' or qp.get('not_started')):budget=0;reason='Descanso, simulado ou antes do início'
@@ -272,8 +274,9 @@ class ErrorCardsService:
             reserved=next((r for r in recovery['decks'] if r['date']==day),{'cards':0,'decks':[]})
             recovery_deck_dates={deck['topic_id']:row['date'] for row in recovery['decks'] for deck in row['decks']}
             budget=reserved['cards']+done;reason='Decks inteiros reservados na retomada'
+        related=recovery.get('card_related_topics',[]) if reserved is not None else [i['topic_id'] for i in qp.get('items',[])]
         ranked=plan_error_cards(queue['topics'],progress,question_view.get('states',[]),day,max(0,budget-done),
-            [i['topic_id'] for i in qp.get('items',[])],queue['queue_start'],reference_budget=budget,completed_today=done,
+            related,queue['queue_start'],reference_budget=budget,completed_today=done,
             max_total=max(0,budget-done) if day in settings['days'] else None) if active else []
         if reserved is not None:
             chosen={t['topic_id']:t['count'] for t in reserved['decks']}

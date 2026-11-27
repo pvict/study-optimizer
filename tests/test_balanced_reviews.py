@@ -51,6 +51,35 @@ def test_spaced_objective_success_can_grow_without_perfect_confidence():
     assert twice['learning_state']!='dominado'  # abaixo da meta, sem domínio fictício
 
 
+def test_two_representative_moderate_encounters_can_extend_weekly_interval():
+    t=state([block(n=20,correct=15,confident=10),
+             block('2026-10-15',n=20,correct=15,confident=8)],'2026-10-16')
+    assert 7<t['review_interval_days']<14
+    assert t['learning_state']!='dominado'
+    assert t['dose_kind']=='reinforcement'
+
+
+def test_improving_near_threshold_can_extend_after_separated_blocks():
+    t=state([block(n=22,correct=15,confident=10),
+             block('2026-10-12',n=23,correct=17,confident=10)],'2026-10-13')
+    assert 7<t['review_interval_days']<14
+    # Uma falha objetiva severa exige novo primeiro contato.
+    weak=state([block(n=22,correct=10,confident=8),
+                block('2026-10-12',n=23,correct=17,confident=10)],'2026-10-13')
+    assert weak['review_interval_days']==7
+
+
+def test_two_partial_blocks_support_modest_spacing_without_mastery():
+    t=state([block(n=6,correct=6,confident=6),
+             block('2026-10-15',n=8,correct=7,confident=5)],'2026-10-16')
+    assert 7<t['review_interval_days']<=10
+    assert t['spacing']['streak']<2
+    assert t['learning_state']!='dominado'
+    too_small=state([block(n=3,correct=3,confident=3),
+                     block('2026-10-15',n=5,correct=5,confident=5)],'2026-10-16')
+    assert too_small['review_interval_days']==7
+
+
 def test_early_practice_or_linked_returns_do_not_prove_spaced_retention():
     early=state([block(),block('2026-10-09')],'2026-10-10')
     linked=state([block(),block('2026-10-15',n=4,correct=4,confident=4,mode='repetidas',review_of=block()['session_id'])],'2026-10-16')
